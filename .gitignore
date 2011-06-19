@@ -1,0 +1,14 @@
+*~
+.gitignore
+project/boot/
+project/build/target/
+project/plugins/lib_managed/
+project/plugins/project/
+project/plugins/src_managed/
+project/plugins/target/
+src/main/java/
+src_managed/
+lib_managed/
+target/
+tests/src/main/java/
+tests/target/

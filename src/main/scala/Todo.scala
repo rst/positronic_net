@@ -8,8 +8,10 @@ import _root_.android.widget.BaseAdapter
 import _root_.android.widget.EditText
 import _root_.android.widget.TextView
 import _root_.android.widget.ListView
+import _root_.android.widget.Button
 
 import _root_.android.view.View.OnKeyListener
+import _root_.android.view.View.OnClickListener
 import _root_.android.view.KeyEvent
 import _root_.android.view.View
 import _root_.android.view.ViewGroup
@@ -46,21 +48,17 @@ class TodoActivity extends Activity {
 
     val myListView = findViewById(R.id.myListView).asInstanceOf[ListView]
     val myEditText = findViewById(R.id.myEditText).asInstanceOf[EditText]
+    val addButton  = findViewById(R.id.addButton ).asInstanceOf[Button]
 
     val todoItems = new ArrayBuffer[String]
     val adapter = new TodoAdapter(todoItems)
     myListView.setAdapter(adapter)
-    myEditText.setOnKeyListener(new OnKeyListener {
-      def onKey(v: View, keyCode: Int, event: KeyEvent):Boolean = {
-        if (event.getAction() == KeyEvent.ACTION_DOWN &&
-            keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
-          todoItems += myEditText.getText.toString
-          adapter.notifyDataSetChanged()
-          myEditText.setText("")
-          return true
-        }
-        return false
+    addButton.setOnClickListener(new OnClickListener{
+      def onClick(v: View) = {
+        todoItems += myEditText.getText.toString
+        adapter.notifyDataSetChanged()
+        myEditText.setText("")
       }
-    });
+    })
   }
 }

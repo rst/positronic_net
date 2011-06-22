@@ -26,7 +26,9 @@ import _root_.android.view.LayoutInflater
 import scala.collection.mutable.IndexedSeq
 import scala.collection.mutable.ArrayBuffer
 
-class TodoAdapter(seq: IndexedSeq[String]) extends BaseAdapter {
+case class TodoItem( var description: String, var isDone: Boolean )
+
+class TodoAdapter(seq: IndexedSeq[TodoItem]) extends BaseAdapter {
 
   def getView(position: Int, convertView: View, parent: ViewGroup):View = {
     val view = 
@@ -36,20 +38,18 @@ class TodoAdapter(seq: IndexedSeq[String]) extends BaseAdapter {
                                                  parent, false)
 
     val textView = view.asInstanceOf[TextView]
-    textView.setText(getItem(position))
+    textView.setText(getItem(position).description)
 
     return textView
   }
 
   def getItemId(position: Int) = getItem(position).hashCode()
-  def getItem(position: Int):String = seq(position)
+  def getItem(position: Int):TodoItem = seq(position)
   def getCount = seq.size
 }
 
 class EditDialog( base: TodoActivity, 
-                  adapter: TodoAdapter,
-                  todos: ArrayBuffer[String] ) 
-extends Dialog( base ) {
+                  todos: ArrayBuffer[TodoItem] ) extends Dialog( base ) {
 
   setContentView(R.layout.dialog)
 
@@ -58,22 +58,22 @@ extends Dialog( base ) {
 
   findViewById(R.id.saveButton).asInstanceOf[Button].setOnClickListener(new OnClickListener{
     def onClick(dummy:View) = {
-      todos( editingPosn ) = editTxt.getText().toString()
-      adapter.notifyDataSetChanged()
+      todos( editingPosn ).description = editTxt.getText().toString()
+      base.adapter.notifyDataSetChanged()
       dismiss()
     }
   })
   findViewById(R.id.deleteButton).asInstanceOf[Button].setOnClickListener(new OnClickListener{
     def onClick(dummy:View) = {
       todos.remove( editingPosn )
-      adapter.notifyDataSetChanged()
+      base.adapter.notifyDataSetChanged()
       dismiss()
     }
   })
   
   def doEdit( posn: Int ) = {
     editingPosn = posn
-    editTxt.setText( todos(posn) )
+    editTxt.setText( todos(posn).description )
     show()
   }
   
@@ -81,9 +81,9 @@ extends Dialog( base ) {
 
 class TodoActivity extends Activity {
 
-  lazy val todoItems = new ArrayBuffer[String]
+  lazy val todoItems = new ArrayBuffer[TodoItem]
   lazy val adapter = new TodoAdapter(todoItems)
-  lazy val editDialog = new EditDialog( this, adapter, todoItems )
+  lazy val editDialog = new EditDialog( this, todoItems )
 
   override def onCreate(savedInstanceState: Bundle) {
 
@@ -103,7 +103,7 @@ class TodoActivity extends Activity {
     
     addButton.setOnClickListener(new OnClickListener{
       def onClick(v: View) = {
-        todoItems += myEditText.getText.toString
+        todoItems += TodoItem( myEditText.getText.toString, false )
         adapter.notifyDataSetChanged()
         myEditText.setText("")
       }

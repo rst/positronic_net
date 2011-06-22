@@ -1,10 +1,16 @@
 package rst.todo
 
 import _root_.android.os.Bundle
+
 import _root_.android.app.Activity
+import _root_.android.app.Dialog
+
+import _root_.android.util.Log
 import _root_.android.content.Context
 
+import _root_.android.widget.Adapter
 import _root_.android.widget.BaseAdapter
+import _root_.android.widget.AdapterView
 import _root_.android.widget.EditText
 import _root_.android.widget.TextView
 import _root_.android.widget.ListView
@@ -40,7 +46,45 @@ class TodoAdapter(seq: IndexedSeq[String]) extends BaseAdapter {
   def getCount = seq.size
 }
 
+class EditDialog( base: TodoActivity, 
+                  adapter: TodoAdapter,
+                  todos: ArrayBuffer[String] ) 
+extends Dialog( base ) {
+
+  setContentView(R.layout.dialog)
+
+  val editTxt = findViewById(R.id.dialogEditText).asInstanceOf[EditText]
+  var editingPosn: Int = -1
+
+  findViewById(R.id.saveButton).asInstanceOf[Button].setOnClickListener(new OnClickListener{
+    def onClick(dummy:View) = {
+      todos( editingPosn ) = editTxt.getText().toString()
+      adapter.notifyDataSetChanged()
+      dismiss()
+    }
+  })
+  findViewById(R.id.deleteButton).asInstanceOf[Button].setOnClickListener(new OnClickListener{
+    def onClick(dummy:View) = {
+      todos.remove( editingPosn )
+      adapter.notifyDataSetChanged()
+      dismiss()
+    }
+  })
+  
+  def doEdit( posn: Int ) = {
+    editingPosn = posn
+    editTxt.setText( todos(posn) )
+    show()
+  }
+  
+}
+
 class TodoActivity extends Activity {
+
+  lazy val todoItems = new ArrayBuffer[String]
+  lazy val adapter = new TodoAdapter(todoItems)
+  lazy val editDialog = new EditDialog( this, adapter, todoItems )
+
   override def onCreate(savedInstanceState: Bundle) {
 
     super.onCreate(savedInstanceState)
@@ -50,9 +94,13 @@ class TodoActivity extends Activity {
     val myEditText = findViewById(R.id.myEditText).asInstanceOf[EditText]
     val addButton  = findViewById(R.id.addButton ).asInstanceOf[Button]
 
-    val todoItems = new ArrayBuffer[String]
-    val adapter = new TodoAdapter(todoItems)
     myListView.setAdapter(adapter)
+    myListView.setOnItemClickListener(new AdapterView.OnItemClickListener{
+      def onItemClick(a: AdapterView[_], v:View, posn: Int, id: Long) = {
+        editDialog.doEdit( posn )
+      }
+    })
+    
     addButton.setOnClickListener(new OnClickListener{
       def onClick(v: View) = {
         todoItems += myEditText.getText.toString

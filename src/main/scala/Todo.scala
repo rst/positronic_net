@@ -14,7 +14,8 @@ import _root_.android.widget.AdapterView
 import _root_.android.widget.EditText
 import _root_.android.widget.TextView
 import _root_.android.widget.ListView
-import _root_.android.widget.Button
+
+import org.triplesec.Button
 
 import _root_.android.view.View.OnKeyListener
 import _root_.android.view.View.OnClickListener
@@ -56,20 +57,16 @@ class EditDialog( base: TodoActivity,
   val editTxt = findViewById(R.id.dialogEditText).asInstanceOf[EditText]
   var editingPosn: Int = -1
 
-  findViewById(R.id.saveButton).asInstanceOf[Button].setOnClickListener(new OnClickListener{
-    def onClick(dummy:View) = {
-      todos( editingPosn ).description = editTxt.getText().toString()
-      base.adapter.notifyDataSetChanged()
-      dismiss()
-    }
-  })
-  findViewById(R.id.deleteButton).asInstanceOf[Button].setOnClickListener(new OnClickListener{
-    def onClick(dummy:View) = {
-      todos.remove( editingPosn )
-      base.adapter.notifyDataSetChanged()
-      dismiss()
-    }
-  })
+  findViewById(R.id.saveButton).asInstanceOf[Button].onClick{
+    todos( editingPosn ).description = editTxt.getText().toString()
+    base.adapter.notifyDataSetChanged()
+    dismiss()
+  }
+  findViewById(R.id.deleteButton).asInstanceOf[Button].onClick {
+    todos.remove( editingPosn )
+    base.adapter.notifyDataSetChanged()
+    dismiss()
+  }
   
   def doEdit( posn: Int ) = {
     editingPosn = posn
@@ -92,7 +89,6 @@ class TodoActivity extends Activity {
 
     val myListView = findViewById(R.id.myListView).asInstanceOf[ListView]
     val myEditText = findViewById(R.id.myEditText).asInstanceOf[EditText]
-    val addButton  = findViewById(R.id.addButton ).asInstanceOf[Button]
 
     myListView.setAdapter(adapter)
     myListView.setOnItemClickListener(new AdapterView.OnItemClickListener{
@@ -101,12 +97,10 @@ class TodoActivity extends Activity {
       }
     })
     
-    addButton.setOnClickListener(new OnClickListener{
-      def onClick(v: View) = {
-        todoItems += TodoItem( myEditText.getText.toString, false )
-        adapter.notifyDataSetChanged()
-        myEditText.setText("")
-      }
-    })
+    findViewById(R.id.addButton).asInstanceOf[Button].onClick {
+      todoItems += TodoItem( myEditText.getText.toString, false )
+      adapter.notifyDataSetChanged()
+      myEditText.setText("")
+    }
   }
 }

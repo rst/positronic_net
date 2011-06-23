@@ -16,6 +16,7 @@ import _root_.android.widget.TextView
 import _root_.android.widget.ListView
 
 import org.triplesec.Button
+import org.triplesec.IndexedSeqAdapter
 
 import _root_.android.view.View.OnKeyListener
 import _root_.android.view.View.OnClickListener
@@ -29,24 +30,12 @@ import scala.collection.mutable.ArrayBuffer
 
 case class TodoItem( var description: String, var isDone: Boolean )
 
-class TodoAdapter(seq: IndexedSeq[TodoItem]) extends BaseAdapter {
+class TodoAdapter(seq: IndexedSeq[TodoItem]) 
+extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) {
 
-  def getView(position: Int, convertView: View, parent: ViewGroup):View = {
-    val view = 
-      if (convertView != null) convertView
-      else parent.getContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE)
-           .asInstanceOf[LayoutInflater].inflate(R.layout.todo_row,
-                                                 parent, false)
-
-    val textView = view.asInstanceOf[TextView]
-    textView.setText(getItem(position).description)
-
-    return textView
+  override def fillView( view: View, position: Int ) = {
+    view.asInstanceOf[ TextView ].setText(getItemTyped( position ).description)
   }
-
-  def getItemId(position: Int) = getItem(position).hashCode()
-  def getItem(position: Int):TodoItem = seq(position)
-  def getCount = seq.size
 }
 
 class EditDialog( base: TodoActivity, 

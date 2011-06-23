@@ -2,6 +2,7 @@ package org.triplesec
 
 import _root_.android.content.Context
 import _root_.android.util.AttributeSet
+import _root_.android.view.LayoutInflater
 
 trait DryerHandlers {
 
@@ -40,4 +41,66 @@ class Button( context: Context, attrs: AttributeSet )
  extends _root_.android.widget.Button( context, attrs ) with DryerHandlers {
 
    def this( context: Context ) = this( context, null )
+}
+
+// Adapters for Scala collections.  Also support an alternative
+// API which DRYs up common invocation patterns.
+//
+// Note that right now, there's some ugliness due to the method
+// "getItem(_:Int):Object" declared in the Adapter interface;
+// that entails both the "T <: Object" type class restriction,
+// and the getItemTyped silliness.
+
+class IndexedSeqAdapter[T <: Object](seq: IndexedSeq[T], 
+                                     itemViewResourceId: Int = 0, 
+                                     itemTextResourceId: Int = 0
+                                    ) 
+extends _root_.android.widget.BaseAdapter {
+
+  var inflater: LayoutInflater = null
+
+  def getView( position: Int, 
+               convertView: android.view.View,
+               parent: android.view.ViewGroup ): android.view.View = {
+
+    val view = 
+      if (convertView != null) {
+        convertView
+      }
+      else {
+        if (inflater == null) {
+          inflater = 
+            parent.getContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE)
+             .asInstanceOf[LayoutInflater]
+        }
+        createView( parent )
+      }
+
+    fillView( view, position )
+    return view
+  }
+
+  def createView(parent: android.view.ViewGroup): android.view.View = {
+    assert( itemViewResourceId != 0 )
+    inflater.inflate( itemViewResourceId, parent, false )
+  }
+
+  def fillView( view: android.view.View, position: Int ) = {
+    val textView = 
+      (if (itemTextResourceId != 0)
+        view.findViewById( itemTextResourceId )
+       else
+         view).asInstanceOf[ android.widget.TextView ]
+
+    textView.setText( getItem( position ).toString )
+  }
+
+  // Accessors.  Note that getItem can't be declared to return a [T],
+  // because that conflicts with the return type declared in Adapter.
+  // Thus, getItemTyped.
+
+  def getItem(position: Int):Object = seq(position)
+  def getItemTyped(position: Int):T = seq(position)
+  def getItemId(position: Int) = getItem(position).hashCode()
+  def getCount = seq.size
 }

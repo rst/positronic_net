@@ -5,13 +5,13 @@ import org.triplesec.IndexedSeqAdapter
 import org.triplesec.Dialog
 import org.triplesec.EditText
 import org.triplesec.Activity
+import org.triplesec.ListView
 
 import _root_.android.util.Log
 import _root_.android.content.Context
 
 import _root_.android.widget.AdapterView
 import _root_.android.widget.TextView
-import _root_.android.widget.ListView
 
 import _root_.android.view.View.OnKeyListener
 import _root_.android.view.View.OnClickListener
@@ -75,13 +75,11 @@ class TodoActivity extends Activity( layoutResourceId = R.layout.main ) {
 
   onCreate{
 
-    myListView.setAdapter(adapter)
-    myListView.setOnItemClickListener(new AdapterView.OnItemClickListener{
-      def onItemClick(a: AdapterView[_], v:View, posn: Int, id: Long) = {
-        editDialog.doEdit( posn )
-      }
-    })
-    
+    // Setup
+    myListView.setAdapter( adapter )
+
+    // Event handlers...
+    myListView.onItemClick { (view, posn, id) => editDialog.doEdit( posn ) }
     findView( TR.addButton ).onClick { doAdd }
     myEditText.onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
   }

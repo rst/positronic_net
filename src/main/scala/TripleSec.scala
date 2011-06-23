@@ -4,6 +4,7 @@ import _root_.android.content.Context
 import _root_.android.util.AttributeSet
 import _root_.android.view.LayoutInflater
 import _root_.android.os.Bundle
+import _root_.android.widget.AdapterView
 
 import rst.todo.TypedResource           // bletch! XXX TOFIX
 
@@ -80,29 +81,46 @@ trait DryerHandlers extends DryerViewOps {
 // variants, with the StyledFoo having the three-arg constructor.
 // Which would require all the actual methods to be declared in
 // traits to avoid duplication here; fortunately, that's not hard.
+//
+// Note also that we *must* define the one-arg context-only 
+// constructors --- scala code doesn't know the difference, but
+// Java code does, particularly the LayoutInflater.
 
-class Button( context: Context, attrs: AttributeSet )
+class Button( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.Button( context, attrs ) with DryerHandlers {
-
    def this( context: Context ) = this( context, null )
 }
 
-class EditText( context: Context, attrs: AttributeSet )
+class EditText( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.EditText( context, attrs ) with DryerHandlers {
+   def this( context: Context ) = this( context, null )
+}
+
+class ListView( context: Context, attrs: AttributeSet = null )
+ extends _root_.android.widget.ListView( context, attrs ) with DryerHandlers {
 
    def this( context: Context ) = this( context, null )
+
+   def onItemClick( func: (_root_.android.view.View, Int, Long) => Unit) = {
+     setOnItemClickListener( new AdapterView.OnItemClickListener {
+       def onItemClick( parent: AdapterView[_], view: _root_.android.view.View,
+                        position: Int, id: Long ) = { 
+         func( view, position, id ) 
+       }
+     })
+   }
+   
 }
 
 class Dialog( context: Context, theme: Int = 0, layoutResourceId: Int = 0 )
-extends android.app.Dialog( context, theme ) with DryerViewOps {
+ extends android.app.Dialog( context, theme ) with DryerViewOps {
 
   if ( layoutResourceId != 0 )
     setContentView( layoutResourceId )
-
 }
 
 class Activity( layoutResourceId: Int = 0 )
-extends android.app.Activity with DryerViewOps {
+ extends android.app.Activity with DryerViewOps {
 
   // Handlers for lifecycle events.  The idea here is simply to
   // eliminate the ceremony of having to call super.foo() when

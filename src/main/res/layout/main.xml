@@ -20,7 +20,7 @@
       android:text="Add Item"
     />
   </LinearLayout>
-  <ListView  
+  <org.triplesec.ListView  
     android:id="@+id/myListView"
     android:layout_width="fill_parent" 
     android:layout_height="wrap_content" 

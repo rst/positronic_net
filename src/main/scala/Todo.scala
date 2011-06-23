@@ -1,22 +1,20 @@
 package rst.todo
 
+import org.triplesec.Button
+import org.triplesec.IndexedSeqAdapter
+import org.triplesec.Dialog
+
 import _root_.android.os.Bundle
 
 import _root_.android.app.Activity
-import _root_.android.app.Dialog
 
 import _root_.android.util.Log
 import _root_.android.content.Context
 
-import _root_.android.widget.Adapter
-import _root_.android.widget.BaseAdapter
 import _root_.android.widget.AdapterView
 import _root_.android.widget.EditText
 import _root_.android.widget.TextView
 import _root_.android.widget.ListView
-
-import org.triplesec.Button
-import org.triplesec.IndexedSeqAdapter
 
 import _root_.android.view.View.OnKeyListener
 import _root_.android.view.View.OnClickListener
@@ -39,19 +37,19 @@ extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) {
 }
 
 class EditDialog( base: TodoActivity, 
-                  todos: ArrayBuffer[TodoItem] ) extends Dialog( base ) {
+                  todos: ArrayBuffer[TodoItem] ) 
+extends Dialog( base, layoutResourceId = R.layout.dialog ) {
 
-  setContentView(R.layout.dialog)
-
-  val editTxt = findViewById(R.id.dialogEditText).asInstanceOf[EditText]
+  val editTxt = findView( TR.dialogEditText )
   var editingPosn: Int = -1
 
-  findViewById(R.id.saveButton).asInstanceOf[Button].onClick{
+  findView( TR.saveButton ).onClick {
     todos( editingPosn ).description = editTxt.getText().toString()
     base.adapter.notifyDataSetChanged()
     dismiss()
   }
-  findViewById(R.id.deleteButton).asInstanceOf[Button].onClick {
+
+  findView( TR.deleteButton ).onClick {
     todos.remove( editingPosn )
     base.adapter.notifyDataSetChanged()
     dismiss()

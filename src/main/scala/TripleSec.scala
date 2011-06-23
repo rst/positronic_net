@@ -70,10 +70,11 @@ extends android.app.Dialog( context, theme ) with DryerViewOps {
 // Adapters for Scala collections.  Also support an alternative
 // API which DRYs up common invocation patterns.
 //
-// Note that right now, there's some ugliness due to the method
-// "getItem(_:Int):Object" declared in the Adapter interface;
-// that entails both the "T <: Object" type class restriction,
-// and the getItemTyped silliness.
+// Note that the "T <: Object" restriction is needed so that
+// our "getItem( _: Int ):T" is compatible with the declared
+// "getItem( _: Int ): java.lang.Object" in the Adapter interface.
+// So, if you really want an adapter for an IndexedSeq[Long],
+// you're on your own.
 
 class IndexedSeqAdapter[T <: Object](seq: IndexedSeq[T], 
                                      itemViewResourceId: Int = 0, 
@@ -119,12 +120,9 @@ extends _root_.android.widget.BaseAdapter {
     textView.setText( getItem( position ).toString )
   }
 
-  // Accessors.  Note that getItem can't be declared to return a [T],
-  // because that conflicts with the return type declared in Adapter.
-  // Thus, getItemTyped.
+  // Accessors.  
 
-  def getItem(position: Int):Object = seq(position)
-  def getItemTyped(position: Int):T = seq(position)
+  def getItem(position: Int):T = seq(position)
   def getItemId(position: Int) = getItem(position).hashCode()
   def getCount = seq.size
 }

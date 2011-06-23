@@ -32,7 +32,7 @@ class TodoAdapter(seq: IndexedSeq[TodoItem])
 extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) {
 
   override def fillView( view: View, position: Int ) = {
-    view.asInstanceOf[ TextView ].setText(getItemTyped( position ).description)
+    view.asInstanceOf[ TextView ].setText(getItem( position ).description)
   }
 }
 

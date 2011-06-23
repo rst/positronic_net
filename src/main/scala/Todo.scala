@@ -4,10 +4,7 @@ import org.triplesec.Button
 import org.triplesec.IndexedSeqAdapter
 import org.triplesec.Dialog
 import org.triplesec.EditText
-
-import _root_.android.os.Bundle
-
-import _root_.android.app.Activity
+import org.triplesec.Activity
 
 import _root_.android.util.Log
 import _root_.android.content.Context
@@ -68,18 +65,15 @@ extends Dialog( base, layoutResourceId = R.layout.dialog ) {
   
 }
 
-class TodoActivity extends Activity {
+class TodoActivity extends Activity( layoutResourceId = R.layout.main ) {
 
   lazy val todoItems = new ArrayBuffer[TodoItem]
   lazy val adapter = new TodoAdapter(todoItems)
   lazy val editDialog = new EditDialog( this, todoItems )
-  lazy val myListView = findViewById(R.id.myListView).asInstanceOf[ListView]
-  lazy val myEditText = findViewById(R.id.myEditText).asInstanceOf[EditText]
+  lazy val myListView = findView( TR.myListView )
+  lazy val myEditText = findView( TR.myEditText )
 
-  override def onCreate(savedInstanceState: Bundle) {
-
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.main)
+  onCreate{
 
     myListView.setAdapter(adapter)
     myListView.setOnItemClickListener(new AdapterView.OnItemClickListener{
@@ -88,7 +82,7 @@ class TodoActivity extends Activity {
       }
     })
     
-    findViewById(R.id.addButton).asInstanceOf[Button].onClick { doAdd }
+    findView( TR.addButton ).onClick { doAdd }
     myEditText.onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
   }
 

@@ -3,6 +3,7 @@ package org.triplesec
 import _root_.android.content.Context
 import _root_.android.util.AttributeSet
 import _root_.android.view.LayoutInflater
+import _root_.android.os.Bundle
 
 import rst.todo.TypedResource           // bletch! XXX TOFIX
 
@@ -99,6 +100,86 @@ extends android.app.Dialog( context, theme ) with DryerViewOps {
     setContentView( layoutResourceId )
 
 }
+
+class Activity( layoutResourceId: Int = 0 )
+extends android.app.Activity with DryerViewOps {
+
+  // Handlers for lifecycle events.  The idea here is simply to
+  // eliminate the ceremony of having to call super.foo() when
+  // redefining each of these.
+  //
+  // Note also the variant handling of instance state --- the
+  // explicit saveInstanceState( Bundle ) and recreateInstanceState( Bundle )
+  // methods, called from the "on..." variant, or onCreate, respectively,
+  // again to eliminate ceremony.
+
+  var onCreateHandler:  ( () => Unit ) = null
+  var onRestartHandler: ( () => Unit ) = null
+  var onStartHandler:   ( () => Unit ) = null
+  var onResumeHandler:  ( () => Unit ) = null
+  var onPauseHandler:   ( () => Unit ) = null
+  var onStopHandler:    ( () => Unit ) = null
+  var onDestroyHandler: ( () => Unit ) = null
+
+  override def onCreate( b: Bundle ) = {
+    super.onCreate( b )
+    if (layoutResourceId != 0) { setContentView( layoutResourceId ) }
+    if (onCreateHandler != null) { onCreateHandler() }
+    recreateInstanceState( b )
+  }
+
+  def onCreate( handler: => Unit ) = { onCreateHandler = ( () => handler ) }
+
+  override def onRestart = { 
+    super.onRestart(); 
+    if (onRestartHandler != null) { onRestartHandler() }
+  }
+  
+  def onRestart( handler: => Unit ) = { onRestartHandler = ( () => handler ) }
+
+  override def onResume = { 
+    super.onResume(); 
+    if (onResumeHandler != null) { onResumeHandler() }
+  }
+  
+  def onResume( handler: => Unit ) = { onResumeHandler = ( () => handler ) }
+
+  override def onPause = { 
+    super.onPause(); 
+    if (onPauseHandler != null) { onPauseHandler() }
+  }
+  
+  def onPause( handler: => Unit ) = { onPauseHandler = ( () => handler ) }
+
+  override def onStop = { 
+    super.onStop(); 
+    if (onStopHandler != null) { onStopHandler() }
+  }
+  
+  def onStop( handler: => Unit ) = { onStopHandler = ( () => handler ) }
+
+  override def onDestroy = { 
+    super.onDestroy(); 
+    if (onDestroyHandler != null) { onDestroyHandler() }
+  }
+  
+  def onDestroy( handler: => Unit ) = { onDestroyHandler = ( () => handler ) }
+
+  def saveInstanceState( b: Bundle ) = {}
+  def recreateInstanceState( b: Bundle ) = {}
+  def restoreInstanceState( b: Bundle ) = {}
+
+  override def onSaveInstanceState( b: Bundle ) = {
+    super.onSaveInstanceState( b )
+    saveInstanceState( b )
+  }
+
+  override def onRestoreInstanceState( b: Bundle ) = {
+    super.onSaveInstanceState( b )
+    saveInstanceState( b )
+  }
+
+} 
 
 // Adapters for Scala collections.  Also support an alternative
 // API which DRYs up common invocation patterns.

@@ -4,7 +4,7 @@ import _root_.android.content.Context
 import _root_.android.util.AttributeSet
 import _root_.android.view.LayoutInflater
 
-import rst.todo.TypedResource           // bletch!
+import rst.todo.TypedResource           // bletch! XXX TOFIX
 
 trait DryerViewOps {
 
@@ -32,6 +32,33 @@ trait DryerHandlers extends DryerViewOps {
     })
   }
 
+  def setOnKeyListener( dummy: android.view.View.OnKeyListener ): Unit
+
+  def onKey(func: ( Int, android.view.KeyEvent ) => Boolean) = {
+    setOnKeyListener( new android.view.View.OnKeyListener {
+      def onKey( dummy: android.view.View, 
+                 keyCode: Int, event: android.view.KeyEvent ):Boolean = {
+        return func( keyCode, event )
+      }
+    })
+  }
+
+  // Handler for a *specific* key.  Arguable bug:  can only declare one!
+  // Not hard to fix, but not needed for now.  Mark XXX TODO.
+
+  def onKey(keyCode: Int, metaState: Int = 0)( func: => Unit ) = {
+    setOnKeyListener( new android.view.View.OnKeyListener {
+      def onKey( dummy: android.view.View, 
+                 eventKeyCode: Int, event: android.view.KeyEvent ):Boolean = {
+        if (eventKeyCode == keyCode && event.getMetaState == metaState) {
+          func; return true
+        } else {
+          return false
+        }
+      }
+    })
+  }
+
 }
 
 // Note that we don't (yet) provide allthe constructor variants
@@ -55,6 +82,12 @@ trait DryerHandlers extends DryerViewOps {
 
 class Button( context: Context, attrs: AttributeSet )
  extends _root_.android.widget.Button( context, attrs ) with DryerHandlers {
+
+   def this( context: Context ) = this( context, null )
+}
+
+class EditText( context: Context, attrs: AttributeSet )
+ extends _root_.android.widget.EditText( context, attrs ) with DryerHandlers {
 
    def this( context: Context ) = this( context, null )
 }

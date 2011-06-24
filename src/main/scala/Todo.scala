@@ -4,23 +4,38 @@ import org.triplesec.Button
 import org.triplesec.IndexedSeqAdapter
 import org.triplesec.Dialog
 import org.triplesec.EditText
+import org.triplesec.TextView
 import org.triplesec.Activity
 import org.triplesec.ListView
 
+import _root_.android.content.Context
+import _root_.android.util.AttributeSet
 import _root_.android.util.Log
-import _root_.android.widget.TextView
 import _root_.android.view.KeyEvent
 import _root_.android.view.View
+import _root_.android.graphics.Paint
+import _root_.android.graphics.Canvas
 
 import scala.collection.mutable.ArrayBuffer
 
 case class TodoItem( var description: String, var isDone: Boolean )
 
+class TodoItemView( context: Context, attrs: AttributeSet = null )
+ extends TextView( context, attrs ) {
+   def setTodoItem( item: TodoItem ) = {
+     setText( item.description )
+     setPaintFlags( 
+       if (item.isDone) getPaintFlags | Paint.STRIKE_THRU_TEXT_FLAG 
+       else getPaintFlags & ~Paint.STRIKE_THRU_TEXT_FLAG
+     )
+   }
+}
+
 class TodoAdapter(seq: IndexedSeq[TodoItem]) 
 extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) {
 
   override def fillView( view: View, position: Int ) = {
-    view.asInstanceOf[ TextView ].setText(getItem( position ).description)
+    view.asInstanceOf[ TodoItemView ].setTodoItem( getItem( position ))
   }
 }
 
@@ -64,7 +79,7 @@ class TodoActivity extends Activity( layoutResourceId = R.layout.main ) {
     myListView.setAdapter( adapter )
 
     // Event handlers...
-    myListView.onItemClick { (view, posn, id) => editDialog.doEdit( posn ) }
+    myListView.onItemClick { (view, posn, id) => toggleDone( posn ) }
     findView( TR.addButton ).onClick { doAdd }
     myEditText.onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
   }
@@ -80,6 +95,11 @@ class TodoActivity extends Activity( layoutResourceId = R.layout.main ) {
 
   def setItemDescription( posn: Int, desc: String ) = {
     todoItems( posn ).description = desc
+    adapter.notifyDataSetChanged()
+  }
+
+  def toggleDone( posn: Int ) = {
+    todoItems( posn ).isDone = !todoItems( posn ).isDone
     adapter.notifyDataSetChanged()
   }
 

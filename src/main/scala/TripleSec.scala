@@ -8,10 +8,10 @@ import _root_.android.widget.AdapterView
 
 import rst.todo.TypedResource           // bletch! XXX TOFIX
 
-trait DryerViewOps {
+// Getting sub-widgets, using the typed resources consed up by the
+// android SBT plugin.
 
-  // Getting sub-widgets, using the typed resources consed up by the
-  // android SBT plugin.
+trait DryerViewOps {
 
   def findView[T](  tr: TypedResource[T] ) = 
     findViewById( tr.id ).asInstanceOf[T]
@@ -20,11 +20,11 @@ trait DryerViewOps {
 
 }
 
-trait DryerHandlers extends DryerViewOps {
+// "JQuery-style" event listener declarations.  Fortunately, these
+// don't conflict with the native API because they're alternate
+// overloadings.
 
-  // "JQuery-style" event listener declarations.  Fortunately, these
-  // don't conflict with the native API because they're alternate
-  // overloadings.
+trait DryerHandlers extends DryerViewOps {
 
   def setOnClickListener( dummy: android.view.View.OnClickListener ): Unit
 
@@ -93,6 +93,11 @@ class Button( context: Context, attrs: AttributeSet = null )
 
 class EditText( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.EditText( context, attrs ) with DryerHandlers {
+   def this( context: Context ) = this( context, null )
+}
+
+class TextView( context: Context, attrs: AttributeSet = null )
+ extends _root_.android.widget.TextView( context, attrs ) with DryerHandlers {
    def this( context: Context ) = this( context, null )
 }
 

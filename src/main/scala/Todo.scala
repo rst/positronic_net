@@ -32,15 +32,53 @@ trait ViewFinder {
   def findViewById( id: Int ): android.view.View
 }
 
+// Our domain model classes, such as they are.
+
 case class TodoItem( var description: String, var isDone: Boolean )
 case class TodoList( var name: String, 
                      val items: ArrayBuffer[TodoItem] = 
-                       new ArrayBuffer[TodoItem])
+                       new ArrayBuffer[TodoItem]) {
+
+  def noteChange {
+    // Nothing here yet.
+  }
+
+  def addItem( description: String, isDone: Boolean = false ) = {
+    items += new TodoItem( description, isDone )
+    noteChange
+  }
+
+  def setItemDescription( posn: Int, desc: String ) = {
+    items( posn ).description = desc
+    noteChange
+  }
+
+  def setItemDone( posn: Int, isDone: Boolean ) = {
+    items( posn ).isDone = isDone
+    noteChange
+  }
+
+  def removeItem( posn: Int ) = {
+    items.remove( posn )
+    noteChange
+  }
+
+}
 
 object Todo {
   val lists = new ArrayBuffer[ TodoList ]
   val listNumKey = "listNum"
+
+  def addList( name: String ) = {
+    lists += new TodoList( name )
+  }
+
+  def removeList( posn: Int ) = {
+    lists.remove( posn )
+  }
 } 
+
+// UI to deal with them.
 
 class TodoItemView( context: Context, attrs: AttributeSet = null )
  extends TextView( context, attrs ) {
@@ -53,7 +91,7 @@ class TodoItemView( context: Context, attrs: AttributeSet = null )
    }
 }
 
-class TodoAdapter(seq: IndexedSeq[TodoItem]) 
+class TodoItemsAdapter(seq: IndexedSeq[TodoItem]) 
 extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) {
 
   override def fillView( view: View, position: Int ) = {
@@ -61,8 +99,7 @@ extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) {
   }
 }
 
-class EditDialog( base: TodoActivity, 
-                  todos: ArrayBuffer[TodoItem] ) 
+class EditDialog( base: TodoActivity, theList: TodoList )
 extends Dialog( base, layoutResourceId = R.layout.dialog ) with ViewFinder {
 
   val editTxt = findView( TR.dialogEditText )
@@ -81,7 +118,7 @@ extends Dialog( base, layoutResourceId = R.layout.dialog ) with ViewFinder {
     
   def doEdit( posn: Int ) = {
     editingPosn = posn
-    editTxt.setText( todos(posn).description )
+    editTxt.setText( theList.items( posn ).description )
     show()
   }
   
@@ -90,10 +127,10 @@ extends Dialog( base, layoutResourceId = R.layout.dialog ) with ViewFinder {
 class TodoActivity 
 extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
 
-  var todoItems: ArrayBuffer[TodoItem] = null
-  var adapter: TodoAdapter = null
+  var adapter: TodoItemsAdapter = null
+  var theList: TodoList = null
 
-  lazy val editDialog = new EditDialog( this, todoItems )
+  lazy val editDialog = new EditDialog( this, theList )
   lazy val listItemsView = findView( TR.listItemsView )
   lazy val newItemText = findView( TR.newItemText )
 
@@ -101,11 +138,10 @@ extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
 
     // Setup
 
-    val theList = Todo.lists( getIntent.getIntExtra( Todo.listNumKey, -1 ))
+    theList = Todo.lists( getIntent.getIntExtra( Todo.listNumKey, -1 ))
 
     setTitle( "Todo for: " + theList.name )
-    todoItems = theList.items
-    adapter = new TodoAdapter( todoItems )
+    adapter = new TodoItemsAdapter( theList.items )
     listItemsView.setAdapter( adapter )
 
     // Event handlers...
@@ -119,24 +155,24 @@ extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
   def doAdd = {
     val str = newItemText.getText.toString
     if (! str.equals( "" ) ) {
-      todoItems += TodoItem( str, false )
+      theList.addItem( description = str, isDone = false )
       adapter.notifyDataSetChanged()
       newItemText.setText("")
     }
   }
 
   def setItemDescription( posn: Int, desc: String ) = {
-    todoItems( posn ).description = desc
+    theList.setItemDescription( posn, desc )
     adapter.notifyDataSetChanged()
   }
 
   def toggleDone( posn: Int ) = {
-    todoItems( posn ).isDone = !todoItems( posn ).isDone
+    theList.setItemDone( posn, !theList.items( posn ).isDone )
     adapter.notifyDataSetChanged()
   }
 
   def removeItem( posn: Int ) = {
-    todoItems.remove( posn )
+    theList.removeItem( posn )
     adapter.notifyDataSetChanged
   }
 }
@@ -184,7 +220,7 @@ class TodosActivity
   def doAdd = {
     val str = findView( TR.newListName ).getText.toString
     if (! str.equals( "" ) ) {
-      Todo.lists += TodoList( str )
+      Todo.addList( name = str )
       adapter.notifyDataSetChanged
       findView( TR.newListName ).setText("")
     }
@@ -197,7 +233,7 @@ class TodosActivity
   }
 
   def removeList( posn: Int ) = {
-    Todo.lists.remove( posn )
+    Todo.removeList( posn )
     adapter.notifyDataSetChanged
   }
 

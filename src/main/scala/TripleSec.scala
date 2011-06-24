@@ -6,18 +6,9 @@ import _root_.android.view.LayoutInflater
 import _root_.android.os.Bundle
 import _root_.android.widget.AdapterView
 
-import rst.todo.TypedResource           // bletch! XXX TOFIX
-
-// Getting sub-widgets, using the typed resources consed up by the
-// android SBT plugin.
-
 trait DryerViewOps {
-
-  def findView[T](  tr: TypedResource[T] ) = 
-    findViewById( tr.id ).asInstanceOf[T]
-
-  def findViewById( id: Int ): android.view.View
-
+  // This would be the place to put findView, if we knew where
+  // to find TypedResource.
 }
 
 // "JQuery-style" event listener declarations.  Fortunately, these

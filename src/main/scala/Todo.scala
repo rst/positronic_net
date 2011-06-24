@@ -19,6 +19,19 @@ import _root_.android.graphics.Canvas
 
 import scala.collection.mutable.ArrayBuffer
 
+// Getting sub-widgets, using the typed resources consed up by the
+// android SBT plugin.  It would be nice to put this in a library,
+// but the sbt-android plugin puts TypedResource itself in the app's
+// main package --- so the library would have to import it from a
+// different package in every app!
+
+trait ViewFinder {
+  def findView[T](  tr: TypedResource[T] ) = 
+    findViewById( tr.id ).asInstanceOf[T]
+
+  def findViewById( id: Int ): android.view.View
+}
+
 case class TodoItem( var description: String, var isDone: Boolean )
 case class TodoList( var name: String, 
                      val items: ArrayBuffer[TodoItem] = 
@@ -50,7 +63,7 @@ extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) {
 
 class EditDialog( base: TodoActivity, 
                   todos: ArrayBuffer[TodoItem] ) 
-extends Dialog( base, layoutResourceId = R.layout.dialog ) {
+extends Dialog( base, layoutResourceId = R.layout.dialog ) with ViewFinder {
 
   val editTxt = findView( TR.dialogEditText )
   var editingPosn: Int = -1
@@ -74,7 +87,8 @@ extends Dialog( base, layoutResourceId = R.layout.dialog ) {
   
 }
 
-class TodoActivity extends Activity( layoutResourceId = R.layout.todo_one_list){
+class TodoActivity 
+extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
 
   var todoItems: ArrayBuffer[TodoItem] = null
   var adapter: TodoAdapter = null
@@ -135,7 +149,8 @@ extends IndexedSeqAdapter( Todo.lists, itemViewResourceId = R.layout.todos_row){
 }
 
 class KillListDialog( base: TodosActivity ) 
- extends Dialog( base, layoutResourceId = R.layout.kill_todo_list ) {
+ extends Dialog( base, layoutResourceId = R.layout.kill_todo_list ) 
+ with ViewFinder {
 
    var victimPosn: Int = -1
 
@@ -149,7 +164,8 @@ class KillListDialog( base: TodosActivity )
    }
 }
 
-class TodosActivity extends Activity( layoutResourceId = R.layout.all_todos ) {
+class TodosActivity 
+ extends Activity( layoutResourceId = R.layout.all_todos ) with ViewFinder {
 
   lazy val adapter = new TodosAdapter
   lazy val listsView = findView( TR.listsView )

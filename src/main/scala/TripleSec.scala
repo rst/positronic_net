@@ -81,30 +81,18 @@ trait DryerHandlers extends DryerViewOps {
 // variants, with the StyledFoo having the three-arg constructor.
 // Which would require all the actual methods to be declared in
 // traits to avoid duplication here; fortunately, that's not hard.
-//
-// Note also that we *must* define the one-arg context-only 
-// constructors --- scala code doesn't know the difference, but
-// Java code does, particularly the LayoutInflater.
 
 class Button( context: Context, attrs: AttributeSet = null )
- extends _root_.android.widget.Button( context, attrs ) with DryerHandlers {
-   def this( context: Context ) = this( context, null )
-}
+ extends _root_.android.widget.Button( context, attrs ) with DryerHandlers
 
 class EditText( context: Context, attrs: AttributeSet = null )
- extends _root_.android.widget.EditText( context, attrs ) with DryerHandlers {
-   def this( context: Context ) = this( context, null )
-}
+ extends _root_.android.widget.EditText( context, attrs ) with DryerHandlers
 
 class TextView( context: Context, attrs: AttributeSet = null )
- extends _root_.android.widget.TextView( context, attrs ) with DryerHandlers {
-   def this( context: Context ) = this( context, null )
-}
+ extends _root_.android.widget.TextView( context, attrs ) with DryerHandlers
 
 class ListView( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.ListView( context, attrs ) with DryerHandlers {
-
-   def this( context: Context ) = this( context, null )
 
    def onItemClick( func: (_root_.android.view.View, Int, Long) => Unit) = {
      setOnItemClickListener( new AdapterView.OnItemClickListener {

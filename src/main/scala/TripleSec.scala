@@ -63,6 +63,55 @@ trait DryerHandlers extends DryerViewOps {
 
 }
 
+// DRYer handlers for AdapterView-specific events.
+//
+// There is weirdness here; an onItemLongClick handler can return false
+// to mark the event unhandled, but the onItemClick handler is defined
+// to return Unit (a/k/a a Java void), and is just assumed to have handled
+// the event.  What?!
+//
+// Our onItemLongClick is like onItemClick; it takes a handler which returns
+// Unit, and always returns 'true' (event handled) to the framework.  If you
+// really want the choice, there's onItemLongClick maybe, which takes a 
+// handler returning a Boolean.  (We can't use overloading here, because
+// the handler types are the same after erasure.)
+
+trait DryerItemHandlers {
+
+  def setOnItemClickListener( l: AdapterView.OnItemClickListener ): Unit
+  def setOnItemLongClickListener( l: AdapterView.OnItemLongClickListener ): Unit
+
+  def onItemClick( func: (_root_.android.view.View, Int, Long) => Unit) = {
+    setOnItemClickListener( new AdapterView.OnItemClickListener {
+      def onItemClick( parent: AdapterView[_], view: _root_.android.view.View,
+                       position: Int, id: Long ) = { 
+        func( view, position, id ) 
+      }
+    })
+  }
+   
+  def onItemLongClick( func: (_root_.android.view.View, Int, Long) => Unit) = {
+    setOnItemLongClickListener( new AdapterView.OnItemLongClickListener {
+      def onItemLongClick( parent: AdapterView[_], 
+                           view: _root_.android.view.View,
+                           position: Int, id: Long ):Boolean = { 
+        func( view, position, id ); return true
+      }
+    })
+  }
+   
+  def onItemLongClickMaybe( func:(_root_.android.view.View, Int, Long) => Boolean)={
+    setOnItemLongClickListener( new AdapterView.OnItemLongClickListener {
+      def onItemLongClick( parent: AdapterView[_], 
+                           view: _root_.android.view.View,
+                           position: Int, id: Long ):Boolean = { 
+        func( view, position, id )
+      }
+    })
+  }
+   
+}
+
 // Note that we don't (yet) provide allthe constructor variants
 // with "theme" arguments, since we've got a bit of a catch-22 
 // with them.
@@ -92,18 +141,9 @@ class TextView( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.TextView( context, attrs ) with DryerHandlers
 
 class ListView( context: Context, attrs: AttributeSet = null )
- extends _root_.android.widget.ListView( context, attrs ) with DryerHandlers {
-
-   def onItemClick( func: (_root_.android.view.View, Int, Long) => Unit) = {
-     setOnItemClickListener( new AdapterView.OnItemClickListener {
-       def onItemClick( parent: AdapterView[_], view: _root_.android.view.View,
-                        position: Int, id: Long ) = { 
-         func( view, position, id ) 
-       }
-     })
-   }
-   
-}
+ extends _root_.android.widget.ListView( context, attrs ) 
+ with DryerHandlers 
+ with DryerItemHandlers
 
 class Dialog( context: Context, theme: Int = 0, layoutResourceId: Int = 0 )
  extends android.app.Dialog( context, theme ) with DryerViewOps {

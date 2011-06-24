@@ -80,6 +80,7 @@ class TodoActivity extends Activity( layoutResourceId = R.layout.main ) {
 
     // Event handlers...
     myListView.onItemClick { (view, posn, id) => toggleDone( posn ) }
+    myListView.onItemLongClick { (view, posn, id) => editDialog.doEdit( posn )}
     findView( TR.addButton ).onClick { doAdd }
     myEditText.onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
   }

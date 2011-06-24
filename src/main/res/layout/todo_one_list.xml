@@ -7,7 +7,7 @@
     android:layout_width="fill_parent"
     android:layout_height="wrap_content">
     <org.triplesec.EditText
-      android:id="@+id/myEditText"
+      android:id="@+id/newItemText"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_weight="1"
@@ -21,7 +21,7 @@
     />
   </LinearLayout>
   <org.triplesec.ListView  
-    android:id="@+id/myListView"
+    android:id="@+id/listItemsView"
     android:layout_width="fill_parent" 
     android:layout_height="wrap_content" 
   />

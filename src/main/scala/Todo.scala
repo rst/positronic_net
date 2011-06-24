@@ -65,32 +65,32 @@ extends Dialog( base, layoutResourceId = R.layout.dialog ) {
   
 }
 
-class TodoActivity extends Activity( layoutResourceId = R.layout.main ) {
+class TodoActivity extends Activity( layoutResourceId = R.layout.todo_one_list){
 
   lazy val todoItems = new ArrayBuffer[TodoItem]
   lazy val adapter = new TodoAdapter(todoItems)
   lazy val editDialog = new EditDialog( this, todoItems )
-  lazy val myListView = findView( TR.myListView )
-  lazy val myEditText = findView( TR.myEditText )
+  lazy val listItemsView = findView( TR.listItemsView )
+  lazy val newItemText = findView( TR.newItemText )
 
   onCreate{
 
     // Setup
-    myListView.setAdapter( adapter )
+    listItemsView.setAdapter( adapter )
 
     // Event handlers...
-    myListView.onItemClick { (view, posn, id) => toggleDone( posn ) }
-    myListView.onItemLongClick { (view, posn, id) => editDialog.doEdit( posn )}
+    listItemsView.onItemClick { (view, posn, id) => toggleDone( posn ) }
+    listItemsView.onItemLongClick { (view, posn, id) => editDialog.doEdit(posn)}
     findView( TR.addButton ).onClick { doAdd }
-    myEditText.onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
+    newItemText.onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
   }
 
   def doAdd {
-    val str = myEditText.getText.toString
+    val str = newItemText.getText.toString
     if (! str.equals( "" ) ) {
       todoItems += TodoItem( str, false )
       adapter.notifyDataSetChanged()
-      myEditText.setText("")
+      newItemText.setText("")
     }
   }
 

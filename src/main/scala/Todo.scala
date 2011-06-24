@@ -7,6 +7,8 @@ import org.triplesec.EditText
 import org.triplesec.TextView
 import org.triplesec.Activity
 import org.triplesec.ListView
+import org.triplesec.db.Database
+import org.triplesec.db.Implicits._
 
 import _root_.android.content.Context
 import _root_.android.content.Intent
@@ -34,33 +36,63 @@ trait ViewFinder {
 
 // Our domain model classes, such as they are.
 
-case class TodoItem( var description: String, var isDone: Boolean )
-case class TodoList( var name: String, 
+object TodoDb extends Database {
+
+  def filename = "todos.sqlite3"
+
+  def schemaUpdates =
+    List(""" create table todo_lists (
+               id integer primary key,
+               name string
+             )
+         """,
+         """ create table todo_items (
+               id integer primary key,
+               todo_list_id integer,
+               description string,
+               is_done integer
+             )
+         """)
+  
+}
+
+case class TodoItem( val id: Long, var description: String, var isDone: Boolean)
+case class TodoList( val id: Long,
+                     var name: String, 
                      val items: ArrayBuffer[TodoItem] = 
                        new ArrayBuffer[TodoItem]) {
 
-  def noteChange {
-    // Nothing here yet.
+  def refreshFromDb = {
+    items.clear
+    TodoDb( "todo_items" ).where( "todo_list_id" -> this.id ).order( "id asc" )
+       .eachRow( "id", "description", "is_done" ){
+     (c) => items += TodoItem( c.getLong(0), c.getString(1), c.getBoolean(2) )
+    }
   }
 
   def addItem( description: String, isDone: Boolean = false ) = {
-    items += new TodoItem( description, isDone )
-    noteChange
+    val id = TodoDb( "todo_items" ).insert( 
+      "todo_list_id" -> this.id, 
+      "description"  -> description,
+      "is_done"      -> isDone )
+    items += new TodoItem( id, description, isDone )
   }
 
   def setItemDescription( posn: Int, desc: String ) = {
-    items( posn ).description = desc
-    noteChange
+    val it = items(posn)
+    TodoDb( "todo_items" ).where( "id"->it.id ).update("description"->desc)
+    it.description = desc
   }
 
   def setItemDone( posn: Int, isDone: Boolean ) = {
-    items( posn ).isDone = isDone
-    noteChange
+    val it = items(posn)
+    TodoDb( "todo_items" ).where( "id"->it.id ).update("is_done" -> isDone)
+    it.isDone = isDone
   }
 
   def removeItem( posn: Int ) = {
+    TodoDb( "todo_items" ).where( "id" -> items(posn).id ).delete
     items.remove( posn )
-    noteChange
   }
 
 }
@@ -69,11 +101,22 @@ object Todo {
   val lists = new ArrayBuffer[ TodoList ]
   val listNumKey = "listNum"
 
+  def refreshFromDb = {
+    lists.clear
+    TodoDb( "todo_lists" ).order( "id asc" ).eachRow( "id", "name" ){
+      (c) => lists += TodoList( c.getLong(0), c.getString(1) )
+    }
+  }
+
   def addList( name: String ) = {
-    lists += new TodoList( name )
+    val id = TodoDb( "todo_lists" ).insert( "name" -> name )
+    lists += new TodoList( id, name )
   }
 
   def removeList( posn: Int ) = {
+    val list_id = lists(posn).id
+    TodoDb( "todo_items" ).where( "todo_list_id" -> list_id ).delete
+    TodoDb( "todo_lists" ).where( "id" -> list_id ).delete
     lists.remove( posn )
   }
 } 
@@ -92,7 +135,7 @@ class TodoItemView( context: Context, attrs: AttributeSet = null )
 }
 
 class TodoItemsAdapter(seq: IndexedSeq[TodoItem]) 
-extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) {
+ extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) {
 
   override def fillView( view: View, position: Int ) = {
     view.asInstanceOf[ TodoItemView ].setTodoItem( getItem( position ))
@@ -138,7 +181,9 @@ extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
 
     // Setup
 
+    TodoDb.openInContext( getApplicationContext )
     theList = Todo.lists( getIntent.getIntExtra( Todo.listNumKey, -1 ))
+    theList.refreshFromDb
 
     setTitle( "Todo for: " + theList.name )
     adapter = new TodoItemsAdapter( theList.items )
@@ -151,6 +196,8 @@ extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
     findView( TR.addButton ).onClick { doAdd }
     newItemText.onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
   }
+
+  onDestroy { TodoDb.close }
 
   def doAdd = {
     val str = newItemText.getText.toString
@@ -209,6 +256,9 @@ class TodosActivity
 
   onCreate {
 
+    TodoDb.openInContext( getApplicationContext )
+    Todo.refreshFromDb            // Ideally should be in an AsyncTask
+
     listsView.setAdapter( adapter )
     listsView.onItemClick { (view, posn, id) => viewList( posn ) }
     listsView.onItemLongClick { (view, posn, id) => killDialog.confirm( posn )}
@@ -216,6 +266,8 @@ class TodosActivity
     findView( TR.addButton ).onClick { doAdd }
     findView( TR.newListName ).onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
   }
+
+  onDestroy { TodoDb.close }
 
   def doAdd = {
     val str = findView( TR.newListName ).getText.toString

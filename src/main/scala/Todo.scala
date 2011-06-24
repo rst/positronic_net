@@ -38,7 +38,7 @@ case class TodoList( var name: String,
                        new ArrayBuffer[TodoItem])
 
 object Todo {
-  val lists: ArrayBuffer[ TodoList ] = new ArrayBuffer[ TodoList ]
+  val lists = new ArrayBuffer[ TodoList ]
   val listNumKey = "listNum"
 } 
 
@@ -66,7 +66,7 @@ class EditDialog( base: TodoActivity,
 extends Dialog( base, layoutResourceId = R.layout.dialog ) with ViewFinder {
 
   val editTxt = findView( TR.dialogEditText )
-  var editingPosn: Int = -1
+  var editingPosn = -1
 
   editTxt.onKey( KeyEvent.KEYCODE_ENTER ){ doSave; dismiss }
 
@@ -152,7 +152,7 @@ class KillListDialog( base: TodosActivity )
  extends Dialog( base, layoutResourceId = R.layout.kill_todo_list ) 
  with ViewFinder {
 
-   var victimPosn: Int = -1
+   var victimPosn = -1
 
    findView( TR.deleteButton ).onClick{ base.removeList( victimPosn ); dismiss }
    findView( TR.cancelButton ).onClick{ dismiss }

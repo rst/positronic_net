@@ -35,7 +35,7 @@ trait ViewFinder {
 
 // Our domain model classes, such as they are.
 
-object TodoDb extends Database {
+object TodoDb extends Database( logTag = "todo" ) {
 
   def filename = "todos.sqlite3"
 
@@ -56,16 +56,18 @@ object TodoDb extends Database {
 }
 
 case class TodoItem( val id: Long, var description: String, var isDone: Boolean)
+
 case class TodoList( val id: Long,
                      var name: String, 
                      val items: ArrayBuffer[TodoItem] = 
                        new ArrayBuffer[TodoItem]) {
 
+  val dbItems = TodoDb( "todo_items" ).whereEq( "todo_list_id" -> this.id )
+
   def refreshFromDb = {
     items.clear
-    TodoDb( "todo_items" ).where( "todo_list_id" -> this.id ).order( "id asc" )
-       .eachRow( "id", "description", "is_done" ){
-     (c) => items += TodoItem( c.getLong(0), c.getString(1), c.getBoolean(2) )
+    for (c <- dbItems.order("id asc").select("id", "description", "is_done")){
+      items += TodoItem( c.getLong(0), c.getString(1), c.getBoolean(2) )
     }
   }
 
@@ -79,31 +81,32 @@ case class TodoList( val id: Long,
 
   def setItemDescription( posn: Int, desc: String ) = {
     val it = items(posn)
-    TodoDb( "todo_items" ).where( "id"->it.id ).update("description"->desc)
+    dbItems.whereEq( "id"->it.id ).update("description"->desc)
     it.description = desc
   }
 
   def setItemDone( posn: Int, isDone: Boolean ) = {
     val it = items(posn)
-    TodoDb( "todo_items" ).where( "id"->it.id ).update("is_done" -> isDone)
+    dbItems.whereEq( "id"->it.id ).update("is_done" -> isDone)
     it.isDone = isDone
   }
 
   def removeItem( posn: Int ) = {
-    TodoDb( "todo_items" ).where( "id" -> items(posn).id ).delete
+    dbItems.whereEq( "id" -> items(posn).id ).delete
     items.remove( posn )
   }
 
 }
 
 object Todo {
+
   val lists = new ArrayBuffer[ TodoList ]
   val listNumKey = "listNum"
 
   def refreshFromDb = {
     lists.clear
-    TodoDb( "todo_lists" ).order( "id asc" ).eachRow( "id", "name" ){
-      (c) => lists += TodoList( c.getLong(0), c.getString(1) )
+    for( c <- TodoDb("todo_lists").order("id asc").select( "id", "name" )) {
+      lists += TodoList( c.getLong(0), c.getString(1) )
     }
   }
 
@@ -114,8 +117,8 @@ object Todo {
 
   def removeList( posn: Int ) = {
     val list_id = lists(posn).id
-    TodoDb( "todo_items" ).where( "todo_list_id" -> list_id ).delete
-    TodoDb( "todo_lists" ).where( "id" -> list_id ).delete
+    TodoDb( "todo_items" ).whereEq( "todo_list_id" -> list_id ).delete
+    TodoDb( "todo_lists" ).whereEq( "id" -> list_id ).delete
     lists.remove( posn )
   }
 } 

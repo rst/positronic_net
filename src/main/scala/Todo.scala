@@ -8,7 +8,6 @@ import org.triplesec.TextView
 import org.triplesec.Activity
 import org.triplesec.ListView
 import org.triplesec.db.Database
-import org.triplesec.db.Implicits._
 
 import _root_.android.content.Context
 import _root_.android.content.Intent

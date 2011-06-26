@@ -19,9 +19,6 @@ import _root_.android.content.Context
 // using the native Android API are already relying on that, 
 // since 'where' clause values if supplied are bound as strings,
 // but frequently used for comparison to int-valued columns.)
-//
-// Still, there are annoyances: that the implicit conversions need
-// to be imported in order for this to work!
 
 abstract class SqlValue
 case class SqlInt( value: Int ) extends SqlValue
@@ -29,7 +26,7 @@ case class SqlLong( value: Long ) extends SqlValue
 case class SqlString( value: String ) extends SqlValue
 case class SqlBoolean( value: Boolean ) extends SqlValue
 
-object Implicits {
+object SqlValue {
   implicit def intToSqlValue( value: Int ):SqlValue = SqlInt( value )
   implicit def longToSqlValue( value: Long ):SqlValue = SqlLong( value )
   implicit def stringToSqlValue( value: String ):SqlValue = SqlString( value )

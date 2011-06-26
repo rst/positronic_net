@@ -35,9 +35,7 @@ trait ViewFinder {
 
 // Our domain model classes, such as they are.
 
-object TodoDb extends Database( logTag = "todo" ) {
-
-  def filename = "todos.sqlite3"
+object TodoDb extends Database( filename = "todos.sqlite3", logTag = "todo" ) {
 
   def schemaUpdates =
     List(""" create table todo_lists (

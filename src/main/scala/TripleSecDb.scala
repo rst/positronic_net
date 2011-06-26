@@ -122,9 +122,8 @@ class StatementFragment( db: Database,
     // In performance-sensitive contexts, directly invoking
     // "where" won't look as neat, but it may go faster.
     //
-    // Android performance tuners are kind of obsessive about
-    // this, which is why "log" below looks as it does --- but
-    // 
+    // Then again, replacing whereString with a StringBuffer
+    // would ameliorate a lot of the consing.
 
     val str = pairs.map{ "(" + _._1 + " = ?)" }.reduceLeft{ _ + " and " + _ }
     val vals = pairs.map{ _._2 }.toArray
@@ -247,7 +246,8 @@ class CursorFactory extends SQLiteDatabase.CursorFactory {
 }
 
 class DbWrapper( ctx: Context, mydb: Database ) 
-extends SQLiteOpenHelper( ctx, mydb.filename, new CursorFactory, mydb.version ){
+extends SQLiteOpenHelper( ctx, mydb.getFilename, 
+                          new CursorFactory, mydb.version ){
 
   def onCreate( db: SQLiteDatabase ) = mydb.onCreate( db )
   
@@ -256,15 +256,16 @@ extends SQLiteOpenHelper( ctx, mydb.filename, new CursorFactory, mydb.version ){
 
 }
 
-abstract class Database( logTag: String = null ) {
+abstract class Database( filename: String, logTag: String = null ) {
 
   var dbWrapper: DbWrapper = null
   var openNesting: Int = 0
 
   def schemaUpdates: List[String]
-  def filename: String
 
   def getLogTag = logTag
+  def getFilename = filename
+
   def getWritableDatabase = dbWrapper.getWritableDatabase
   def getReadableDatabase = dbWrapper.getReadableDatabase
   

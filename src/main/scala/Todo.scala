@@ -7,7 +7,7 @@ import org.triplesec.EditText
 import org.triplesec.TextView
 import org.triplesec.Activity
 import org.triplesec.ListView
-import org.triplesec.db.Database
+import org.triplesec.db.DatabaseWithThread
 
 import _root_.android.os.Bundle
 import _root_.android.content.Context
@@ -36,7 +36,8 @@ trait ViewFinder {
 
 // Our domain model classes, such as they are.
 
-object TodoDb extends Database( filename = "todos.sqlite3", logTag = "todo" ) {
+object TodoDb 
+extends DatabaseWithThread( filename = "todos.sqlite3", logTag = "todo" ) {
 
   // This gets fed to a SQLiteOpenHelper, which implements the following
   // default behavior:
@@ -48,6 +49,11 @@ object TodoDb extends Database( filename = "todos.sqlite3", logTag = "todo" ) {
   // This can all be overridden if appropriate (e.g., override
   // onCreate if running all updates serially is a silly way to create
   // a completely new database with the current schema).
+
+  // Since it's a DatabaseWithThread, it supports runOnDbThread,
+  // and *requires* all database access (anything that calls
+  // getReadableDatabase or getWritableDatabase) to be on that 
+  // thread.
 
   def schemaUpdates =
     List(""" create table todo_lists (
@@ -71,7 +77,7 @@ trait TodoDbModel {
   var changeHandler: (() => Unit) = null
   def onChange( handler: => Unit ) = { changeHandler = (() => handler) }
   def noteChange = { if (changeHandler != null) changeHandler() }
-  def doChange( f: => Unit ) = { f; noteChange }
+  def doChange( f: => Unit ) = { TodoDb.runOnDbThread{ f; noteChange } }
 }
 
 case class TodoItem( val id: Long, var description: String, var isDone: Boolean)
@@ -170,7 +176,7 @@ class TodosActivity
     val listsView = findView( TR.listsView )
 
     listsView.setAdapter( adapter )
-    Todo.onChange { adapter.notifyDataSetChanged }
+    Todo.onChange { this.runOnUiThread { ()=>{ adapter.notifyDataSetChanged }}}
 
     TodoDb.openInContext( getApplicationContext )
     Todo.refreshFromDb                  // Ideally, should be backgrounded
@@ -267,7 +273,7 @@ extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
     val adapter = new TodoItemsAdapter( theList.items )
     val listItemsView = findView( TR.listItemsView )
     listItemsView.setAdapter( adapter )
-    theList.onChange { adapter.notifyDataSetChanged }
+    theList.onChange { this.runOnUiThread { () => adapter.notifyDataSetChanged}}
 
     TodoDb.openInContext( getApplicationContext )
     theList.refreshFromDb

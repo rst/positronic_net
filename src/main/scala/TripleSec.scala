@@ -221,6 +221,11 @@ class Activity( layoutResourceId: Int = 0 )
     saveInstanceState( b )
   }
 
+  def runOnUiThread( func: () => Unit ):Unit = {
+    this.runOnUiThread( new Runnable {
+      def run() = { func() }
+    })
+  }
 } 
 
 // Adapters for Scala collections.  Also support an alternative

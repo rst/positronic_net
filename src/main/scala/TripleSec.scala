@@ -221,9 +221,9 @@ class Activity( layoutResourceId: Int = 0 )
     saveInstanceState( b )
   }
 
-  def runOnUiThread( func: () => Unit ):Unit = {
+  def runOnUiThread( func: => Unit ):Unit = {
     this.runOnUiThread( new Runnable {
-      def run() = { func() }
+      def run() = { func }
     })
   }
 } 

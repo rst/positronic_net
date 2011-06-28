@@ -176,7 +176,7 @@ class TodosActivity
     val listsView = findView( TR.listsView )
 
     listsView.setAdapter( adapter )
-    Todo.onChange { this.runOnUiThread { ()=>{ adapter.notifyDataSetChanged }}}
+    Todo.onChange { this.runOnUiThread { adapter.notifyDataSetChanged }}
 
     TodoDb.openInContext( getApplicationContext )
     Todo.refreshFromDb                  // Ideally, should be backgrounded
@@ -273,7 +273,7 @@ extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
     val adapter = new TodoItemsAdapter( theList.items )
     val listItemsView = findView( TR.listItemsView )
     listItemsView.setAdapter( adapter )
-    theList.onChange { this.runOnUiThread { () => adapter.notifyDataSetChanged}}
+    theList.onChange { this.runOnUiThread { adapter.notifyDataSetChanged }}
 
     TodoDb.openInContext( getApplicationContext )
     theList.refreshFromDb

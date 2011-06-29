@@ -40,7 +40,9 @@ object TodoUI {
 }
 
 class TodosActivity 
- extends Activity( layoutResourceId = R.layout.all_todos ) with ViewFinder {
+ extends Activity( layoutResourceId = R.layout.all_todos,
+                   optionsMenuResourceId = R.menu.silly_menu ) 
+ with ViewFinder {
 
   onCreate {
     val adapter = new TodosAdapter

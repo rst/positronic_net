@@ -3,6 +3,7 @@ package org.triplesec
 import _root_.android.content.Context
 import _root_.android.util.AttributeSet
 import _root_.android.view.LayoutInflater
+import _root_.android.view.Menu
 import _root_.android.os.Bundle
 import _root_.android.widget.AdapterView
 
@@ -143,7 +144,9 @@ class Dialog( context: Context, theme: Int = 0, layoutResourceId: Int = 0 )
     setContentView( layoutResourceId )
 }
 
-class Activity( layoutResourceId: Int = 0 )
+class Activity( layoutResourceId: Int = 0,
+                optionsMenuResourceId: Int = 0
+              )
  extends android.app.Activity with DryerViewOps {
 
   // Handlers for lifecycle events.  The idea here is simply to
@@ -219,6 +222,14 @@ class Activity( layoutResourceId: Int = 0 )
   override def onRestoreInstanceState( b: Bundle ) = {
     super.onSaveInstanceState( b )
     saveInstanceState( b )
+  }
+
+  override def onCreateOptionsMenu( menu: Menu ):Boolean = {
+    if (optionsMenuResourceId == 0) {
+      return false
+    }
+    getMenuInflater.inflate( optionsMenuResourceId, menu )
+    return true
   }
 
   def runOnUiThread( func: => Unit ):Unit = {

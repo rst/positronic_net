@@ -218,6 +218,13 @@ class StatementFragment( db: Database,
     val c = limit( 1 ).select( cols:_* )
   }
 
+  def count:Long = {
+    val c = this.select( "count(*)" );
+    c.moveToFirst
+    val result = c.getLong(0)
+    c.close
+    return result
+  }
 }
 
 // Arrange to produce cursors which support a proper 'foreach', so
@@ -294,7 +301,10 @@ abstract class Database( filename: String, logTag: String = null )
     // XXX --- doesn't work for update/insert/delete; need to think
     // about data migrations.  Doing a regex match to see if the
     // first nonblank word is "insert", "update", etc. ought to do it.
-    schemaUpdates.drop( oldVersion ).foreach { db.execSQL( _ ) }
+    for ( sql <- schemaUpdates.drop( oldVersion )) {
+      log( "Running schema upgrade: " + sql )
+      db.execSQL( sql ) 
+    }
   }
 
   def version = schemaUpdates.length

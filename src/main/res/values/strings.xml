@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">RstTodo</string>
+    <string name="undeletes_exhausted">Nothing more to undelete. Sorry!</string>
+    <string name="no_tasks_done">No tasks marked done.  Tap on one to mark it.</string>
 </resources>

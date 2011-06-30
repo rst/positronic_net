@@ -7,6 +7,23 @@ import org.positronic.util.WorkerThread
 import scala.collection.mutable.ArrayBuffer
 
 // Our domain model classes, such as they are.
+// 
+// Note that these maintain an in-core copy of the lists in addition
+// to what's in the database; for most UI operations, we operate on
+// the in-core copy and update the display on the main thread, while
+// kicking off an update on a DB worker thread to later (hopefully
+// very soon!) mirror the change into the DB.  Which, in turn, keeps
+// us from being in a situation where the main thread (and the UI) is
+// waiting for the database.
+//
+// Note also that we're managing a "soft deletion" scheme here.
+// User-level "delete" operations just set an "is_deleted" flag on the
+// objects of the user's disaffection; they don't actually delete them
+// immediately.  If the user has second thoughts, they can then
+// "undelete" (resetting the flag) until the next batch of deletions,
+// at which point the last batch really is purged.  This tends to be
+// more effective than confirmation dialogs at helping users recover
+// from mistakes.
 
 object TodoDb 
  extends Database( filename = "todos.sqlite3", logTag = "todo" ) 
@@ -23,11 +40,6 @@ object TodoDb
   // onCreate if running all updates serially is a silly way to create
   // a completely new database with the current schema).
 
-  // Since it's a DatabaseWithThread, it supports runOnDbThread,
-  // and *requires* all database access (anything that calls
-  // getReadableDatabase or getWritableDatabase) to be on that 
-  // thread.
-
   def schemaUpdates =
     List(""" create table todo_lists (
                id integer primary key,
@@ -40,7 +52,10 @@ object TodoDb
                description string,
                is_done integer
              )
-         """)
+         """,
+         " alter table todo_lists add column is_deleted integer default 0 ",
+         " alter table todo_items add column is_deleted integer default 0 "
+        )
   
 }
 
@@ -67,7 +82,11 @@ case class TodoList( var id: Long,
                        new ArrayBuffer[TodoItem])
 extends TodoDbModel
 {
-  val dbItems = TodoDb( "todo_items" ).whereEq( "todo_list_id" -> this.id )
+  val dbItemsAll = TodoDb( "todo_items" ).whereEq( "todo_list_id" -> this.id )
+  val dbItems = dbItemsAll.whereEq( "is_deleted"   -> false )
+  var hasDeletedItems = false
+
+  def hasDoneItems = { items.indexWhere( it => it.isDone ) >= 0 }
 
   def refreshFromDb = {
     items.clear
@@ -75,7 +94,8 @@ extends TodoDbModel
       for (c <- dbItems.order("id asc").select("id", "description", "is_done")){
         items += TodoItem( c.getLong(0), c.getString(1), c.getBoolean(2) )
       }
-      noteChange // on DB Thread --- AFTER we've finished the query!
+      hasDeletedItems = (dbItemsAll.whereEq( "is_deleted" -> true ).count > 0)
+      noteChange
     }
   }
 
@@ -118,26 +138,37 @@ extends TodoDbModel
     db { dbItems.whereEq( "id"->it.id ).update("is_done" -> isDone) }
   }
 
-  def removeItem( posn: Int ) = {
-
-    items.remove( posn )
-    noteChange
-
-    db { dbItems.whereEq( "id" -> items(posn).id ).delete }
+  def deleteWhereDone = {
+    db {
+      dbItemsAll.whereEq( "is_deleted" -> true ).delete // purge the last batch
+      dbItems.whereEq( "is_done" -> true ).update( "is_deleted" -> true )
+      refreshFromDb
+    }
   }
 
+  def undelete = {
+    db {
+      dbItemsAll.update( "is_deleted" -> false )
+      refreshFromDb
+    }
+  }
 }
 
 object Todo extends TodoDbModel {
 
+  val dbListsAll = TodoDb("todo_lists")
+  val dbLists = dbListsAll.whereEq( "is_deleted" -> false )
+
   val lists = new ArrayBuffer[ TodoList ]
+  var hasDeleted = false
 
   def refreshFromDb = {
     lists.clear
     db {
-      for( c <- TodoDb("todo_lists").order("id asc").select( "id", "name" )) {
+      for( c <- dbLists.order("id asc").select( "id", "name" )) {
         lists += TodoList( c.getLong(0), c.getString(1) )
       }
+      hasDeleted = (dbListsAll.whereEq( "is_deleted" -> true ).count > 0)
       noteChange
     }
   }
@@ -153,13 +184,29 @@ object Todo extends TodoDbModel {
 
   def removeList( posn: Int ) = {
 
-    val list_id = lists(posn).id
+    val victim = lists(posn)
     lists.remove( posn )
+    hasDeleted = true
     noteChange
 
     db {
-      TodoDb( "todo_items" ).whereEq( "todo_list_id" -> list_id ).delete
-      TodoDb( "todo_lists" ).whereEq( "id" -> list_id ).delete
+
+      // Purge all previously deleted lists...
+      for ( c <- dbListsAll.whereEq( "is_deleted" -> true ).select( "id" )) {
+        val purgedListId = c.getLong(0)
+        TodoDb( "todo_items" ).whereEq( "todo_list_id" -> purgedListId ).delete
+        TodoDb( "todo_lists" ).whereEq( "id" -> purgedListId ).delete
+      }
+
+      // And mark this one for the axe...
+      dbLists.whereEq( "id" -> victim.id ).update( "is_deleted" -> true )
+    }
+  }
+
+  def undelete {
+    db {
+      dbListsAll.update( "is_deleted" -> false )
+      refreshFromDb
     }
   }
 } 

@@ -18,11 +18,11 @@
       android:layout_weight="1"
       android:text="Save"
     />
-    <org.positronic.ui.Button android:id="@+id/deleteButton"
+    <org.positronic.ui.Button android:id="@+id/cancelButton"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_weight="1"
-      android:text="Delete"
+      android:text="Cancel"
     />
   </LinearLayout>
 </LinearLayout>

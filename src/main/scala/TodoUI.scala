@@ -41,7 +41,7 @@ object TodoUI {
 
 class TodosActivity 
  extends Activity( layoutResourceId = R.layout.all_todos,
-                   optionsMenuResourceId = R.menu.silly_menu ) 
+                   optionsMenuResourceId = R.menu.lists_view_menu ) 
  with ViewFinder {
 
   onCreate {
@@ -61,6 +61,8 @@ class TodosActivity
 
     findView( TR.addButton ).onClick { doAdd }
     findView( TR.newListName ).onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
+
+    onOptionsItemSelected( R.id.undelete ) { undelete }
   }
 
   override def recreateInstanceState( b: Bundle ) {
@@ -87,10 +89,12 @@ class TodosActivity
     startActivity( intent )
   }
 
-  def removeList( posn: Int ) = {
-    Todo.removeList( posn )
-  }
+  def removeList( posn: Int ) = { Todo.removeList( posn ) }
 
+  def undelete = { 
+    if (Todo.hasDeleted) Todo.undelete
+    else toast( R.string.undeletes_exhausted )
+  }
 }
 
 // Its helper dialog.  I'm being really aggressive in trying to minimize
@@ -128,8 +132,10 @@ extends IndexedSeqAdapter( Todo.lists, itemViewResourceId = R.layout.todos_row){
 // And now, the other activity, which manages an individual todo list.
 
 class TodoActivity 
-extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
-
+ extends Activity( layoutResourceId = R.layout.todo_one_list,
+                   optionsMenuResourceId = R.menu.items_view_menu ) 
+ with ViewFinder 
+{
   var theList: TodoList = null
 
   lazy val editDialog = new EditItemDialog(this,theList) // constructed once
@@ -157,6 +163,9 @@ extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
     listItemsView.onItemLongClick { (view, posn, id) => editDialog.doEdit(posn)}
     findView( TR.addButton ).onClick { doAdd }
     newItemText.onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
+
+    onOptionsItemSelected( R.id.delete_where_done ) { deleteWhereDone }
+    onOptionsItemSelected( R.id.undelete ) { undelete }
   }
 
   def doAdd = {
@@ -175,8 +184,18 @@ extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
     theList.setItemDone( posn, !theList.items( posn ).isDone )
   }
 
-  def removeItem( posn: Int ) = {
-    theList.removeItem( posn )
+  def deleteWhereDone {
+    if (theList.hasDoneItems) 
+      theList.deleteWhereDone
+    else
+      toast( R.string.no_tasks_done )
+  }
+
+  def undelete {
+    if (theList.hasDeletedItems)
+      theList.undelete
+    else
+      toast( R.string.undeletes_exhausted )
   }
 }
 
@@ -192,14 +211,12 @@ extends Dialog( base, layoutResourceId = R.layout.dialog ) with ViewFinder {
   editTxt.onKey( KeyEvent.KEYCODE_ENTER ){ doSave; dismiss }
 
   findView( TR.saveButton ).onClick { doSave; dismiss }
-  findView( TR.deleteButton ).onClick { doDelete; dismiss }
+  findView( TR.cancelButton ).onClick { dismiss }
   
   def doSave = {
     base.setItemDescription( editingPosn, editTxt.getText.toString )
   }
 
-  def doDelete = { base.removeItem( editingPosn ) }
-    
   def doEdit( posn: Int ) = {
     editingPosn = posn
     editTxt.setText( theList.items( posn ).description )

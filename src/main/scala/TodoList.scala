@@ -154,6 +154,8 @@ extends TodoDbModel
   }
 }
 
+// Singleton object to represent the set of all available lists.
+
 object Todo extends TodoDbModel {
 
   val dbListsAll = TodoDb("todo_lists")

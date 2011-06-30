@@ -4,13 +4,17 @@ import _root_.android.content.Context
 import _root_.android.util.AttributeSet
 import _root_.android.view.LayoutInflater
 import _root_.android.view.Menu
+import _root_.android.view.MenuItem
 import _root_.android.os.Bundle
 import _root_.android.widget.AdapterView
+import _root_.android.widget.Toast
 import _root_.android.util.Log
 
 import org.positronic.util.AppFacility
 import org.positronic.util.ChangeNotifier
 import org.positronic.util.ChangeNotifications
+
+import scala.collection.mutable.HashMap
 
 trait PositronicViewOps {
   // This would be the place to put findView, if we knew where
@@ -207,10 +211,35 @@ trait PositronicActivityHelpers
     restoreInstanceState( b )
   }
 
+  // Alternate overloadings of some standard methods, for convenience.
+
   def runOnUiThread( thunk: => Unit ):Unit = {
     this.runOnUiThread( new Runnable {
       def run() = { thunk }
     })
+  }
+
+  val optionsItemMap = new HashMap[ Int, (() => Unit) ]
+
+  def onOptionsItemSelected( id: Int )( thunk: => Unit ) = {
+    optionsItemMap( id ) = (() => thunk)
+  }
+
+  override def onOptionsItemSelected( it: MenuItem ):Boolean = {
+    super.onOptionsItemSelected( it )
+    val handler = optionsItemMap( it.getItemId )
+    if (handler == null)
+      return false
+    else {
+      handler()
+      return true
+    }
+  }
+
+  // And these, just to cut down on noise.
+
+  def toast( msgResId: Int, duration: Int = Toast.LENGTH_SHORT ):Unit = {
+    Toast.makeText( this, msgResId, duration ).show
   }
 } 
 

@@ -7,6 +7,8 @@ import _root_.android.view.Menu
 import _root_.android.os.Bundle
 import _root_.android.widget.AdapterView
 
+import org.positronic.pubsub.ChangeNotifier
+
 trait PositronicViewOps {
   // This would be the place to put findView, if we knew where
   // to find TypedResource.
@@ -116,13 +118,13 @@ trait PositronicActivityHelpers
   // methods, called from the "on..." variant, or onCreate, respectively,
   // again to eliminate ceremony.
 
-  var onCreateHandler:  ( () => Unit ) = null
-  var onRestartHandler: ( () => Unit ) = null
-  var onStartHandler:   ( () => Unit ) = null
-  var onResumeHandler:  ( () => Unit ) = null
-  var onPauseHandler:   ( () => Unit ) = null
-  var onStopHandler:    ( () => Unit ) = null
-  var onDestroyHandler: ( () => Unit ) = null
+  var onCreateNotifier  = new ChangeNotifier
+  var onRestartNotifier = new ChangeNotifier
+  var onStartNotifier   = new ChangeNotifier
+  var onResumeNotifier  = new ChangeNotifier
+  var onPauseNotifier   = new ChangeNotifier
+  var onStopNotifier    = new ChangeNotifier
+  var onDestroyNotifier = new ChangeNotifier
 
   override def onCreate( b: Bundle ) {
     onCreate( b, 0 )
@@ -131,46 +133,46 @@ trait PositronicActivityHelpers
   def onCreate( b: Bundle, layoutResourceId: Int ) = {
     super.onCreate( b )
     if (layoutResourceId != 0) { setContentView( layoutResourceId ) }
-    if (onCreateHandler != null) { onCreateHandler() }
     recreateInstanceState( b )
+    onCreateNotifier.noteChange
   }
 
-  def onCreate( handler: => Unit ) = { onCreateHandler = ( () => handler ) }
+  def onCreate( thunk: => Unit ) = { onCreateNotifier.onChange(this){ thunk } }
 
   override def onRestart = { 
     super.onRestart(); 
-    if (onRestartHandler != null) { onRestartHandler() }
+    onRestartNotifier.noteChange
   }
   
-  def onRestart( handler: => Unit ) = { onRestartHandler = ( () => handler ) }
+  def onRestart( thunk: => Unit ) = { onRestartNotifier.onChange(this){ thunk }}
 
   override def onResume = { 
     super.onResume(); 
-    if (onResumeHandler != null) { onResumeHandler() }
+    onResumeNotifier.noteChange
   }
   
-  def onResume( handler: => Unit ) = { onResumeHandler = ( () => handler ) }
+  def onResume( thunk: => Unit ) = { onResumeNotifier.onChange(this){ thunk } }
 
   override def onPause = { 
     super.onPause(); 
-    if (onPauseHandler != null) { onPauseHandler() }
+    onPauseNotifier.noteChange
   }
   
-  def onPause( handler: => Unit ) = { onPauseHandler = ( () => handler ) }
+  def onPause( thunk: => Unit ) = { onPauseNotifier.onChange(this){ thunk } }
 
   override def onStop = { 
     super.onStop(); 
-    if (onStopHandler != null) { onStopHandler() }
+    onStopNotifier.noteChange
   }
   
-  def onStop( handler: => Unit ) = { onStopHandler = ( () => handler ) }
+  def onStop( thunk: => Unit ) = { onStopNotifier.onChange(this){ thunk } }
 
   override def onDestroy = { 
     super.onDestroy(); 
-    if (onDestroyHandler != null) { onDestroyHandler() }
+    onDestroyNotifier.noteChange
   }
   
-  def onDestroy( handler: => Unit ) = { onDestroyHandler = ( () => handler ) }
+  def onDestroy( thunk: => Unit ) = { onDestroyNotifier.onChange(this){ thunk }}
 
   def saveInstanceState( b: Bundle ) = {}
   def recreateInstanceState( b: Bundle ) = {}
@@ -182,13 +184,13 @@ trait PositronicActivityHelpers
   }
 
   override def onRestoreInstanceState( b: Bundle ) = {
-    super.onSaveInstanceState( b )
-    saveInstanceState( b )
+    super.onRestoreInstanceState( b )
+    restoreInstanceState( b )
   }
 
-  def runOnUiThread( func: => Unit ):Unit = {
+  def runOnUiThread( thunk: => Unit ):Unit = {
     this.runOnUiThread( new Runnable {
-      def run() = { func }
+      def run() = { thunk }
     })
   }
 } 

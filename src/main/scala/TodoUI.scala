@@ -50,7 +50,7 @@ class TodosActivity
     val listsView = findView( TR.listsView )
     listsView.setAdapter( adapter )
 
-    TodoDb.openInContext( getApplicationContext )
+    useAppFacility( TodoDb )
 
     onChangeTo( Todo ){ this.runOnUiThread { adapter.notifyDataSetChanged }}
     Todo.refreshFromDb
@@ -62,8 +62,6 @@ class TodosActivity
     findView( TR.addButton ).onClick { doAdd }
     findView( TR.newListName ).onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
   }
-
-  onDestroy { TodoDb.close }
 
   override def recreateInstanceState( b: Bundle ) {
     // No state to pull out of a bundle when recreating an instance,
@@ -148,7 +146,7 @@ extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
     val listItemsView = findView( TR.listItemsView )
     listItemsView.setAdapter( adapter )
 
-    TodoDb.openInContext( getApplicationContext )
+    useAppFacility( TodoDb )
 
     onChangeTo( theList ){ this.runOnUiThread { adapter.notifyDataSetChanged }}
     theList.refreshFromDb
@@ -160,8 +158,6 @@ extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
     findView( TR.addButton ).onClick { doAdd }
     newItemText.onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
   }
-
-  onDestroy { TodoDb.close }
 
   def doAdd = {
     val str = newItemText.getText.toString

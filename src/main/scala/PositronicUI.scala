@@ -8,6 +8,7 @@ import _root_.android.os.Bundle
 import _root_.android.widget.AdapterView
 import _root_.android.util.Log
 
+import org.positronic.util.AppFacility
 import org.positronic.util.ChangeNotifier
 import org.positronic.util.ChangeNotifications
 
@@ -118,6 +119,13 @@ trait PositronicActivityHelpers
   def onChangeTo( frob: ChangeNotifications )( thunk: => Unit ) {
     frob.onChange( this ){ thunk }
     this.onDestroy{ frob.stopChangeNotifications( this ) }
+  }
+
+  // Likewise for AppFacilities...
+
+  def useAppFacility( f: AppFacility ) {
+    f.openInContext( this.getApplicationContext )
+    this.onDestroy{ f.close }
   }
 
   // Handlers for lifecycle events.  The idea here is simply to

@@ -5,6 +5,8 @@ import _root_.android.database.sqlite._
 import _root_.android.content.ContentValues
 import _root_.android.content.Context
 
+import _root_.android.util.Log
+
 import org.positronic.util.AppFacility
 
 // Mummery to make sure that on inserts and updates, strings and ints
@@ -183,7 +185,7 @@ class StatementFragment( db: Database,
         b.append( "columns " )
         for( col <- cols ) { b.append( col ); b.append( " " ) }
       }
-      _root_.android.util.Log.d( db.getLogTag, b.toString )
+      Log.d( db.getLogTag, b.toString )
     }
   }
 

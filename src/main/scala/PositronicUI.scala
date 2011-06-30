@@ -8,8 +8,8 @@ import _root_.android.os.Bundle
 import _root_.android.widget.AdapterView
 import _root_.android.util.Log
 
-import org.positronic.pubsub.ChangeNotifier
-import org.positronic.pubsub.ChangeNotifications
+import org.positronic.util.ChangeNotifier
+import org.positronic.util.ChangeNotifications
 
 trait PositronicViewOps {
   // This would be the place to put findView, if we knew where

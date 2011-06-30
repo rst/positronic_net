@@ -362,11 +362,4 @@ extends Database( filename, logTag ) {
     super.realClose
   }
   
-  override def getWritableDatabase: SQLiteDatabase = {
-    assertOnDbThread( "getWritableDatabase" ); super.getWritableDatabase
-  }
-
-  override def getReadableDatabase: SQLiteDatabase = {
-    assertOnDbThread( "getReadableDatabase" ); super.getReadableDatabase
-  }
 }

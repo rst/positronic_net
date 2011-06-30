@@ -1,4 +1,4 @@
-package org.positronic.pubsub
+package org.positronic.util
 
 import scala.collection.mutable.HashMap
 

@@ -1,7 +1,7 @@
 package rst.todo
 
 import org.positronic.db.DatabaseWithThread
-import org.positronic.pubsub.ChangeNotifications
+import org.positronic.util.ChangeNotifications
 
 import scala.collection.mutable.ArrayBuffer
 

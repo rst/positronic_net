@@ -3,7 +3,7 @@
   android:orientation="vertical"
   android:layout_width="fill_parent"
   android:layout_height="fill_parent">
-  <org.triplesec.EditText
+  <org.positronic.ui.EditText
     android:id="@+id/dialogEditText"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
@@ -12,13 +12,13 @@
   <LinearLayout
     android:layout_width="fill_parent"
     android:layout_height="wrap_content">
-    <org.triplesec.Button android:id="@+id/saveButton"
+    <org.positronic.ui.Button android:id="@+id/saveButton"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_weight="1"
       android:text="Save"
     />
-    <org.triplesec.Button android:id="@+id/deleteButton"
+    <org.positronic.ui.Button android:id="@+id/deleteButton"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_weight="1"

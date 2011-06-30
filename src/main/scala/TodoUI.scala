@@ -1,12 +1,12 @@
 package rst.todo
 
-import org.triplesec.Button
-import org.triplesec.IndexedSeqAdapter
-import org.triplesec.Dialog
-import org.triplesec.EditText
-import org.triplesec.TextView
-import org.triplesec.Activity
-import org.triplesec.ListView
+import org.positronic.ui.Button
+import org.positronic.ui.IndexedSeqAdapter
+import org.positronic.ui.Dialog
+import org.positronic.ui.EditText
+import org.positronic.ui.TextView
+import org.positronic.ui.Activity
+import org.positronic.ui.ListView
 
 import _root_.android.os.Bundle
 import _root_.android.content.Context

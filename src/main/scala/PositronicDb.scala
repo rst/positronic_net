@@ -1,4 +1,4 @@
-package org.triplesec.db
+package org.positronic.db
 
 import _root_.android.database.sqlite._
 import _root_.android.content.ContentValues

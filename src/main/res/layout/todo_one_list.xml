@@ -6,21 +6,21 @@
   <LinearLayout
     android:layout_width="fill_parent"
     android:layout_height="wrap_content">
-    <org.triplesec.EditText
+    <org.positronic.ui.EditText
       android:id="@+id/newItemText"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_weight="1"
       android:text=""
     />
-    <org.triplesec.Button
+    <org.positronic.ui.Button
       android:id="@+id/addButton"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:text="Add Item"
     />
   </LinearLayout>
-  <org.triplesec.ListView  
+  <org.positronic.ui.ListView  
     android:id="@+id/listItemsView"
     android:layout_width="fill_parent" 
     android:layout_height="wrap_content" 

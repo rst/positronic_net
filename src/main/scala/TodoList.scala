@@ -1,6 +1,6 @@
 package rst.todo
 
-import org.triplesec.db.DatabaseWithThread
+import org.positronic.db.DatabaseWithThread
 import scala.collection.mutable.ArrayBuffer
 
 // Our domain model classes, such as they are.

@@ -1,11 +1,11 @@
 package org.positronic.db
 
 import _root_.android.database.sqlite._
+
 import _root_.android.content.ContentValues
 import _root_.android.content.Context
-import _root_.android.util.Log
-import _root_.java.util.concurrent.BlockingQueue
-import _root_.java.util.concurrent.LinkedBlockingQueue
+
+import org.positronic.util.AppFacility
 
 // Mummery to make sure that on inserts and updates, strings and ints
 // are added into contentValues objects with the appropriate types.
@@ -259,36 +259,32 @@ extends SQLiteOpenHelper( ctx, mydb.getFilename,
 
 }
 
-abstract class Database( filename: String, logTag: String = null ) {
-
+abstract class Database( filename: String, logTag: String = null ) 
+  extends AppFacility( logTag )
+{
   var dbWrapper: DbWrapper = null
-  var openNesting: Int = 0
+
+  def getFilename = filename
+
+  override def realOpen(ctx: Context) = { 
+    dbWrapper = new DbWrapper( ctx, this ) 
+  }
+
+  override def realClose = { 
+    dbWrapper.close; dbWrapper = null 
+  }
+
+  // List of "one-way migrations" that define the current DB schema...
 
   def schemaUpdates: List[String]
 
-  def getLogTag = logTag
-  def getFilename = filename
+  // Versions of the common parts of the SQLiteOpenHelper API.
+  // The real SQLiteOpenHelper that we create in realOpen
+  // delegates to these...
 
   def getWritableDatabase = dbWrapper.getWritableDatabase
   def getReadableDatabase = dbWrapper.getReadableDatabase
   
-  def realOpen(ctx: Context) = { dbWrapper = new DbWrapper( ctx, this ) }
-  def realClose              = { dbWrapper.close; dbWrapper = null }
-
-  def openInContext( ctx: Context ) = {
-    if (openNesting == 0) {
-      realOpen( ctx )
-    }
-    openNesting += 1
-  }
-
-  def close = {
-    openNesting -= 1
-    if (openNesting == 0) {
-      realClose
-    }
-  }
-
   def onCreate( db: SQLiteDatabase ) = onUpgrade( db, 0, version )
   
   def onUpgrade( db: SQLiteDatabase, oldVersion: Int, newVersion: Int ) = {
@@ -302,64 +298,5 @@ abstract class Database( filename: String, logTag: String = null ) {
   def version = schemaUpdates.length
 
   def apply( table: String ) = new StatementFragment( this, table )
-
-  def log( s: String ) = {
-    if (logTag != null) Log.d( logTag, s )
-  }
 }
 
-abstract class DatabaseWithThread( filename: String, logTag: String = null )
-extends Database( filename, logTag ) {
-
-  val q = new LinkedBlockingQueue[ () => Unit ]
-
-  class QueueRunnerThread( q: BlockingQueue[() => Unit] ) extends Thread {
-    var dying = false
-    def prepareToExit = { dying = true }
-    override def run = {
-      while (!dying) {
-        try {
-          (q.take())()
-        }
-        catch {
-          case ex: Throwable => Log.e( 
-            if (logTag != null) logTag else "DB",
-            "Uncaught exception on DB Thread",
-            ex)
-        }
-      }
-    }
-  }
-
-  def runOnDbThread( func: => Unit ) = {
-    q.put( () => func )
-  }
-
-  var theThread: QueueRunnerThread = null
-
-  def assertOnDbThread( s: String ) {
-    // Don't build the message unless we're going to throw the error...
-    if ( Thread.currentThread != theThread ) {
-      assert( Thread.currentThread == theThread, s + " called off DB Thread" )
-    }
-  }
-
-  override def realOpen( ctx: Context ) = {
-    super.realOpen( ctx )
-    theThread = new QueueRunnerThread( q )
-    theThread.start
-  }
-
-  override def realClose = {
-
-    // We want the thread to exit *after* draining all its current
-    // work.  So, we put a "please go away" marker on the queue, and
-    // wait for it to drain...
-
-    runOnDbThread { theThread.prepareToExit }
-    theThread.join
-    theThread = null
-    super.realClose
-  }
-  
-}

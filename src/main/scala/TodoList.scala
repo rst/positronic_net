@@ -1,15 +1,17 @@
 package rst.todo
 
-import org.positronic.db.DatabaseWithThread
+import org.positronic.db.Database
 import org.positronic.util.ChangeNotifications
+import org.positronic.util.WorkerThread
 
 import scala.collection.mutable.ArrayBuffer
 
 // Our domain model classes, such as they are.
 
 object TodoDb 
- extends DatabaseWithThread( filename = "todos.sqlite3", logTag = "todo" ) {
-
+ extends Database( filename = "todos.sqlite3", logTag = "todo" ) 
+ with WorkerThread
+{
   // This gets fed to a SQLiteOpenHelper, which implements the following
   // default behavior:
   //
@@ -54,7 +56,7 @@ object TodoDb
 // have to wait for the query to finish!)
 
 trait TodoDbModel extends ChangeNotifications {
-  def db( f: => Unit ) = { TodoDb.runOnDbThread{ f } }
+  def db( f: => Unit ) = { TodoDb.runOnThread{ f } }
 }
 
 case class TodoItem( var id: Long, var description: String, var isDone: Boolean)

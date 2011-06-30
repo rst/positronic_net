@@ -45,13 +45,14 @@ class TodosActivity
  with ViewFinder {
 
   onCreate {
+
     val adapter = new TodosAdapter
     val listsView = findView( TR.listsView )
-
     listsView.setAdapter( adapter )
-    Todo.onChange { this.runOnUiThread { adapter.notifyDataSetChanged }}
 
     TodoDb.openInContext( getApplicationContext )
+
+    onChangeTo( Todo ){ this.runOnUiThread { adapter.notifyDataSetChanged }}
     Todo.refreshFromDb
 
     listsView.onItemClick { (view, posn, id) => viewList( posn ) }
@@ -146,9 +147,10 @@ extends Activity( layoutResourceId = R.layout.todo_one_list) with ViewFinder {
     val adapter = new TodoItemsAdapter( theList.items )
     val listItemsView = findView( TR.listItemsView )
     listItemsView.setAdapter( adapter )
-    theList.onChange { this.runOnUiThread { adapter.notifyDataSetChanged }}
 
     TodoDb.openInContext( getApplicationContext )
+
+    onChangeTo( theList ){ this.runOnUiThread { adapter.notifyDataSetChanged }}
     theList.refreshFromDb
 
     // Event handlers...

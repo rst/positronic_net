@@ -6,8 +6,10 @@ import _root_.android.view.LayoutInflater
 import _root_.android.view.Menu
 import _root_.android.os.Bundle
 import _root_.android.widget.AdapterView
+import _root_.android.util.Log
 
 import org.positronic.pubsub.ChangeNotifier
+import org.positronic.pubsub.ChangeNotifications
 
 trait PositronicViewOps {
   // This would be the place to put findView, if we knew where
@@ -109,6 +111,15 @@ trait PositronicItemHandlers {
 trait PositronicActivityHelpers
  extends _root_.android.app.Activity
 {
+  // Correctly scope change handling, so we don't wind up processing
+  // change notifications for defunct activities.  Meant to be called
+  // from onCreate; automatically unregisters the handler onDestroy.
+
+  def onChangeTo( frob: ChangeNotifications )( thunk: => Unit ) {
+    frob.onChange( this ){ thunk }
+    this.onDestroy{ frob.stopChangeNotifications( this ) }
+  }
+
   // Handlers for lifecycle events.  The idea here is simply to
   // eliminate the ceremony of having to call super.foo() when
   // redefining each of these.

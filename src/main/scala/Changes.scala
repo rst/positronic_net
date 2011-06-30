@@ -16,3 +16,5 @@ trait ChangeNotifications {
     }
   }
 }
+
+class ChangeNotifier extends ChangeNotifications

@@ -7,7 +7,7 @@ import _root_.android.view.Menu
 import _root_.android.os.Bundle
 import _root_.android.widget.AdapterView
 
-trait DryerViewOps {
+trait PositronicViewOps {
   // This would be the place to put findView, if we knew where
   // to find TypedResource.
 }
@@ -16,7 +16,7 @@ trait DryerViewOps {
 // don't conflict with the native API because they're alternate
 // overloadings.
 
-trait DryerHandlers extends DryerViewOps {
+trait PositronicHandlers extends PositronicViewOps {
 
   def setOnClickListener( dummy: android.view.View.OnClickListener ): Unit
 
@@ -68,7 +68,7 @@ trait DryerHandlers extends DryerViewOps {
 // handler returning a Boolean.  (We can't use overloading here, because
 // the handler types are the same after erasure.)
 
-trait DryerItemHandlers {
+trait PositronicItemHandlers {
 
   def setOnItemClickListener( l: AdapterView.OnItemClickListener ): Unit
   def setOnItemLongClickListener( l: AdapterView.OnItemLongClickListener ): Unit
@@ -104,51 +104,9 @@ trait DryerItemHandlers {
    
 }
 
-// Note that we don't (yet) provide allthe constructor variants
-// with "theme" arguments, since we've got a bit of a catch-22 
-// with them.
-//
-// Scala classes must have a single "main" constructor which all the
-// others call --- they can't directly invoke overloaded constructors
-// in the base class.  If we supported all of the "style"-as-arg
-// variants (e.g., the three-argument constructors for "Button", etc.,
-// with "style" as the third ag), then the other constructors would
-// have to supply the default value.  But the proper value to supply,
-// at least in the Button case, from consulting the android source
-// directly, is something fished out of com.android.internal.R which
-// user code doesn't have access to.
-//
-// The only obvious workaround would be to have Foo and StyledFoo
-// variants, with the StyledFoo having the three-arg constructor.
-// Which would require all the actual methods to be declared in
-// traits to avoid duplication here; fortunately, that's not hard.
-
-class Button( context: Context, attrs: AttributeSet = null )
- extends _root_.android.widget.Button( context, attrs ) with DryerHandlers
-
-class EditText( context: Context, attrs: AttributeSet = null )
- extends _root_.android.widget.EditText( context, attrs ) with DryerHandlers
-
-class TextView( context: Context, attrs: AttributeSet = null )
- extends _root_.android.widget.TextView( context, attrs ) with DryerHandlers
-
-class ListView( context: Context, attrs: AttributeSet = null )
- extends _root_.android.widget.ListView( context, attrs ) 
- with DryerHandlers 
- with DryerItemHandlers
-
-class Dialog( context: Context, theme: Int = 0, layoutResourceId: Int = 0 )
- extends android.app.Dialog( context, theme ) with DryerViewOps {
-
-  if ( layoutResourceId != 0 )
-    setContentView( layoutResourceId )
-}
-
-class Activity( layoutResourceId: Int = 0,
-                optionsMenuResourceId: Int = 0
-              )
- extends android.app.Activity with DryerViewOps {
-
+trait PositronicActivityHelpers
+ extends _root_.android.app.Activity
+{
   // Handlers for lifecycle events.  The idea here is simply to
   // eliminate the ceremony of having to call super.foo() when
   // redefining each of these.
@@ -166,7 +124,11 @@ class Activity( layoutResourceId: Int = 0,
   var onStopHandler:    ( () => Unit ) = null
   var onDestroyHandler: ( () => Unit ) = null
 
-  override def onCreate( b: Bundle ) = {
+  override def onCreate( b: Bundle ) {
+    onCreate( b, 0 )
+  }
+
+  def onCreate( b: Bundle, layoutResourceId: Int ) = {
     super.onCreate( b )
     if (layoutResourceId != 0) { setContentView( layoutResourceId ) }
     if (onCreateHandler != null) { onCreateHandler() }
@@ -224,6 +186,67 @@ class Activity( layoutResourceId: Int = 0,
     saveInstanceState( b )
   }
 
+  def runOnUiThread( func: => Unit ):Unit = {
+    this.runOnUiThread( new Runnable {
+      def run() = { func }
+    })
+  }
+} 
+
+// Widgets (and other things) with our traits premixed in.
+//
+// Note that we don't (yet) provide allthe constructor variants
+// with "theme" arguments, since we've got a bit of a catch-22 
+// with them.
+//
+// Scala classes must have a single "main" constructor which all the
+// others call --- they can't directly invoke overloaded constructors
+// in the base class.  If we supported all of the "style"-as-arg
+// variants (e.g., the three-argument constructors for "Button", etc.,
+// with "style" as the third ag), then the other constructors would
+// have to supply the default value.  But the proper value to supply,
+// at least in the Button case, from consulting the android source
+// directly, is something fished out of com.android.internal.R which
+// I'm not sure how to access from code.
+//
+// The only obvious workaround would be to have Foo and StyledFoo
+// variants, with the StyledFoo having the three-arg constructor.
+// But since the guts of everything is in traits, that's not hard.
+
+class Button( context: Context, attrs: AttributeSet = null )
+ extends _root_.android.widget.Button( context, attrs ) 
+ with PositronicHandlers
+
+class EditText( context: Context, attrs: AttributeSet = null )
+ extends _root_.android.widget.EditText( context, attrs ) 
+ with PositronicHandlers
+
+class TextView( context: Context, attrs: AttributeSet = null )
+ extends _root_.android.widget.TextView( context, attrs ) 
+ with PositronicHandlers
+
+class ListView( context: Context, attrs: AttributeSet = null )
+ extends _root_.android.widget.ListView( context, attrs ) 
+ with PositronicHandlers 
+ with PositronicItemHandlers
+
+class Dialog( context: Context, theme: Int = 0, layoutResourceId: Int = 0 )
+ extends android.app.Dialog( context, theme ) with PositronicViewOps {
+
+  if ( layoutResourceId != 0 )
+    setContentView( layoutResourceId )
+}
+
+class Activity( layoutResourceId: Int = 0,
+                optionsMenuResourceId: Int = 0
+              )
+ extends android.app.Activity
+ with PositronicActivityHelpers 
+{
+  override def onCreate( b: Bundle ) = {
+    super.onCreate( b, layoutResourceId )
+  }
+
   override def onCreateOptionsMenu( menu: Menu ):Boolean = {
     if (optionsMenuResourceId == 0) {
       return false
@@ -231,13 +254,7 @@ class Activity( layoutResourceId: Int = 0,
     getMenuInflater.inflate( optionsMenuResourceId, menu )
     return true
   }
-
-  def runOnUiThread( func: => Unit ):Unit = {
-    this.runOnUiThread( new Runnable {
-      def run() = { func }
-    })
-  }
-} 
+}
 
 // Adapters for Scala collections.  Also support an alternative
 // API which DRYs up common invocation patterns.

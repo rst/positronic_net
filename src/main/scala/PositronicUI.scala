@@ -1,4 +1,4 @@
-package org.positronic.ui
+package org.positronicnet.ui
 
 import _root_.android.content.Context
 import _root_.android.util.AttributeSet
@@ -13,8 +13,8 @@ import _root_.android.widget.AdapterView
 import _root_.android.widget.Toast
 import _root_.android.util.Log
 
-import org.positronic.util.AppFacility
-import org.positronic.util.ChangeNotifications
+import org.positronicnet.util.AppFacility
+import org.positronicnet.util.ChangeNotifications
 
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer

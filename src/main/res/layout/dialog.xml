@@ -3,7 +3,7 @@
   android:orientation="vertical"
   android:layout_width="fill_parent"
   android:layout_height="fill_parent">
-  <org.positronic.ui.EditText
+  <org.positronicnet.ui.EditText
     android:id="@+id/dialogEditText"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
@@ -12,13 +12,13 @@
   <LinearLayout
     android:layout_width="fill_parent"
     android:layout_height="wrap_content">
-    <org.positronic.ui.Button android:id="@+id/saveButton"
+    <org.positronicnet.ui.Button android:id="@+id/saveButton"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_weight="1"
       android:text="Save"
     />
-    <org.positronic.ui.Button android:id="@+id/cancelButton"
+    <org.positronicnet.ui.Button android:id="@+id/cancelButton"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_weight="1"

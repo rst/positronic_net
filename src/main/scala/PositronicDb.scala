@@ -1,4 +1,4 @@
-package org.positronic.db
+package org.positronicnet.db
 
 import _root_.android.database.sqlite._
 
@@ -7,7 +7,7 @@ import _root_.android.content.Context
 
 import _root_.android.util.Log
 
-import org.positronic.util.AppFacility
+import org.positronicnet.util.AppFacility
 
 // Mummery to make sure that on inserts and updates, strings and ints
 // are added into contentValues objects with the appropriate types.

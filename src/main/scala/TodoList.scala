@@ -2,9 +2,9 @@ package rst.todo
 
 import android.util.Log
 
-import org.positronic.db.Database
-import org.positronic.util.ChangeNotifications
-import org.positronic.util.WorkerThread
+import org.positronicnet.db.Database
+import org.positronicnet.util.ChangeNotifications
+import org.positronicnet.util.WorkerThread
 
 import scala.collection.mutable.ArrayBuffer
 

@@ -1,4 +1,4 @@
-package org.positronic.util
+package org.positronicnet.util
 
 import scala.collection.mutable.HashMap
 

@@ -1,12 +1,12 @@
 package rst.todo
 
-import org.positronic.ui.Button
-import org.positronic.ui.IndexedSeqAdapter
-import org.positronic.ui.Dialog
-import org.positronic.ui.EditText
-import org.positronic.ui.TextView
-import org.positronic.ui.Activity
-import org.positronic.ui.ListView
+import org.positronicnet.ui.Button
+import org.positronicnet.ui.IndexedSeqAdapter
+import org.positronicnet.ui.Dialog
+import org.positronicnet.ui.EditText
+import org.positronicnet.ui.TextView
+import org.positronicnet.ui.Activity
+import org.positronicnet.ui.ListView
 
 import _root_.android.os.Bundle
 import _root_.android.content.Context

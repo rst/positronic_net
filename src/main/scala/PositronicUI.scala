@@ -3,6 +3,8 @@ package org.positronic.ui
 import _root_.android.content.Context
 import _root_.android.util.AttributeSet
 import _root_.android.view.LayoutInflater
+import _root_.android.view.View
+import _root_.android.view.ViewGroup
 import _root_.android.view.Menu
 import _root_.android.view.MenuItem
 import _root_.android.os.Bundle
@@ -27,19 +29,19 @@ trait PositronicViewOps {
 
 trait PositronicHandlers extends PositronicViewOps {
 
-  def setOnClickListener( dummy: android.view.View.OnClickListener ): Unit
+  def setOnClickListener( dummy: View.OnClickListener ): Unit
 
   def onClick(func: => Unit) = {
-    setOnClickListener( new android.view.View.OnClickListener {
-      def onClick( dummy: android.view.View ) = { func }
+    setOnClickListener( new View.OnClickListener {
+      def onClick( dummy: View ) = { func }
     })
   }
 
-  def setOnKeyListener( dummy: android.view.View.OnKeyListener ): Unit
+  def setOnKeyListener( dummy: View.OnKeyListener ): Unit
 
   def onKey(func: ( Int, android.view.KeyEvent ) => Boolean) = {
-    setOnKeyListener( new android.view.View.OnKeyListener {
-      def onKey( dummy: android.view.View, 
+    setOnKeyListener( new View.OnKeyListener {
+      def onKey( dummy: View, 
                  keyCode: Int, event: android.view.KeyEvent ):Boolean = {
         return func( keyCode, event )
       }
@@ -50,8 +52,8 @@ trait PositronicHandlers extends PositronicViewOps {
   // Not hard to fix, but not needed for now.  Mark XXX TODO.
 
   def onKey(keyCode: Int, metaState: Int = 0)( func: => Unit ) = {
-    setOnKeyListener( new android.view.View.OnKeyListener {
-      def onKey( dummy: android.view.View, 
+    setOnKeyListener( new View.OnKeyListener {
+      def onKey( dummy: View, 
                  eventKeyCode: Int, event: android.view.KeyEvent ):Boolean = {
         if (eventKeyCode == keyCode && event.getMetaState == metaState) {
           func; return true
@@ -82,29 +84,29 @@ trait PositronicItemHandlers {
   def setOnItemClickListener( l: AdapterView.OnItemClickListener ): Unit
   def setOnItemLongClickListener( l: AdapterView.OnItemLongClickListener ): Unit
 
-  def onItemClick( func: (_root_.android.view.View, Int, Long) => Unit) = {
+  def onItemClick( func: (View, Int, Long) => Unit) = {
     setOnItemClickListener( new AdapterView.OnItemClickListener {
-      def onItemClick( parent: AdapterView[_], view: _root_.android.view.View,
+      def onItemClick( parent: AdapterView[_], view: View,
                        position: Int, id: Long ) = { 
         func( view, position, id ) 
       }
     })
   }
    
-  def onItemLongClick( func: (_root_.android.view.View, Int, Long) => Unit) = {
+  def onItemLongClick( func: (View, Int, Long) => Unit) = {
     setOnItemLongClickListener( new AdapterView.OnItemLongClickListener {
       def onItemLongClick( parent: AdapterView[_], 
-                           view: _root_.android.view.View,
+                           view: View,
                            position: Int, id: Long ):Boolean = { 
         func( view, position, id ); return true
       }
     })
   }
    
-  def onItemLongClickMaybe( func:(_root_.android.view.View, Int, Long) => Boolean)={
+  def onItemLongClickMaybe( func:(View, Int, Long) => Boolean)={
     setOnItemLongClickListener( new AdapterView.OnItemLongClickListener {
       def onItemLongClick( parent: AdapterView[_], 
-                           view: _root_.android.view.View,
+                           view: View,
                            position: Int, id: Long ):Boolean = { 
         func( view, position, id )
       }
@@ -335,9 +337,7 @@ extends _root_.android.widget.BaseAdapter {
     notifyDataSetChanged
   }
 
-  def getView( position: Int, 
-               convertView: android.view.View,
-               parent: android.view.ViewGroup ): android.view.View = {
+  def getView( position: Int, convertView: View, parent: ViewGroup ):View = {
 
     val view = 
       if (convertView != null) {
@@ -356,12 +356,12 @@ extends _root_.android.widget.BaseAdapter {
     return view
   }
 
-  def createView(parent: android.view.ViewGroup): android.view.View = {
+  def createView(parent: ViewGroup): View = {
     assert( itemViewResourceId != 0 )
     inflater.inflate( itemViewResourceId, parent, false )
   }
 
-  def fillView( view: android.view.View, position: Int ) = {
+  def fillView( view: View, position: Int ) = {
     val textView = 
       (if (itemTextResourceId != 0)
         view.findViewById( itemTextResourceId )

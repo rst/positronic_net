@@ -117,6 +117,7 @@ class TodosActivity
     if ( str != "" ) {
       TodoLists.addList( name = str )
       findView( TR.newListName ).setText("")
+      listsView.setSelection( TodoLists.lists.size - 1 )
     }
   }
 
@@ -204,6 +205,7 @@ class TodoActivity
     if ( str != "" ) {
       theList.addItem( description = str, isDone = false )
       newItemText.setText("")
+      listItemsView.setSelection( theList.items.size - 1 )
     }
   }
 

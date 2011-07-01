@@ -11,10 +11,10 @@ import _root_.android.widget.Toast
 import _root_.android.util.Log
 
 import org.positronic.util.AppFacility
-import org.positronic.util.ChangeNotifier
 import org.positronic.util.ChangeNotifications
 
 import scala.collection.mutable.HashMap
+import scala.collection.mutable.ArrayBuffer
 
 trait PositronicViewOps {
   // This would be the place to put findView, if we knew where
@@ -120,8 +120,8 @@ trait PositronicActivityHelpers
   // change notifications for defunct activities.  Meant to be called
   // from onCreate; automatically unregisters the handler onDestroy.
 
-  def onChangeTo( frob: ChangeNotifications )( thunk: => Unit ) {
-    frob.onChange( this ){ thunk }
+  def onChangeTo[T]( frob: ChangeNotifications[T] )( handler: T => Unit ) {
+    frob.onChange( this ){ handler }
     this.onDestroy{ frob.stopChangeNotifications( this ) }
   }
 
@@ -141,13 +141,17 @@ trait PositronicActivityHelpers
   // methods, called from the "on..." variant, or onCreate, respectively,
   // again to eliminate ceremony.
 
-  var onCreateNotifier  = new ChangeNotifier
-  var onRestartNotifier = new ChangeNotifier
-  var onStartNotifier   = new ChangeNotifier
-  var onResumeNotifier  = new ChangeNotifier
-  var onPauseNotifier   = new ChangeNotifier
-  var onStopNotifier    = new ChangeNotifier
-  var onDestroyNotifier = new ChangeNotifier
+  class Handlers extends ArrayBuffer[ () => Unit ] {
+    def runAll = for (handler <- this) { handler() }
+  }
+
+  var onCreateNotifier  = new Handlers
+  var onRestartNotifier = new Handlers
+  var onStartNotifier   = new Handlers
+  var onResumeNotifier  = new Handlers
+  var onPauseNotifier   = new Handlers
+  var onStopNotifier    = new Handlers
+  var onDestroyNotifier = new Handlers
 
   override def onCreate( b: Bundle ) {
     onCreate( b, 0 )
@@ -157,45 +161,45 @@ trait PositronicActivityHelpers
     super.onCreate( b )
     if (layoutResourceId != 0) { setContentView( layoutResourceId ) }
     recreateInstanceState( b )
-    onCreateNotifier.noteChange
+    onCreateNotifier.runAll
   }
 
-  def onCreate( thunk: => Unit ) = { onCreateNotifier.onChange(this){ thunk } }
+  def onCreate( thunk: => Unit ) = { onCreateNotifier.append( () => thunk ) }
 
   override def onRestart = { 
     super.onRestart(); 
-    onRestartNotifier.noteChange
+    onRestartNotifier.runAll
   }
   
-  def onRestart( thunk: => Unit ) = { onRestartNotifier.onChange(this){ thunk }}
+  def onRestart( thunk: => Unit ) = { onRestartNotifier.append( () => thunk )}
 
   override def onResume = { 
     super.onResume(); 
-    onResumeNotifier.noteChange
+    onResumeNotifier.runAll
   }
   
-  def onResume( thunk: => Unit ) = { onResumeNotifier.onChange(this){ thunk } }
+  def onResume( thunk: => Unit ) = { onResumeNotifier.append( () => thunk ) }
 
   override def onPause = { 
     super.onPause(); 
-    onPauseNotifier.noteChange
+    onPauseNotifier.runAll
   }
   
-  def onPause( thunk: => Unit ) = { onPauseNotifier.onChange(this){ thunk } }
+  def onPause( thunk: => Unit ) = { onPauseNotifier.append( () => thunk ) }
 
   override def onStop = { 
     super.onStop(); 
-    onStopNotifier.noteChange
+    onStopNotifier.runAll
   }
   
-  def onStop( thunk: => Unit ) = { onStopNotifier.onChange(this){ thunk } }
+  def onStop( thunk: => Unit ) = { onStopNotifier.append( () => thunk ) }
 
   override def onDestroy = { 
     super.onDestroy(); 
-    onDestroyNotifier.noteChange
+    onDestroyNotifier.runAll
   }
   
-  def onDestroy( thunk: => Unit ) = { onDestroyNotifier.onChange(this){ thunk }}
+  def onDestroy( thunk: => Unit ) = { onDestroyNotifier.append( () => thunk )}
 
   def saveInstanceState( b: Bundle ) = {}
   def recreateInstanceState( b: Bundle ) = {}
@@ -315,13 +319,21 @@ class Activity( layoutResourceId: Int = 0,
 // So, if you really want an adapter for an IndexedSeq[Long],
 // you're on your own.
 
-class IndexedSeqAdapter[T <: Object](seq: IndexedSeq[T], 
+class IndexedSeqAdapter[T <: Object](var seq:IndexedSeq[T] = new ArrayBuffer[T],
                                      itemViewResourceId: Int = 0, 
                                      itemTextResourceId: Int = 0
                                     ) 
 extends _root_.android.widget.BaseAdapter {
 
   var inflater: LayoutInflater = null
+
+  // Method to reset the sequence if a new copy was (or might have been)
+  // loaded off the UI thread.
+
+  def resetSeq( newSeq: IndexedSeq[T] ) = {
+    seq = newSeq
+    notifyDataSetChanged
+  }
 
   def getView( position: Int, 
                convertView: android.view.View,

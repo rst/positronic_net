@@ -52,7 +52,7 @@ class TodosActivity
 
     useAppFacility( TodoDb )
 
-    onChangeTo( Todo ){ this.runOnUiThread { adapter.notifyDataSetChanged }}
+    onChangeTo( Todo ){ lists => this.runOnUiThread{ adapter.resetSeq( lists )}}
     Todo.refreshFromDb
 
     listsView.onItemClick { (view, posn, id) => viewList( posn ) }
@@ -154,7 +154,7 @@ class TodoActivity
 
     useAppFacility( TodoDb )
 
-    onChangeTo( theList ){ this.runOnUiThread { adapter.notifyDataSetChanged }}
+    onChangeTo( theList ){ items => this.runOnUiThread{adapter.resetSeq(items)}}
     theList.refreshFromDb
 
     // Event handlers...

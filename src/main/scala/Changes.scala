@@ -2,19 +2,19 @@ package org.positronic.util
 
 import scala.collection.mutable.HashMap
 
-trait ChangeNotifications {
-  val changeHandlers = new HashMap[ AnyRef, () => Unit ]
-  def onChange( key: AnyRef )( handlerThunk: => Unit ):Unit = {
-    changeHandlers( key ) = (() => handlerThunk)
+trait ChangeNotifications[T] {
+  val changeHandlers = new HashMap[ AnyRef, T => Unit ]
+  def onChange( key: AnyRef )( handler: T => Unit ):Unit = {
+    changeHandlers( key ) = handler
   }
   def stopChangeNotifications( key: AnyRef ):Unit = {
     changeHandlers.remove( key )
   }
-  def noteChange = {
+  def noteChange( datum: T ) = {
     for ((key, handler) <- changeHandlers) {
-      handler()
+      handler( datum )
     }
   }
 }
 
-class ChangeNotifier extends ChangeNotifications
+class ChangeNotifier[T] extends ChangeNotifications[T]

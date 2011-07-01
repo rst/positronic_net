@@ -70,32 +70,40 @@ object TodoDb
 // (Well, almost never --- when we're first starting up, we obviously
 // have to wait for the query to finish!)
 
-trait TodoDbModel extends ChangeNotifications {
+trait TodoDbModel {
+  // Shorthand for kicking somtehing over to the DB Thread
   def db( f: => Unit ) = { TodoDb.runOnThread{ f } }
 }
 
 case class TodoItem( var id: Long, var description: String, var isDone: Boolean)
 
 case class TodoList( var id: Long,
-                     var name: String, 
-                     val items: ArrayBuffer[TodoItem] = 
-                       new ArrayBuffer[TodoItem])
-extends TodoDbModel
+                     var name: String )
+  extends TodoDbModel
+  with ChangeNotifications[ IndexedSeq[ TodoItem ]]
 {
   val dbItemsAll = TodoDb( "todo_items" ).whereEq( "todo_list_id" -> this.id )
   val dbItems = dbItemsAll.whereEq( "is_deleted"   -> false )
+  var items = new ArrayBuffer[TodoItem] // empty dummy, pending refreshFromDb
   var hasDeletedItems = false
 
   def hasDoneItems = { items.indexWhere( it => it.isDone ) >= 0 }
 
   def refreshFromDb = {
-    items.clear
+
+    // Subtlety here... if while running on the DB thread, we dink the
+    // items list that the UI's IndexedSeqAdapter is processing, we risk
+    // an IllegalStateChangeException.  So, we build a completely new
+    // list, and then tell the UI to make the switch.
+
+    val newItems = new ArrayBuffer[TodoItem]
     db { 
       for (c <- dbItems.order("id asc").select("id", "description", "is_done")){
-        items += TodoItem( c.getLong(0), c.getString(1), c.getBoolean(2) )
+        newItems += TodoItem( c.getLong(0), c.getString(1), c.getBoolean(2) )
       }
       hasDeletedItems = (dbItemsAll.whereEq( "is_deleted" -> true ).count > 0)
-      noteChange
+      this.items = newItems
+      noteChange( this.items )
     }
   }
 
@@ -105,7 +113,7 @@ extends TodoDbModel
 
     val item = new TodoItem( -1, description, isDone )
     items += item
-    noteChange
+    noteChange( items )
 
     // ... and have the DB thread find an ID for it.
     // (This means that the UI won't have access to the ID --- but
@@ -124,7 +132,7 @@ extends TodoDbModel
 
     val it = items(posn)
     it.description = desc
-    noteChange
+    noteChange( items )
 
     db { dbItems.whereEq( "id"->it.id ).update("description"->desc) }
   }
@@ -133,7 +141,7 @@ extends TodoDbModel
 
     val it = items(posn)
     it.isDone = isDone
-    noteChange
+    noteChange( items )
 
     db { dbItems.whereEq( "id"->it.id ).update("is_done" -> isDone) }
   }
@@ -156,22 +164,25 @@ extends TodoDbModel
 
 // Singleton object to represent the set of all available lists.
 
-object Todo extends TodoDbModel {
-
+object Todo 
+  extends TodoDbModel 
+  with ChangeNotifications[ IndexedSeq[ TodoList ]]
+{
   val dbListsAll = TodoDb("todo_lists")
   val dbLists = dbListsAll.whereEq( "is_deleted" -> false )
 
-  val lists = new ArrayBuffer[ TodoList ]
+  var lists = new ArrayBuffer[ TodoList ]
   var hasDeleted = false
 
   def refreshFromDb = {
-    lists.clear
+    val newLists = new ArrayBuffer[ TodoList ]
     db {
       for( c <- dbLists.order("id asc").select( "id", "name" )) {
-        lists += TodoList( c.getLong(0), c.getString(1) )
+        newLists += TodoList( c.getLong(0), c.getString(1) )
       }
+      lists = newLists
       hasDeleted = (dbListsAll.whereEq( "is_deleted" -> true ).count > 0)
-      noteChange
+      noteChange( lists )
     }
   }
 
@@ -179,7 +190,7 @@ object Todo extends TodoDbModel {
 
     val theList = new TodoList( -1, name )
     lists += theList
-    noteChange
+    noteChange( lists )
 
     db { theList.id = TodoDb( "todo_lists" ).insert( "name" -> name ) }
   }
@@ -189,7 +200,7 @@ object Todo extends TodoDbModel {
     val victim = lists(posn)
     lists.remove( posn )
     hasDeleted = true
-    noteChange
+    noteChange( lists )
 
     db {
 

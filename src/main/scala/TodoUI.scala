@@ -130,7 +130,6 @@ class TodoActivity
 {
   var theList: TodoList = null
 
-  lazy val editDialog = new EditItemDialog(this,theList) // constructed once
   lazy val newItemText = findView( TR.newItemText )
   lazy val listItemsView = findView( TR.listItemsView )
 
@@ -163,7 +162,7 @@ class TodoActivity
     registerForContextMenu( listItemsView )
 
     onContextItemSelected( R.id.edit ){ 
-      (menuInfo, view) => editDialog.doEdit( getContextItem( menuInfo, view ))
+      (menuInfo, view) => doEdit( getContextItem( menuInfo, view ))
     }
     onContextItemSelected( R.id.toggledone ){ 
       (menuInfo, view) => toggleDone( getContextItem( menuInfo, view ))
@@ -185,8 +184,11 @@ class TodoActivity
     }
   }
 
-  def setItemDescription( item: TodoItem, desc: String ) =
-    theList.setItemDescription( item, desc )
+  def doEdit( it: TodoItem ) = {
+    new EditStringDialog( this, it.description )
+      .onSave{ desc => theList.setItemDescription( it, desc ) }
+      .show
+  }
 
   def toggleDone( it: TodoItem ) = theList.setItemDone( it, !it.isDone )
 
@@ -205,28 +207,25 @@ class TodoActivity
   }
 }
 
-// Another dialog.  This one's meant to stick around; the "doEdit"
-// method does setup and pops it up.
-
-class EditItemDialog( base: TodoActivity, theList: TodoList )
-extends Dialog( base, layoutResourceId = R.layout.dialog ) with ViewFinder {
-
+class EditStringDialog( base: TodoActivity, str: String )
+ extends Dialog( base, layoutResourceId = R.layout.dialog ) 
+ with ViewFinder 
+{
   val editTxt = findView( TR.dialogEditText )
-  var editingItem:TodoItem = null
+  var saveHandler: ( String => Unit ) = null
 
+  editTxt.setText( str )
   editTxt.onKey( KeyEvent.KEYCODE_ENTER ){ doSave; dismiss }
 
-  findView( TR.saveButton ).onClick { doSave; dismiss }
   findView( TR.cancelButton ).onClick { dismiss }
+  findView( TR.saveButton ).onClick { doSave; dismiss }
   
-  def doSave = base.setItemDescription( editingItem, editTxt.getText.toString )
+  def doSave = saveHandler( editTxt.getText.toString )
 
-  def doEdit( it: TodoItem ) = {
-    editingItem = it
-    editTxt.setText( it.description )
-    show()
+  def onSave( handler: String => Unit ):EditStringDialog = { 
+    saveHandler = handler; 
+    return this 
   }
-  
 }
 
 // Another trivial adapter... A note on these, while I'm here;

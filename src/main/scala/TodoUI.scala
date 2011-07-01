@@ -39,25 +39,40 @@ object TodoUI {
   val listNumKey = "listNum"            // For intents; see below.
 }
 
+// List adapter for the singleton "TodoLists" object, which is all known lists.
+
+class TodosAdapter
+extends IndexedSeqAdapter( TodoLists.lists, 
+                           itemViewResourceId = R.layout.todos_row)
+{
+  override def fillView( view: View, position: Int ) =
+    view.asInstanceOf[ TextView ].setText( getItem( position ).name )
+}
+
+// Activity that uses it.
+
 class TodosActivity 
  extends Activity( layoutResourceId = R.layout.all_todos,
                    optionsMenuResourceId = R.menu.lists_view_menu ) 
- with ViewFinder {
-
+ with ViewFinder 
+{
   onCreate {
 
-    val adapter = new TodosAdapter
     val listsView = findView( TR.listsView )
+    val adapter = new TodosAdapter
     listsView.setAdapter( adapter )
 
-    useAppFacility( TodoDb )
+    useAppFacility( TodoDb )            // Open DB; arrange to close on destroy
 
-    onChangeTo( Todo ){ lists => this.runOnUiThread{ adapter.resetSeq( lists )}}
-    Todo.refreshFromDb
+    onChangeTo( TodoLists ){ 
+      // If we loaded a fresh copy on the DB thread, tell the adapter...
+      lists => this.runOnUiThread{ adapter.resetSeq( lists )}
+    }
+    TodoLists.refreshFromDb
 
-    listsView.onItemClick { (view, posn, id) => viewList( posn ) }
+    listsView.onItemClick { (view, posn, id) => viewListAt( posn ) }
     listsView.onItemLongClick { (view, posn, id) => 
-      new KillListDialog( this, posn ).show }
+      new KillListDialog( this, TodoLists.lists( posn )).show }
 
     findView( TR.addButton ).onClick { doAdd }
     findView( TR.newListName ).onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
@@ -78,58 +93,33 @@ class TodosActivity
   def doAdd = {
     val str = findView( TR.newListName ).getText.toString
     if ( str != "" ) {
-      Todo.addList( name = str )
+      TodoLists.addList( name = str )
       findView( TR.newListName ).setText("")
     }
   }
 
-  def viewList( posn: Int ) {
+  def viewListAt( posn: Int ) {
     val intent = new Intent( this, classOf[TodoActivity] )
     intent.putExtra( TodoUI.listNumKey, posn )
     startActivity( intent )
   }
 
-  def removeList( posn: Int ) = { Todo.removeList( posn ) }
-
   def undelete = { 
-    if (Todo.hasDeleted) Todo.undelete
+    if (TodoLists.hasDeleted) TodoLists.undelete
     else toast( R.string.undeletes_exhausted )
   }
 }
 
-// Its helper dialog.  I'm being really aggressive in trying to minimize
-// the ceremony here, with consequences --- this code builds and throws
-// away a new KillListDialog every time it needs one.  It would be more
-// efficient to instantiate the thing once, and keep it around, for which
-// see ItemEditDialog below.  (It's also more code, but not a lot.)
-
-class KillListDialog( base: TodosActivity, victimPosn: Int ) 
+class KillListDialog( base: TodosActivity, victim: TodoList ) 
  extends Dialog( base, layoutResourceId = R.layout.kill_todo_list ) 
  with ViewFinder 
 {
-  findView( TR.victimText ).setText("Delete "+Todo.lists(victimPosn).name+"?")
-  findView( TR.deleteButton ).onClick{ base.removeList( victimPosn ); dismiss }
+  findView( TR.victimText ).setText("Delete " + victim.name + "?")
+  findView( TR.deleteButton ).onClick{ TodoLists.removeList( victim ); dismiss }
   findView( TR.cancelButton ).onClick{ dismiss }
 }
 
-class TodosAdapter
-extends IndexedSeqAdapter( Todo.lists, itemViewResourceId = R.layout.todos_row){
-
-  // getView inflates the itemViewResourceId from above, if it doesn't have
-  // an old "convertView" supplied, and then calls this:
-
-  override def fillView( view: View, position: Int ) = {
-    view.asInstanceOf[ TextView ].setText( getItem( position ).name )
-  }
-
-  // If you want to do something else when creating the views besides just
-  // inflating the layout resource, like populating a ViewHolder, there's
-  // also a "createView" method that you can override.  But if you don't
-  // need to do that, as when the rows are simple TextViews, the above is
-  // all it takes.
-}
-
-// And now, the other activity, which manages an individual todo list.
+// And now, the other activity, which manages an individual todo list's items.
 
 class TodoActivity 
  extends Activity( layoutResourceId = R.layout.todo_one_list,
@@ -145,7 +135,7 @@ class TodoActivity
 
     // Setup
 
-    theList = Todo.lists( getIntent.getIntExtra( TodoUI.listNumKey, -1 ))
+    theList = TodoLists.lists( getIntent.getIntExtra( TodoUI.listNumKey, -1 ))
     setTitle( "Todo for: " + theList.name )
 
     val adapter = new TodoItemsAdapter( theList.items )
@@ -160,7 +150,7 @@ class TodoActivity
     // Event handlers...
 
     listItemsView.onItemClick { (view, posn, id) => toggleDone( posn ) }
-    listItemsView.onItemLongClick { (view, posn, id) => editDialog.doEdit(posn)}
+    listItemsView.onItemLongClick { (view, posn, id) => doEdit(posn)}
     findView( TR.addButton ).onClick { doAdd }
     newItemText.onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
 
@@ -176,22 +166,24 @@ class TodoActivity
     }
   }
 
-  def setItemDescription( posn: Int, desc: String ) = {
-    theList.setItemDescription( posn, desc )
-  }
+  def doEdit( posn: Int ) = editDialog.doEdit( theList.items( posn ))
+
+  def setItemDescription( item: TodoItem, desc: String ) =
+    theList.setItemDescription( item, desc )
 
   def toggleDone( posn: Int ) = {
-    theList.setItemDone( posn, !theList.items( posn ).isDone )
+    val it = theList.items( posn )
+    theList.setItemDone( it, !it.isDone )
   }
 
-  def deleteWhereDone {
+  def deleteWhereDone = {
     if (theList.hasDoneItems) 
       theList.deleteWhereDone
     else
       toast( R.string.no_tasks_done )
   }
 
-  def undelete {
+  def undelete = {
     if (theList.hasDeletedItems)
       theList.undelete
     else
@@ -206,26 +198,30 @@ class EditItemDialog( base: TodoActivity, theList: TodoList )
 extends Dialog( base, layoutResourceId = R.layout.dialog ) with ViewFinder {
 
   val editTxt = findView( TR.dialogEditText )
-  var editingPosn = -1
+  var editingItem:TodoItem = null
 
   editTxt.onKey( KeyEvent.KEYCODE_ENTER ){ doSave; dismiss }
 
   findView( TR.saveButton ).onClick { doSave; dismiss }
   findView( TR.cancelButton ).onClick { dismiss }
   
-  def doSave = {
-    base.setItemDescription( editingPosn, editTxt.getText.toString )
-  }
+  def doSave = base.setItemDescription( editingItem, editTxt.getText.toString )
 
-  def doEdit( posn: Int ) = {
-    editingPosn = posn
-    editTxt.setText( theList.items( posn ).description )
+  def doEdit( it: TodoItem ) = {
+    editingItem = it
+    editTxt.setText( it.description )
     show()
   }
   
 }
 
-// Another trivial adapter...
+// Another trivial adapter... A note on these, while I'm here;
+//
+// If you want to do something else when creating the views besides just
+// inflating the layout resource, like populating a ViewHolder, there's
+// also a "createView" method that you can override.  But if you don't
+// need to do that, as when the rows are simple TextViews, the above is
+// all it takes.
 
 class TodoItemsAdapter(seq: IndexedSeq[TodoItem]) 
  extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) {
@@ -240,7 +236,12 @@ class TodoItemsAdapter(seq: IndexedSeq[TodoItem])
 
 class TodoItemView( context: Context, attrs: AttributeSet = null )
  extends TextView( context, attrs ) {
+
+   var theItem: TodoItem = null
+   def getTodoItem = theItem
+
    def setTodoItem( item: TodoItem ) = {
+     theItem = item
      setText( item.description )
      setPaintFlags( 
        if (item.isDone) getPaintFlags | Paint.STRIKE_THRU_TEXT_FLAG 

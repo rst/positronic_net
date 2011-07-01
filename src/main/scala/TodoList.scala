@@ -1,5 +1,7 @@
 package rst.todo
 
+import android.util.Log
+
 import org.positronic.db.Database
 import org.positronic.util.ChangeNotifications
 import org.positronic.util.WorkerThread
@@ -77,17 +79,18 @@ trait TodoDbModel {
 
 case class TodoItem( var id: Long, var description: String, var isDone: Boolean)
 
-case class TodoList( var id: Long,
-                     var name: String )
+case class TodoList( var id: Long, var name: String )
   extends TodoDbModel
   with ChangeNotifications[ IndexedSeq[ TodoItem ]]
 {
-  val dbItemsAll = TodoDb( "todo_items" ).whereEq( "todo_list_id" -> this.id )
-  val dbItems = dbItemsAll.whereEq( "is_deleted"   -> false )
+  lazy val dbItemsAll = TodoDb("todo_items").whereEq("todo_list_id" -> this.id)
+  lazy val dbItems = dbItemsAll.whereEq( "is_deleted"   -> false )
+
   var items = new ArrayBuffer[TodoItem] // empty dummy, pending refreshFromDb
   var hasDeletedItems = false
 
-  def hasDoneItems = { items.indexWhere( it => it.isDone ) >= 0 }
+  def getItems:IndexedSeq[TodoItem] = items
+  def hasDoneItems = items.indexWhere( it => it.isDone ) >= 0
 
   def refreshFromDb = {
 
@@ -96,8 +99,8 @@ case class TodoList( var id: Long,
     // an IllegalStateChangeException.  So, we build a completely new
     // list, and then tell the UI to make the switch.
 
-    val newItems = new ArrayBuffer[TodoItem]
     db { 
+      val newItems = new ArrayBuffer[TodoItem]
       for (c <- dbItems.order("id asc").select("id", "description", "is_done")){
         newItems += TodoItem( c.getLong(0), c.getString(1), c.getBoolean(2) )
       }
@@ -128,23 +131,20 @@ case class TodoList( var id: Long,
     }
   }
 
-  def setItemDescription( posn: Int, desc: String ) = {
-
-    val it = items(posn)
+  def setItemDescription( it: TodoItem, desc: String ) = {
     it.description = desc
     noteChange( items )
-
     db { dbItems.whereEq( "id"->it.id ).update("description"->desc) }
   }
 
-  def setItemDone( posn: Int, isDone: Boolean ) = {
-
-    val it = items(posn)
+  def setItemDone( it: TodoItem, isDone: Boolean ) = {
     it.isDone = isDone
     noteChange( items )
-
     db { dbItems.whereEq( "id"->it.id ).update("is_done" -> isDone) }
   }
+
+  // Soft deletion.  Here, we do wait for the DB before showing the
+  // user the change... but the DB action still happens off the UI thread.
 
   def deleteWhereDone = {
     db {
@@ -164,7 +164,7 @@ case class TodoList( var id: Long,
 
 // Singleton object to represent the set of all available lists.
 
-object Todo 
+object TodoLists
   extends TodoDbModel 
   with ChangeNotifications[ IndexedSeq[ TodoList ]]
 {
@@ -195,10 +195,9 @@ object Todo
     db { theList.id = TodoDb( "todo_lists" ).insert( "name" -> name ) }
   }
 
-  def removeList( posn: Int ) = {
+  def removeList( victim: TodoList ) = {
 
-    val victim = lists(posn)
-    lists.remove( posn )
+    lists -= victim
     hasDeleted = true
     noteChange( lists )
 

@@ -2,4 +2,6 @@
     <string name="app_name">RstTodo</string>
     <string name="undeletes_exhausted">Nothing more to undelete. Sorry!</string>
     <string name="no_tasks_done">No tasks marked done.  Tap on one to mark it.</string>
+    <string name="list_deleted">Todo list deleted.  To recover the
+      last deleted list, choose "Undelete" from the Options Menu.</string>
 </resources>

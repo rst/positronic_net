@@ -16,6 +16,7 @@ import _root_.android.util.Log
 import _root_.android.view.KeyEvent
 import _root_.android.view.View
 import _root_.android.view.ContextMenu
+import _root_.android.widget.Toast
 import _root_.android.graphics.Paint
 import _root_.android.graphics.Canvas
 
@@ -54,12 +55,16 @@ extends IndexedSeqAdapter( TodoLists.lists,
 
 class TodosActivity 
  extends Activity( layoutResourceId = R.layout.all_todos,
-                   optionsMenuResourceId = R.menu.lists_view_menu )
+                   optionsMenuResourceId = R.menu.lists_view_menu,
+                   contextMenuResourceId = R.menu.lists_context_menu ) 
  with ViewFinder 
 {
+  lazy val listsView = findView( TR.listsView )
+
   onCreate {
 
-    val listsView = findView( TR.listsView )
+    // Set things up
+
     val adapter = new TodosAdapter
     listsView.setAdapter( adapter )
 
@@ -71,14 +76,23 @@ class TodosActivity
     }
     TodoLists.refreshFromDb
 
+    // Listen for events on widgets
+
     listsView.onItemClick { (view, posn, id) => viewListAt( posn ) }
-    listsView.onItemLongClick { (view, posn, id) => 
-      new KillListDialog( this, TodoLists.lists( posn )).show }
 
     findView( TR.addButton ).onClick { doAdd }
     findView( TR.newListName ).onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
 
-    onOptionsItemSelected( R.id.undelete ) { undelete }
+    onOptionsItemSelected( R.id.undelete ) { doUndelete }
+
+    registerForContextMenu( listsView )
+
+    onContextItemSelected( R.id.rename ){ 
+      (menuInfo, view) => doRename( getContextItem( menuInfo, view ))
+    }
+    onContextItemSelected( R.id.delete ){ 
+      (menuInfo, view) => doDelete( getContextItem( menuInfo, view ))
+    }
   }
 
   override def recreateInstanceState( b: Bundle ) {
@@ -91,6 +105,13 @@ class TodosActivity
     // be in your face.)
   }
 
+  // Determining relevant context for the ContextMenu
+
+  def getContextItem( menuInfo: ContextMenu.ContextMenuInfo, view: View ) =
+    listsView.selectedContextMenuItem( menuInfo ).asInstanceOf[ TodoList ]
+
+  // Running UI commands
+
   def doAdd = {
     val str = findView( TR.newListName ).getText.toString
     if ( str != "" ) {
@@ -99,25 +120,27 @@ class TodosActivity
     }
   }
 
+  def doRename( list: TodoList ) = {
+    new EditStringDialog( this, list.name )
+      .onSave{ name => TodoLists.setListName( list, name ) }
+      .show
+  }
+
+  def doDelete( list: TodoList ) = {
+    TodoLists.removeList( list )
+    toast( R.string.list_deleted, Toast.LENGTH_LONG )
+  }
+
+  def doUndelete = { 
+    if (TodoLists.hasDeleted) TodoLists.undelete
+    else toast( R.string.undeletes_exhausted )
+  }
+
   def viewListAt( posn: Int ) {
     val intent = new Intent( this, classOf[TodoActivity] )
     intent.putExtra( TodoUI.listNumKey, posn )
     startActivity( intent )
   }
-
-  def undelete = { 
-    if (TodoLists.hasDeleted) TodoLists.undelete
-    else toast( R.string.undeletes_exhausted )
-  }
-}
-
-class KillListDialog( base: TodosActivity, victim: TodoList ) 
- extends Dialog( base, layoutResourceId = R.layout.kill_todo_list ) 
- with ViewFinder 
-{
-  findView( TR.victimText ).setText("Delete " + victim.name + "?")
-  findView( TR.deleteButton ).onClick{ TodoLists.removeList( victim ); dismiss }
-  findView( TR.cancelButton ).onClick{ dismiss }
 }
 
 // And now, the other activity, which manages an individual todo list's items.
@@ -207,7 +230,7 @@ class TodoActivity
   }
 }
 
-class EditStringDialog( base: TodoActivity, str: String )
+class EditStringDialog( base: Activity, str: String )
  extends Dialog( base, layoutResourceId = R.layout.dialog ) 
  with ViewFinder 
 {

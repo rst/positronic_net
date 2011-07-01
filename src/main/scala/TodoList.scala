@@ -195,6 +195,12 @@ object TodoLists
     db { theList.id = TodoDb( "todo_lists" ).insert( "name" -> name ) }
   }
 
+  def setListName( list: TodoList, newName: String ) = {
+    list.name = newName
+    noteChange( lists )
+    db { dbLists.whereEq( "id"->list.id ).update("name"->newName) }
+  }
+
   def removeList( victim: TodoList ) = {
 
     lists -= victim

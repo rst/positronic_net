@@ -6,6 +6,7 @@ import _root_.android.view.LayoutInflater
 import _root_.android.view.View
 import _root_.android.view.ViewGroup
 import _root_.android.view.Menu
+import _root_.android.view.ContextMenu
 import _root_.android.view.MenuItem
 import _root_.android.os.Bundle
 import _root_.android.widget.AdapterView
@@ -111,6 +112,13 @@ trait PositronicItemHandlers {
         func( view, position, id )
       }
     })
+  }
+
+  def getItemAtPosition( posn: Int ):Object
+
+  def selectedContextMenuItem( info: ContextMenu.ContextMenuInfo ):Object = {
+    val posn = info.asInstanceOf[ AdapterView.AdapterContextMenuInfo ].position
+    return getItemAtPosition( posn )
   }
    
 }
@@ -242,6 +250,28 @@ trait PositronicActivityHelpers
     }
   }
 
+  type ContextItemHandler = (( ContextMenu.ContextMenuInfo, View ) => Unit )
+
+  val contextItemMap = new HashMap[ Int, ContextItemHandler ]
+  var contextMenuView: View = null
+
+  def rememberViewForContextMenu( v: View ) = { contextMenuView = v }
+
+  def onContextItemSelected( id: Int )( handler: ContextItemHandler ) = {
+    contextItemMap( id ) = handler
+  }
+
+  override def onContextItemSelected( it: MenuItem ):Boolean = {
+    super.onOptionsItemSelected( it )
+    val handler = contextItemMap( it.getItemId )
+    if (handler == null)
+      return false
+    else {
+      handler( it.getMenuInfo, contextMenuView )
+      return true
+    }
+  }
+
   // And these, just to cut down on noise.
 
   def toast( msgResId: Int, duration: Int = Toast.LENGTH_SHORT ):Unit = {
@@ -294,7 +324,8 @@ class Dialog( context: Context, theme: Int = 0, layoutResourceId: Int = 0 )
 }
 
 class Activity( layoutResourceId: Int = 0,
-                optionsMenuResourceId: Int = 0
+                optionsMenuResourceId: Int = 0,
+                contextMenuResourceId: Int = 0
               )
  extends android.app.Activity
  with PositronicActivityHelpers 
@@ -308,6 +339,19 @@ class Activity( layoutResourceId: Int = 0,
       return false
     }
     getMenuInflater.inflate( optionsMenuResourceId, menu )
+    return true
+  }
+
+  override def onCreateContextMenu( menu: ContextMenu, 
+                                    view: View, 
+                                    info: ContextMenu.ContextMenuInfo
+                                  ):Unit = 
+  {
+    if (contextMenuResourceId == 0) {
+      return false
+    }
+    this.rememberViewForContextMenu( view )
+    getMenuInflater.inflate( contextMenuResourceId, menu )
     return true
   }
 }

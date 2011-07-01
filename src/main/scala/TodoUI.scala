@@ -15,6 +15,7 @@ import _root_.android.util.AttributeSet
 import _root_.android.util.Log
 import _root_.android.view.KeyEvent
 import _root_.android.view.View
+import _root_.android.view.ContextMenu
 import _root_.android.graphics.Paint
 import _root_.android.graphics.Canvas
 
@@ -53,7 +54,7 @@ extends IndexedSeqAdapter( TodoLists.lists,
 
 class TodosActivity 
  extends Activity( layoutResourceId = R.layout.all_todos,
-                   optionsMenuResourceId = R.menu.lists_view_menu ) 
+                   optionsMenuResourceId = R.menu.lists_view_menu )
  with ViewFinder 
 {
   onCreate {
@@ -123,13 +124,15 @@ class KillListDialog( base: TodosActivity, victim: TodoList )
 
 class TodoActivity 
  extends Activity( layoutResourceId = R.layout.todo_one_list,
-                   optionsMenuResourceId = R.menu.items_view_menu ) 
+                   optionsMenuResourceId = R.menu.items_view_menu,
+                   contextMenuResourceId = R.menu.item_context_menu ) 
  with ViewFinder 
 {
   var theList: TodoList = null
 
   lazy val editDialog = new EditItemDialog(this,theList) // constructed once
   lazy val newItemText = findView( TR.newItemText )
+  lazy val listItemsView = findView( TR.listItemsView )
 
   onCreate{
 
@@ -139,7 +142,6 @@ class TodoActivity
     setTitle( "Todo for: " + theList.name )
 
     val adapter = new TodoItemsAdapter( theList.items )
-    val listItemsView = findView( TR.listItemsView )
     listItemsView.setAdapter( adapter )
 
     useAppFacility( TodoDb )
@@ -149,14 +151,31 @@ class TodoActivity
 
     // Event handlers...
 
-    listItemsView.onItemClick { (view, posn, id) => toggleDone( posn ) }
-    listItemsView.onItemLongClick { (view, posn, id) => doEdit(posn)}
+    listItemsView.onItemClick {( view, posn, id ) =>
+      toggleDone( theList.items( posn )) }
+
     findView( TR.addButton ).onClick { doAdd }
     newItemText.onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
 
     onOptionsItemSelected( R.id.delete_where_done ) { deleteWhereDone }
     onOptionsItemSelected( R.id.undelete ) { undelete }
+
+    registerForContextMenu( listItemsView )
+
+    onContextItemSelected( R.id.edit ){ 
+      (menuInfo, view) => editDialog.doEdit( getContextItem( menuInfo, view ))
+    }
+    onContextItemSelected( R.id.toggledone ){ 
+      (menuInfo, view) => toggleDone( getContextItem( menuInfo, view ))
+    }
   }
+
+  // Determining relevant context for the ContextMenu
+
+  def getContextItem( menuInfo: ContextMenu.ContextMenuInfo, view: View ) =
+    listItemsView.selectedContextMenuItem( menuInfo ).asInstanceOf[ TodoItem ]
+
+  // Running UI commands
 
   def doAdd = {
     val str = newItemText.getText.toString
@@ -166,15 +185,10 @@ class TodoActivity
     }
   }
 
-  def doEdit( posn: Int ) = editDialog.doEdit( theList.items( posn ))
-
   def setItemDescription( item: TodoItem, desc: String ) =
     theList.setItemDescription( item, desc )
 
-  def toggleDone( posn: Int ) = {
-    val it = theList.items( posn )
-    theList.setItemDone( it, !it.isDone )
-  }
+  def toggleDone( it: TodoItem ) = theList.setItemDone( it, !it.isDone )
 
   def deleteWhereDone = {
     if (theList.hasDoneItems) 

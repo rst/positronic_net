@@ -58,6 +58,7 @@ class TodosActivity
  with ViewFinder 
 {
   lazy val listsView = findView( TR.listsView )
+  lazy val renameDialog = new EditStringDialog( this )
 
   onCreate {
 
@@ -119,11 +120,10 @@ class TodosActivity
     }
   }
 
-  def doRename( list: TodoList ) = {
-    new EditStringDialog( this, list.name )
-      .onSave{ name => TodoLists.setListName( list, name ) }
-      .show
-  }
+  def doRename( list: TodoList ) =
+    renameDialog.doEdit( list.name ){ 
+      TodoLists.setListName( list, _ )
+    }
 
   def doDelete( list: TodoList ) = {
     TodoLists.removeList( list )
@@ -142,6 +142,29 @@ class TodosActivity
   }
 }
 
+// Its generic support dialog (used by the other activity as well).
+
+class EditStringDialog( base: PositronicActivity )
+ extends PositronicDialog( base, layoutResourceId = R.layout.dialog ) 
+ with ViewFinder 
+{
+  val editTxt = findView( TR.dialogEditText )
+  var saveHandler: ( String => Unit ) = null
+
+  editTxt.onKey( KeyEvent.KEYCODE_ENTER ){ doSave; dismiss }
+
+  findView( TR.cancelButton ).onClick { dismiss }
+  findView( TR.saveButton ).onClick { doSave; dismiss }
+  
+  def doSave = saveHandler( editTxt.getText.toString )
+
+  def doEdit( str: String )( handler: String => Unit ) = { 
+    editTxt.setText( str )
+    saveHandler = handler
+    show
+  }
+}
+
 // And now, the other activity, which manages an individual todo list's items.
 
 class TodoActivity 
@@ -154,6 +177,7 @@ class TodoActivity
 
   lazy val newItemText = findView( TR.newItemText )
   lazy val listItemsView = findView( TR.listItemsView )
+  lazy val editDialog = new EditStringDialog( this )
 
   onCreate{
 
@@ -207,11 +231,10 @@ class TodoActivity
     }
   }
 
-  def doEdit( it: TodoItem ) = {
-    new EditStringDialog( this, it.description )
-      .onSave{ desc => theList.setItemDescription( it, desc ) }
-      .show
-  }
+  def doEdit( it: TodoItem ) = 
+    editDialog.doEdit( it.description ) {
+       theList.setItemDescription( it, _ )
+    }
 
   def toggleDone( it: TodoItem ) = theList.setItemDone( it, !it.isDone )
 
@@ -227,27 +250,6 @@ class TodoActivity
       theList.undelete
     else
       toast( R.string.undeletes_exhausted )
-  }
-}
-
-class EditStringDialog( base: PositronicActivity, str: String )
- extends PositronicDialog( base, layoutResourceId = R.layout.dialog ) 
- with ViewFinder 
-{
-  val editTxt = findView( TR.dialogEditText )
-  var saveHandler: ( String => Unit ) = null
-
-  editTxt.setText( str )
-  editTxt.onKey( KeyEvent.KEYCODE_ENTER ){ doSave; dismiss }
-
-  findView( TR.cancelButton ).onClick { dismiss }
-  findView( TR.saveButton ).onClick { doSave; dismiss }
-  
-  def doSave = saveHandler( editTxt.getText.toString )
-
-  def onSave( handler: String => Unit ):EditStringDialog = { 
-    saveHandler = handler; 
-    return this 
   }
 }
 

@@ -236,6 +236,37 @@ trait PositronicActivityHelpers
     })
   }
 
+  // Shorthands for dealing with menus
+
+  private var optionsMenuResourceId = 0
+  private var contextMenuResourceId = 0
+
+  def useOptionsMenuResource( id: Int ) = optionsMenuResourceId = id
+  def useContextMenuResource( id: Int ) = contextMenuResourceId = id
+
+  override def onCreateOptionsMenu( menu: Menu ):Boolean = {
+    if (optionsMenuResourceId == 0) {
+      // We might have gotten mixed into an activity that has its own ideas...
+      return super.onCreateOptionsMenu( menu )
+    }
+    getMenuInflater.inflate( optionsMenuResourceId, menu )
+    return true
+  }
+
+  override def onCreateContextMenu( menu: ContextMenu, 
+                                    view: View, 
+                                    info: ContextMenu.ContextMenuInfo
+                                  ):Unit = 
+  {
+    if (contextMenuResourceId == 0) {
+      // We might have gotten mixed into an activity with its own ideas... 
+      return super.onCreateContextMenu( menu, view, info )
+    }
+    this.rememberViewForContextMenu( view )
+    getMenuInflater.inflate( contextMenuResourceId, menu )
+    return true
+  }
+
   val optionsItemMap = new HashMap[ Int, (() => Unit) ]
 
   def onOptionsItemSelected( id: Int )( thunk: => Unit ) = {
@@ -329,37 +360,11 @@ class PositronicDialog( context: Context,
     setContentView( layoutResourceId )
 }
 
-class PositronicActivity( layoutResourceId: Int = 0,
-                          optionsMenuResourceId: Int = 0,
-                          contextMenuResourceId: Int = 0
-                        )
+class PositronicActivity( layoutResourceId: Int = 0 )
  extends android.app.Activity
  with PositronicActivityHelpers 
 {
-  override def onCreate( b: Bundle ) = {
-    super.onCreate( b, layoutResourceId )
-  }
-
-  override def onCreateOptionsMenu( menu: Menu ):Boolean = {
-    if (optionsMenuResourceId == 0) {
-      return false
-    }
-    getMenuInflater.inflate( optionsMenuResourceId, menu )
-    return true
-  }
-
-  override def onCreateContextMenu( menu: ContextMenu, 
-                                    view: View, 
-                                    info: ContextMenu.ContextMenuInfo
-                                  ):Unit = 
-  {
-    if (contextMenuResourceId == 0) {
-      return false
-    }
-    this.rememberViewForContextMenu( view )
-    getMenuInflater.inflate( contextMenuResourceId, menu )
-    return true
-  }
+  override def onCreate( b: Bundle ) = super.onCreate( b, layoutResourceId )
 }
 
 // Adapter for cursors produced by PositronicDb queries.

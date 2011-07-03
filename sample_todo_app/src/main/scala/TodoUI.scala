@@ -38,15 +38,16 @@ class TodosAdapter( activity: PositronicActivity )
 // Activity that uses it:
 
 class TodosActivity 
- extends PositronicActivity( layoutResourceId = R.layout.all_todos,
-                             optionsMenuResourceId = R.menu.lists_view_menu,
-                             contextMenuResourceId = R.menu.lists_context_menu) 
+ extends PositronicActivity( layoutResourceId = R.layout.all_todos ) 
  with ViewFinder 
 {
   lazy val listsView = findView( TR.listsView )
   lazy val renameDialog = new EditStringDialog( this )
 
   onCreate {
+
+    useOptionsMenuResource( R.menu.lists_view_menu )
+    useContextMenuResource( R.menu.lists_context_menu )
 
     // Wire listsView to the database
 
@@ -147,9 +148,7 @@ class EditStringDialog( base: PositronicActivity )
 // And now, the other activity, which manages an individual todo list's items.
 
 class TodoActivity 
- extends PositronicActivity( layoutResourceId = R.layout.todo_one_list,
-                             optionsMenuResourceId = R.menu.items_view_menu,
-                             contextMenuResourceId = R.menu.item_context_menu ) 
+ extends PositronicActivity( layoutResourceId = R.layout.todo_one_list ) 
  with ViewFinder 
 {
   var theList: TodoList = null
@@ -159,6 +158,9 @@ class TodoActivity
   lazy val editDialog = new EditStringDialog( this )
 
   onCreate{
+
+    useOptionsMenuResource( R.menu.items_view_menu )
+    useContextMenuResource( R.menu.item_context_menu )
 
     // Setup --- get list out of our Intent, and hook up the listItemsView
 

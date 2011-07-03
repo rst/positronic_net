@@ -15,6 +15,11 @@ trait ChangeNotifications[T] {
       handler( datum )
     }
   }
+  def noteChangeEach( thunk: => T ) = {
+    for ((key, handler) <- changeHandlers) {
+      handler( thunk )
+    }
+  }
 }
 
 class ChangeNotifier[T] extends ChangeNotifications[T]

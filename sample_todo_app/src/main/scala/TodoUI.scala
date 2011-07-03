@@ -45,8 +45,8 @@ class TodosAdapter
 extends IndexedSeqAdapter( TodoLists.lists, 
                            itemViewResourceId = R.layout.todos_row)
 {
-  override def fillView( view: View, position: Int ) =
-    view.asInstanceOf[ TextView ].setText( getItem( position ).name )
+  override def bindView( view: View, list: TodoList ) =
+    view.asInstanceOf[ TextView ].setText( list.name )
 }
 
 // Activity that uses it.
@@ -251,24 +251,14 @@ class EditStringDialog( base: PositronicActivity, str: String )
   }
 }
 
-// Another trivial adapter... A note on these, while I'm here;
-//
-// If you want to do something else when creating the views besides just
-// inflating the layout resource, like populating a ViewHolder, there's
-// also a "createView" method that you can override.  But if you don't
-// need to do that, as when the rows are simple TextViews, the above is
-// all it takes.
-
 class TodoItemsAdapter(seq: IndexedSeq[TodoItem]) 
  extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) 
 {
-  override def fillView( view: View, position: Int ) = {
-    view.asInstanceOf[ TodoItemView ].setTodoItem( getItem( position ))
-  }
+  override def bindView( view: View, it: TodoItem ) =
+    view.asInstanceOf[ TodoItemView ].setTodoItem( it )
 }
 
-// And a modified TextView which modifies the text style based on
-// whether the item "isDone" (adding strikethrough)...
+// View for TodoItems:  TextView which adds strikethrough if the item "isDone" 
 
 class TodoItemView( context: Context, attrs: AttributeSet = null )
  extends TextView( context, attrs ) 

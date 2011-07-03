@@ -359,8 +359,11 @@ class PositronicActivity( layoutResourceId: Int = 0,
   }
 }
 
-// Adapters for Scala collections.  Also support an alternative
-// API which DRYs up common invocation patterns.
+// Adapter for Scala IndexedSeq's.
+//
+// Supports newView and BindView methods, analogous to those
+// provided by the base framework's CursorAdapter (though
+// newView takes only the parent ViewGroup as an argument).
 //
 // Note that the "T <: Object" restriction is needed so that
 // our "getItem( _: Int ):T" is compatible with the declared
@@ -372,8 +375,8 @@ class IndexedSeqAdapter[T <: Object](var seq:IndexedSeq[T] = new ArrayBuffer[T],
                                      itemViewResourceId: Int = 0, 
                                      itemTextResourceId: Int = 0
                                     ) 
-extends _root_.android.widget.BaseAdapter {
-
+  extends _root_.android.widget.BaseAdapter 
+{
   var inflater: LayoutInflater = null
 
   // Method to reset the sequence if a new copy was (or might have been)
@@ -396,26 +399,26 @@ extends _root_.android.widget.BaseAdapter {
             parent.getContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE)
              .asInstanceOf[LayoutInflater]
         }
-        createView( parent )
+        newView( parent )
       }
 
-    fillView( view, position )
+    bindView( view, getItem( position ))
     return view
   }
 
-  def createView(parent: ViewGroup): View = {
+  def newView( parent: ViewGroup ): View = {
     assert( itemViewResourceId != 0 )
     inflater.inflate( itemViewResourceId, parent, false )
   }
 
-  def fillView( view: View, position: Int ) = {
+  def bindView( view: View, item: T ) = {
     val textView = 
       (if (itemTextResourceId != 0)
         view.findViewById( itemTextResourceId )
        else
          view).asInstanceOf[ android.widget.TextView ]
 
-    textView.setText( getItem( position ).toString )
+    textView.setText( item.toString )
   }
 
   // Accessors.  

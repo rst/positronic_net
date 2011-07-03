@@ -3,6 +3,7 @@ package rst.todo
 import org.positronicnet.ui.IndexedSeqAdapter
 import org.positronicnet.ui.PositronicDialog
 import org.positronicnet.ui.PositronicActivity
+import org.positronicnet.ui.CursorSourceAdapter
 
 import android.app.Activity
 import android.os.Bundle
@@ -13,43 +14,28 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.ContextMenu
-import android.widget.Toast
 import android.widget.TextView
+import android.widget.Toast
 import android.graphics.Paint
 import android.graphics.Canvas
 
-// Getting sub-widgets, using the typed resources consed up by the
-// android SBT plugin.  It would be nice to put this in a library,
-// but the sbt-android plugin puts TypedResource itself in the app's
-// main package --- so the library would have to import it from a
-// different package in every app!
+// Adapter to wire up TodoList changes to the UI.
+//
+// Registers with the "source" (our TodoLists singleton) to be
+// notified whenever its underlying data set is changed (or reloaded),
+// so long as the activity is running.
 
-trait ViewFinder {
-  def findView[T](  tr: TypedResource[T] ) = 
-    findViewById( tr.id ).asInstanceOf[T]
-
-  def findViewById( id: Int ): android.view.View
-}
-
-// Main UI to deal with lists, as exported by the "Todo" manager
-// object, starting with an activity to manage the set of available
-// lists.
-
-object TodoUI {
-  val listNumKey = "listNum"            // For intents; see below.
-}
-
-// List adapter for the singleton "TodoLists" object, which is all known lists.
-
-class TodosAdapter
-extends IndexedSeqAdapter( TodoLists.lists, 
-                           itemViewResourceId = R.layout.todos_row)
+class TodosAdapter( activity: PositronicActivity )
+ extends CursorSourceAdapter( activity, 
+                              source = TodoLists,
+                              converter = TodoList.fromCursor(_),
+                              itemViewResourceId = R.layout.todos_row )
 {
-  override def bindView( view: View, list: TodoList ) =
+  def bindItem( view: View, list: TodoList ) =
     view.asInstanceOf[ TextView ].setText( list.name )
 }
 
-// Activity that uses it.
+// Activity that uses it:
 
 class TodosActivity 
  extends PositronicActivity( layoutResourceId = R.layout.all_todos,
@@ -62,17 +48,10 @@ class TodosActivity
 
   onCreate {
 
-    // Set things up
-
-    val adapter = new TodosAdapter
-    listsView.setAdapter( adapter )
+    // Wire listsView to the database
 
     useAppFacility( TodoDb )            // Open DB; arrange to close on destroy
-
-    onChangeTo( TodoLists ){ 
-      // If we loaded a fresh copy on the DB thread, tell the adapter...
-      lists => this.runOnUiThread{ adapter.resetSeq( lists )}
-    }
+    listsView.setAdapter( new TodosAdapter( this ))
     TodoLists.refreshFromDb
 
     // Listen for events on widgets
@@ -116,7 +95,6 @@ class TodosActivity
     if ( str != "" ) {
       TodoLists.addList( name = str )
       findView( TR.newListName ).setText("")
-      listsView.setSelection( TodoLists.lists.size - 1 )
     }
   }
 
@@ -137,12 +115,13 @@ class TodosActivity
 
   def viewListAt( posn: Int ) {
     val intent = new Intent( this, classOf[TodoActivity] )
-    intent.putExtra( TodoUI.listNumKey, posn )
+    val theList = listsView.getAdapter.getItem( posn ).asInstanceOf[ TodoList ]
+    TodoList.intoIntent( theList, intent )
     startActivity( intent )
   }
 }
 
-// Its generic support dialog (used by the other activity as well).
+// The activity's generic support dialog (used by the other activity as well).
 
 class EditStringDialog( base: PositronicActivity )
  extends PositronicDialog( base, layoutResourceId = R.layout.dialog ) 
@@ -181,23 +160,19 @@ class TodoActivity
 
   onCreate{
 
-    // Setup
+    // Setup --- get list out of our Intent, and hook up the listItemsView
 
-    theList = TodoLists.lists( getIntent.getIntExtra( TodoUI.listNumKey, -1 ))
+    theList = TodoList.fromIntent( getIntent )
     setTitle( "Todo for: " + theList.name )
 
-    val adapter = new TodoItemsAdapter( theList.items )
-    listItemsView.setAdapter( adapter )
-
     useAppFacility( TodoDb )
-
-    onChangeTo( theList ){ items => this.runOnUiThread{adapter.resetSeq(items)}}
+    listItemsView.setAdapter( new TodoItemsAdapter( this, theList ) )
     theList.refreshFromDb
 
     // Event handlers...
 
     listItemsView.onItemClick {( view, posn, id ) =>
-      toggleDone( theList.items( posn )) }
+      toggleDone( getDisplayedItem( posn )) }
 
     findView( TR.addButton ).onClick { doAdd }
     newItemText.onKey( KeyEvent.KEYCODE_ENTER ){ doAdd }
@@ -215,10 +190,13 @@ class TodoActivity
     }
   }
 
-  // Determining relevant context for the ContextMenu
+  // Finding target items for listItemsView taps (including the ContextMenu)
 
   def getContextItem( menuInfo: ContextMenu.ContextMenuInfo, view: View ) =
     listItemsView.selectedContextMenuItem( menuInfo ).asInstanceOf[ TodoItem ]
+
+  def getDisplayedItem( posn: Int ) = 
+    listItemsView.getAdapter.getItem( posn ).asInstanceOf[ TodoItem ]
 
   // Running UI commands
 
@@ -227,7 +205,6 @@ class TodoActivity
     if ( str != "" ) {
       theList.addItem( description = str, isDone = false )
       newItemText.setText("")
-      listItemsView.setSelection( theList.items.size - 1 )
     }
   }
 
@@ -247,16 +224,19 @@ class TodoActivity
 
   def undelete = {
     if (theList.hasDeletedItems)
-      theList.undelete
+      theList.undeleteItems
     else
       toast( R.string.undeletes_exhausted )
   }
 }
 
-class TodoItemsAdapter(seq: IndexedSeq[TodoItem]) 
- extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) 
+class TodoItemsAdapter( activity: PositronicActivity, list: TodoList )
+ extends CursorSourceAdapter( activity,
+                              source = list,
+                              converter = TodoItem.fromCursor(_),
+                              itemViewResourceId = R.layout.todo_row )
 {
-  override def bindView( view: View, it: TodoItem ) =
+  def bindItem( view: View, it: TodoItem ) =
     view.asInstanceOf[ TodoItemView ].setTodoItem( it )
 }
 
@@ -278,4 +258,16 @@ class TodoItemView( context: Context, attrs: AttributeSet = null )
    }
 }
 
+// Getting sub-widgets, using the typed resources consed up by the
+// android SBT plugin.  It would be nice to put this in a library,
+// but the sbt-android plugin puts TypedResource itself in the app's
+// main package --- so the library would have to import it from a
+// different package in every app!
+
+trait ViewFinder {
+  def findView[T](  tr: TypedResource[T] ) = 
+    findViewById( tr.id ).asInstanceOf[T]
+
+  def findViewById( id: Int ): android.view.View
+}
 

@@ -1,22 +1,21 @@
 package rst.todo
 
 import android.util.Log
+import android.content.Intent
 
 import org.positronicnet.db.Database
+import org.positronicnet.db.PositronicCursor
+import org.positronicnet.db.DbQuery
+
 import org.positronicnet.util.ChangeNotifications
 import org.positronicnet.util.WorkerThread
 
-import scala.collection.mutable.ArrayBuffer
-
-// Our domain model classes, such as they are.
+// Our domain model classes, such as they are:  Todo Items, Lists, etc.
 // 
-// Note that these maintain an in-core copy of the lists in addition
-// to what's in the database; for most UI operations, we operate on
-// the in-core copy and update the display on the main thread, while
-// kicking off an update on a DB worker thread to later (hopefully
-// very soon!) mirror the change into the DB.  Which, in turn, keeps
-// us from being in a situation where the main thread (and the UI) is
-// waiting for the database.
+// NB operations on these affect the database, so they happen on a
+// separate "db thread".  UI components can register as listeners for
+// changes on domain objects, and if they do, they get fresh cursors
+// with which to update themselves when things do change.  
 //
 // Note also that we're managing a "soft deletion" scheme here.
 // User-level "delete" operations just set an "is_deleted" flag on the
@@ -44,12 +43,12 @@ object TodoDb
 
   def schemaUpdates =
     List(""" create table todo_lists (
-               id integer primary key,
+               _id integer primary key,
                name string
              )
          """,
          """ create table todo_items (
-               id integer primary key,
+               _id integer primary key,
                todo_list_id integer,
                description string,
                is_done integer
@@ -61,171 +60,167 @@ object TodoDb
   
 }
 
-// Semi-formal domain model.
+// Semi-formal domain model.  There's no ORM here, just an AREL-style
+// gloss for building SQL, and a stylized way of building model classes
+// that use it.  But it still cuts down on the clutter.
 //
-// This version of the code maintains an in-core copy of the data,
-// and a backing store in the above database.  On updates, the in-core
-// copy is updated (and our changeHandler notified) on the UI thread, 
-// and the database update is pushed onto the DB thread.  This way,
-// the UI never has to wait for a database write to finish.
-//
-// (Well, almost never --- when we're first starting up, we obviously
-// have to wait for the query to finish!)
+// BTW, a "PositronicCursor" is just a regular cursor with getBoolean
+// added (implementing the sqlite convention that nonzero means
+// "true").  Aside from that (and a 'foreach' method which iterates
+// over the rows, which you can ignore unless you want to use it),
+// they're just plain old Cursors.
 
-trait TodoDbModel {
-  // Shorthand for kicking somtehing over to the DB Thread
-  def db( f: => Unit ) = { TodoDb.runOnThread{ f } }
-}
-
-case class TodoItem( var id: Long, var description: String, var isDone: Boolean)
-
-case class TodoList( var id: Long, var name: String )
-  extends TodoDbModel
-  with ChangeNotifications[ IndexedSeq[ TodoItem ]]
+trait TodoDbModel
+  extends ChangeNotifications[ PositronicCursor ]
 {
-  lazy val dbItemsAll = TodoDb("todo_items").whereEq("todo_list_id" -> this.id)
-  lazy val dbItems = dbItemsAll.whereEq( "is_deleted"   -> false )
+  // Wrapper for domain operations, which all hit the DB:
+  // we run on the DB thread, and notify the listeners when done.
 
-  var items = new ArrayBuffer[TodoItem] // empty dummy, pending refreshFromDb
-  var hasDeletedItems = false
-
-  def getItems:IndexedSeq[TodoItem] = items
-  def hasDoneItems = items.indexWhere( it => it.isDone ) >= 0
-
-  def refreshFromDb = {
-
-    // Subtlety here... if while running on the DB thread, we dink the
-    // items list that the UI's IndexedSeqAdapter is processing, we risk
-    // an IllegalStateChangeException.  So, we build a completely new
-    // list, and then tell the UI to make the switch.
-
-    db { 
-      val newItems = new ArrayBuffer[TodoItem]
-      for (c <- dbItems.order("id asc").select("id", "description", "is_done")){
-        newItems += TodoItem( c.getLong(0), c.getString(1), c.getBoolean(2) )
-      }
-      hasDeletedItems = (dbItemsAll.whereEq( "is_deleted" -> true ).count > 0)
-      this.items = newItems
-      noteChange( this.items )
-    }
+  def dbWrap( thunk: => Unit ) = { 
+    TodoDb.runOnThread{ thunk; noteChangeEach{ requery }} 
   }
 
-  def addItem( description: String, isDone: Boolean = false ) = {
+  protected def requery: PositronicCursor
+}
 
-    // Put the new item on our in-core list...
+// "Todo item" model.
+// 
+// Mostly actually manipulated from within TodoList; with a more
+// complicated schema, it might be better to get these query fragments
+// from methods invoked on the TodoItem companion object.
 
-    val item = new TodoItem( -1, description, isDone )
-    items += item
-    noteChange( items )
+case class TodoItem(var id: Long, var description: String, var isDone: Boolean)
 
-    // ... and have the DB thread find an ID for it.
-    // (This means that the UI won't have access to the ID --- but
-    // it's only subsequent DB ops that care, and those run in order,
-    // so it'll be there when it's needed.)
+object TodoItem {
 
-    db {
-      item.id = TodoDb( "todo_items" ).insert( 
+  def doQuery( query: DbQuery )= query.select("_id", "description", "is_done")
+
+  def fromCursor( c: PositronicCursor ) = 
+    TodoItem( c.getLong( 0 ), c.getString( 1 ), c.getBoolean( 2 ))
+
+}
+
+// "Todo list" model.  Serializable so it can be stuffed in intents.
+
+case class TodoList( var id: Long, var name: String )
+ extends TodoDbModel
+{
+  // In-core status fields; set on requery.
+
+  var hasDoneItems = false
+  var hasDeletedItems = false
+
+  // Setting up (and use of) prebaked query fragments.
+
+  private lazy val dbItemsAll = TodoDb("todo_items").whereEq("todo_list_id"->id)
+  private lazy val dbItems    = dbItemsAll.whereEq( "is_deleted" -> false )
+
+  // Method to get cursors for our change listeners (and refresh cached state):
+
+  protected def requery: PositronicCursor = {
+    hasDoneItems = dbItems.whereEq( "is_done" -> true ).count > 0
+    hasDeletedItems = dbItemsAll.whereEq( "is_deleted" -> true ).count > 0
+    return TodoItem.doQuery( dbItems )
+  }
+
+  // Public interface --- dealing with items.
+  //
+  // Note that we requery after every change, so we don't bother updating
+  // the old in-core copies...
+
+  def refreshFromDb = dbWrap {/* nothing */}
+
+  def addItem( description: String, isDone: Boolean = false ) = dbWrap { 
+    TodoDb( "todo_items" ).insert( 
         "todo_list_id" -> this.id, 
         "description"  -> description,
         "is_done"      -> isDone )
-    }
   }
 
-  def setItemDescription( it: TodoItem, desc: String ) = {
-    it.description = desc
-    noteChange( items )
-    db { dbItems.whereEq( "id"->it.id ).update("description"->desc) }
+  def setItemDescription( it: TodoItem, desc: String ) = dbWrap { 
+    TodoDb("todo_items").whereEq("_id" -> it.id).update( "description" -> desc )
   }
 
-  def setItemDone( it: TodoItem, isDone: Boolean ) = {
-    it.isDone = isDone
-    noteChange( items )
-    db { dbItems.whereEq( "id"->it.id ).update("is_done" -> isDone) }
+  def setItemDone( it: TodoItem, isDone: Boolean ) = dbWrap { 
+    TodoDb("todo_items").whereEq("_id" -> it.id).update( "is_done" -> isDone )
   }
 
-  // Soft deletion.  Here, we do wait for the DB before showing the
-  // user the change... but the DB action still happens off the UI thread.
-
-  def deleteWhereDone = {
-    db {
-      dbItemsAll.whereEq( "is_deleted" -> true ).delete // purge the last batch
-      dbItems.whereEq( "is_done" -> true ).update( "is_deleted" -> true )
-      refreshFromDb
-    }
+  def deleteWhereDone = dbWrap {
+    dbItemsAll.whereEq( "is_deleted" -> true ).delete // purge the last batch
+    dbItems.whereEq( "is_done" -> true ).update( "is_deleted" -> true )
   }
 
-  def undelete = {
-    db {
-      dbItemsAll.update( "is_deleted" -> false )
-      refreshFromDb
-    }
+  def undeleteItems = dbWrap { dbItemsAll.update( "is_deleted" -> false ) }
+
+  // ... and the list itself
+
+  def setName( newName: String ) = {
+    name = newName; 
+    TodoDb("todo_lists").whereEq("_id" -> this.id).update( "name" -> newName )
   }
+}
+
+object TodoList {
+
+  def doQuery( query: DbQuery ) = query.select("_id", "name")
+
+  def fromCursor( c: PositronicCursor ) = 
+    TodoList( c.getLong( 0 ), c.getString( 1 ))
+
+  def create( name: String ) = TodoDb( "todo_lists" ).insert( "name" -> name )
+
+  // Communicating these through intents...
+  // Sadly, this is easier than making them serializable.
+
+  val intentIdKey = "todoListId"; val intentNameKey = "todoListName"
+
+  def intoIntent( list: TodoList, intent: Intent ) = {
+    intent.putExtra( intentIdKey,   list.id )
+    intent.putExtra( intentNameKey, list.name )
+  }
+
+  def fromIntent( intent: Intent ) = 
+    TodoList( intent.getLongExtra( intentIdKey, -1 ), 
+              intent.getStringExtra( intentNameKey ))
 }
 
 // Singleton object to represent the set of all available lists.
 
-object TodoLists
-  extends TodoDbModel 
-  with ChangeNotifications[ IndexedSeq[ TodoList ]]
+object TodoLists extends TodoDbModel 
 {
-  val dbListsAll = TodoDb("todo_lists")
-  val dbLists = dbListsAll.whereEq( "is_deleted" -> false )
+  private lazy val dbListsAll = TodoDb("todo_lists")
+  private lazy val dbLists = dbListsAll.whereEq("is_deleted"-> false)
 
-  var lists = new ArrayBuffer[ TodoList ]
-  var hasDeleted = false
+  var hasDeleted = false                // reset on query
 
-  def refreshFromDb = {
-    val newLists = new ArrayBuffer[ TodoList ]
-    db {
-      for( c <- dbLists.order("id asc").select( "id", "name" )) {
-        newLists += TodoList( c.getLong(0), c.getString(1) )
-      }
-      lists = newLists
-      hasDeleted = (dbListsAll.whereEq( "is_deleted" -> true ).count > 0)
-      noteChange( lists )
+  protected def requery: PositronicCursor = {
+    hasDeleted = dbListsAll.whereEq( "is_deleted" -> true ).count > 0
+    return TodoList.doQuery( dbLists )
+  }
+
+  // Public interface
+
+  def refreshFromDb = dbWrap{}
+
+  def addList( name: String ) = dbWrap { TodoList.create( name ) }
+
+  def setListName( list: TodoList, newName: String ) = dbWrap {
+    list.setName( newName )
+  }
+
+  def removeList( victim: TodoList ) = dbWrap {
+
+    // Purge all previously deleted lists...
+    for ( c <- dbListsAll.whereEq( "is_deleted" -> true ).select( "_id" )) {
+      val purgedListId = c.getLong(0)
+      TodoDb( "todo_items" ).whereEq( "todo_list_id" -> purgedListId ).delete
+      TodoDb( "todo_lists" ).whereEq( "_id" -> purgedListId ).delete
     }
+
+    // And mark this one for the axe...
+    TodoDb("todo_lists").whereEq("_id"->victim.id).update("is_deleted" -> true)
   }
 
-  def addList( name: String ) = {
-
-    val theList = new TodoList( -1, name )
-    lists += theList
-    noteChange( lists )
-
-    db { theList.id = TodoDb( "todo_lists" ).insert( "name" -> name ) }
-  }
-
-  def setListName( list: TodoList, newName: String ) = {
-    list.name = newName
-    noteChange( lists )
-    db { dbLists.whereEq( "id"->list.id ).update("name"->newName) }
-  }
-
-  def removeList( victim: TodoList ) = {
-
-    lists -= victim
-    hasDeleted = true
-    noteChange( lists )
-
-    db {
-
-      // Purge all previously deleted lists...
-      for ( c <- dbListsAll.whereEq( "is_deleted" -> true ).select( "id" )) {
-        val purgedListId = c.getLong(0)
-        TodoDb( "todo_items" ).whereEq( "todo_list_id" -> purgedListId ).delete
-        TodoDb( "todo_lists" ).whereEq( "id" -> purgedListId ).delete
-      }
-
-      // And mark this one for the axe...
-      dbLists.whereEq( "id" -> victim.id ).update( "is_deleted" -> true )
-    }
-  }
-
-  def undelete {
-    db {
-      dbListsAll.update( "is_deleted" -> false )
-      refreshFromDb
-    }
-  }
+  def undelete = dbWrap { dbListsAll.update( "is_deleted" -> false ) }
 } 
 

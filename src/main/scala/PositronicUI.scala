@@ -16,6 +16,9 @@ import _root_.android.util.Log
 import org.positronicnet.util.AppFacility
 import org.positronicnet.util.ChangeNotifications
 
+import org.positronicnet.db.PositronicCursor // for CursorSourceAdapter
+import _root_.android.database.Cursor
+
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer
 
@@ -356,6 +359,58 @@ class PositronicActivity( layoutResourceId: Int = 0,
     this.rememberViewForContextMenu( view )
     getMenuInflater.inflate( contextMenuResourceId, menu )
     return true
+  }
+}
+
+// Adapter for cursors produced by PositronicDb queries.
+// Automatically handles a fair amount of the usual typecasting
+// gubbish...
+
+abstract class CursorSourceAdapter[T <: AnyRef]( 
+  activity: PositronicActivity,
+  converter: PositronicCursor => T,
+  source: ChangeNotifications[PositronicCursor] = null,
+  itemViewResourceId: Int = 0
+)
+ extends _root_.android.widget.CursorAdapter( activity, null )
+{
+  var inflater: LayoutInflater = null
+
+  if (source != null) {
+    activity.onChangeTo( source ){ 
+      cursor => activity.runOnUiThread{ this.changeCursor( cursor ) }
+    }
+  }
+
+  def newView( context: Context, 
+               cursor: android.database.Cursor,
+               parent: ViewGroup ): View =
+  {
+    if (itemViewResourceId == 0)
+      throw new RuntimeException( "QueryAdapter with itemViewResourceId unset"+
+                                  " and newView not overridden" )
+    if (inflater == null) {
+      inflater = 
+        parent.getContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE)
+          .asInstanceOf[LayoutInflater]
+    }
+
+    return inflater.inflate( itemViewResourceId, parent, false )
+  }
+                 
+  override def bindView( view: View, context: Context, cursor: Cursor ) = {
+    val item = converter( cursor.asInstanceOf[ PositronicCursor ] )
+    bindItem( view, item )
+  }
+
+  def bindItem( view: View, item: T )
+
+  override def getItem( posn: Int ): T = {
+    val baseValue = super.getItem( posn )
+    if (baseValue == null)
+      return null.asInstanceOf[T]
+    else
+      return converter( baseValue.asInstanceOf[ PositronicCursor ])
   }
 }
 

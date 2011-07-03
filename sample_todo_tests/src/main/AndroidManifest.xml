@@ -1,4 +1,4 @@
-<manifest package="rst.todo.tests" xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest package="org.positronicnet.sample.todo.tests" xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-sdk android:minSdkVersion="7"></uses-sdk>
     <application>
         <uses-library android:name="android.test.runner"></uses-library>
@@ -10,6 +10,6 @@
         </activity>
     </application>
     <instrumentation 
-    android:label="Tests" android:targetPackage="rst.todo" android:name="android.test.InstrumentationTestRunner">
+    android:label="Tests" android:targetPackage="org.positronicnet.sample.todo" android:name="android.test.InstrumentationTestRunner">
 </instrumentation>
 </manifest>

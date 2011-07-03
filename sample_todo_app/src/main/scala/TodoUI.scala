@@ -1,4 +1,4 @@
-package rst.todo
+package org.positronicnet.sample.todo
 
 import org.positronicnet.ui.IndexedSeqAdapter
 import org.positronicnet.ui.PositronicDialog

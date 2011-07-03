@@ -1,4 +1,4 @@
-package rst.todo
+package org.positronicnet.sample.todo
 
 import android.util.Log
 import android.content.Intent

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<rst.todo.TodoItemView
+<org.positronicnet.sample.todo.TodoItemView
   xmlns:android="http://schemas.android.com/apk/res/android"
   android:layout_width="fill_parent"
   android:layout_height="fill_parent"

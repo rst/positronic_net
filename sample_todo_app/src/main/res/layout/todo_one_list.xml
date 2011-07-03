@@ -6,21 +6,21 @@
   <LinearLayout
     android:layout_width="fill_parent"
     android:layout_height="wrap_content">
-    <org.positronicnet.ui.EditText
+    <org.positronicnet.ui.PositronicEditText
       android:id="@+id/newItemText"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_weight="1"
       android:text=""
     />
-    <org.positronicnet.ui.Button
+    <org.positronicnet.ui.PositronicButton
       android:id="@+id/addButton"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:text="Add Item"
     />
   </LinearLayout>
-  <org.positronicnet.ui.ListView  
+  <org.positronicnet.ui.PositronicListView  
     android:id="@+id/listItemsView"
     android:layout_width="fill_parent" 
     android:layout_height="wrap_content" 

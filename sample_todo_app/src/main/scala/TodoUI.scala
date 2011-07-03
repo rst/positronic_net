@@ -1,24 +1,22 @@
 package rst.todo
 
-import org.positronicnet.ui.Button
 import org.positronicnet.ui.IndexedSeqAdapter
-import org.positronicnet.ui.Dialog
-import org.positronicnet.ui.EditText
-import org.positronicnet.ui.TextView
-import org.positronicnet.ui.Activity
-import org.positronicnet.ui.ListView
+import org.positronicnet.ui.PositronicDialog
+import org.positronicnet.ui.PositronicActivity
 
-import _root_.android.os.Bundle
-import _root_.android.content.Context
-import _root_.android.content.Intent
-import _root_.android.util.AttributeSet
-import _root_.android.util.Log
-import _root_.android.view.KeyEvent
-import _root_.android.view.View
-import _root_.android.view.ContextMenu
-import _root_.android.widget.Toast
-import _root_.android.graphics.Paint
-import _root_.android.graphics.Canvas
+import android.app.Activity
+import android.os.Bundle
+import android.content.Context
+import android.content.Intent
+import android.util.AttributeSet
+import android.util.Log
+import android.view.KeyEvent
+import android.view.View
+import android.view.ContextMenu
+import android.widget.Toast
+import android.widget.TextView
+import android.graphics.Paint
+import android.graphics.Canvas
 
 // Getting sub-widgets, using the typed resources consed up by the
 // android SBT plugin.  It would be nice to put this in a library,
@@ -54,9 +52,9 @@ extends IndexedSeqAdapter( TodoLists.lists,
 // Activity that uses it.
 
 class TodosActivity 
- extends Activity( layoutResourceId = R.layout.all_todos,
-                   optionsMenuResourceId = R.menu.lists_view_menu,
-                   contextMenuResourceId = R.menu.lists_context_menu ) 
+ extends PositronicActivity( layoutResourceId = R.layout.all_todos,
+                             optionsMenuResourceId = R.menu.lists_view_menu,
+                             contextMenuResourceId = R.menu.lists_context_menu) 
  with ViewFinder 
 {
   lazy val listsView = findView( TR.listsView )
@@ -147,9 +145,9 @@ class TodosActivity
 // And now, the other activity, which manages an individual todo list's items.
 
 class TodoActivity 
- extends Activity( layoutResourceId = R.layout.todo_one_list,
-                   optionsMenuResourceId = R.menu.items_view_menu,
-                   contextMenuResourceId = R.menu.item_context_menu ) 
+ extends PositronicActivity( layoutResourceId = R.layout.todo_one_list,
+                             optionsMenuResourceId = R.menu.items_view_menu,
+                             contextMenuResourceId = R.menu.item_context_menu ) 
  with ViewFinder 
 {
   var theList: TodoList = null
@@ -232,8 +230,8 @@ class TodoActivity
   }
 }
 
-class EditStringDialog( base: Activity, str: String )
- extends Dialog( base, layoutResourceId = R.layout.dialog ) 
+class EditStringDialog( base: PositronicActivity, str: String )
+ extends PositronicDialog( base, layoutResourceId = R.layout.dialog ) 
  with ViewFinder 
 {
   val editTxt = findView( TR.dialogEditText )
@@ -262,8 +260,8 @@ class EditStringDialog( base: Activity, str: String )
 // all it takes.
 
 class TodoItemsAdapter(seq: IndexedSeq[TodoItem]) 
- extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) {
-
+ extends IndexedSeqAdapter( seq, itemViewResourceId = R.layout.todo_row ) 
+{
   override def fillView( view: View, position: Int ) = {
     view.asInstanceOf[ TodoItemView ].setTodoItem( getItem( position ))
   }
@@ -273,8 +271,8 @@ class TodoItemsAdapter(seq: IndexedSeq[TodoItem])
 // whether the item "isDone" (adding strikethrough)...
 
 class TodoItemView( context: Context, attrs: AttributeSet = null )
- extends TextView( context, attrs ) {
-
+ extends TextView( context, attrs ) 
+{
    var theItem: TodoItem = null
    def getTodoItem = theItem
 

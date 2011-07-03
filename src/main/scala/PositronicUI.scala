@@ -299,34 +299,37 @@ trait PositronicActivityHelpers
 // variants, with the StyledFoo having the three-arg constructor.
 // But since the guts of everything is in traits, that's not hard.
 
-class Button( context: Context, attrs: AttributeSet = null )
+class PositronicButton( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.Button( context, attrs ) 
  with PositronicHandlers
 
-class EditText( context: Context, attrs: AttributeSet = null )
+class PositronicEditText( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.EditText( context, attrs ) 
  with PositronicHandlers
 
-class TextView( context: Context, attrs: AttributeSet = null )
+class PositronicTextView( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.TextView( context, attrs ) 
  with PositronicHandlers
 
-class ListView( context: Context, attrs: AttributeSet = null )
+class PositronicListView( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.ListView( context, attrs ) 
  with PositronicHandlers 
  with PositronicItemHandlers
 
-class Dialog( context: Context, theme: Int = 0, layoutResourceId: Int = 0 )
- extends android.app.Dialog( context, theme ) with PositronicViewOps {
-
+class PositronicDialog( context: Context, 
+                        theme: Int = 0, 
+                        layoutResourceId: Int = 0 )
+ extends android.app.Dialog( context, theme ) 
+ with PositronicViewOps 
+{
   if ( layoutResourceId != 0 )
     setContentView( layoutResourceId )
 }
 
-class Activity( layoutResourceId: Int = 0,
-                optionsMenuResourceId: Int = 0,
-                contextMenuResourceId: Int = 0
-              )
+class PositronicActivity( layoutResourceId: Int = 0,
+                          optionsMenuResourceId: Int = 0,
+                          contextMenuResourceId: Int = 0
+                        )
  extends android.app.Activity
  with PositronicActivityHelpers 
 {

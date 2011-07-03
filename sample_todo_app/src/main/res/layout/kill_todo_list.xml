@@ -3,7 +3,7 @@
   android:orientation="vertical"
   android:layout_width="fill_parent"
   android:layout_height="fill_parent">
-  <org.positronicnet.ui.TextView
+  <org.positronicnet.ui.PositronicTextView
     android:id="@+id/victimText"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
@@ -12,13 +12,13 @@
   <LinearLayout
     android:layout_width="fill_parent"
     android:layout_height="wrap_content">
-    <org.positronicnet.ui.Button android:id="@+id/deleteButton"
+    <org.positronicnet.ui.PositronicButton android:id="@+id/deleteButton"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_weight="1"
       android:text="Delete"
     />
-    <org.positronicnet.ui.Button android:id="@+id/cancelButton"
+    <org.positronicnet.ui.PositronicButton android:id="@+id/cancelButton"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_weight="1"

@@ -83,28 +83,28 @@ object SqlValue {
   implicit def doubleToSqlValue( value: Double ) = SqlDouble( value )
 }
 
-class StatementFragment( db: Database, 
-                         tableName: String,
-                         orderString: String = null,
-                         whereString: String = null,
-                         whereValues: Array[String] = null,
-                         limitString: String = null
-                       ) {
-
+class DbQuery( db: Database, 
+               tableName: String,
+               orderString: String = null,
+               whereString: String = null,
+               whereValues: Array[String] = null,
+               limitString: String = null
+             ) 
+{
   def dinkedCopy( db: Database               = this.db, 
                   tableName: String          = this.tableName,
                   orderString: String        = this.orderString,
                   whereString: String        = this.whereString,
                   whereValues: Array[String] = this.whereValues,
                   limitString: String        = this.limitString ) =
-    new StatementFragment( db, tableName, orderString, 
-                           whereString, whereValues, limitString )
+    new DbQuery( db, tableName, orderString, 
+                 whereString, whereValues, limitString )
 
   def order( s: String ) = { dinkedCopy( orderString = s ) }
   def limit( s: String ) = { dinkedCopy( limitString = s ) }
   def limit( l: Int )    = { dinkedCopy( limitString = l.toString ) }
 
-  def where( s: String, arr: Array[SqlValue] = null ):StatementFragment = {
+  def where( s: String, arr: Array[SqlValue] = null ):DbQuery = {
 
     val newValues = 
       if (arr == null) null
@@ -121,7 +121,7 @@ class StatementFragment( db: Database,
     )
   }
 
-  def whereEq( pairs: (String, SqlValue)* ):StatementFragment = {
+  def whereEq( pairs: (String, SqlValue)* ):DbQuery = {
     
     // Note that this conses up a *lot* of temporary objects.
     // In performance-sensitive contexts, directly invoking
@@ -211,7 +211,7 @@ class StatementFragment( db: Database,
     log( "select", cols = colsArr )
     db.getWritableDatabase.query( 
       tableName, colsArr, whereString, whereValues, null, null, 
-      orderString, limitString ).asInstanceOf[ Cursor ]
+      orderString, limitString ).asInstanceOf[ PositronicCursor ]
   }
 
   def oneRow( cols: String* ) = {
@@ -228,19 +228,19 @@ class StatementFragment( db: Database,
 }
 
 // Arrange to produce cursors which support a proper 'foreach', so
-// "for ( c <- myFrag.select(...))" works.
+// "for ( c <- myQuery.select(...))" works.
 //
 // These also implement the read-side of our Boolean conversions.
 
-class Cursor( db: SQLiteDatabase,
-              driver: SQLiteCursorDriver,
-              table: String,
-              query: SQLiteQuery )
- extends SQLiteCursor( db, driver, table, query ) {
-
+class PositronicCursor( db: SQLiteDatabase,
+                        driver: SQLiteCursorDriver,
+                        table: String,
+                        query: SQLiteQuery )
+ extends SQLiteCursor( db, driver, table, query ) 
+{
    def getBoolean( colIdx: Int ) = { getInt( colIdx ) != 0 }
 
-   def foreach( func: Cursor => Unit ):Unit = {
+   def foreach( func: PositronicCursor => Unit ):Unit = {
      moveToFirst
      while (! isAfterLast ) { func( this ); moveToNext }
      close
@@ -253,14 +253,14 @@ class CursorFactory extends SQLiteDatabase.CursorFactory {
                  driver: SQLiteCursorDriver,
                  table: String,
                  query: SQLiteQuery ) = {
-    new Cursor( db, driver, table, query )
+    new PositronicCursor( db, driver, table, query )
   }
 }
 
 class DbWrapper( ctx: Context, mydb: Database ) 
 extends SQLiteOpenHelper( ctx, mydb.getFilename, 
-                          new CursorFactory, mydb.version ){
-
+                          new CursorFactory, mydb.version )
+{
   def onCreate( db: SQLiteDatabase ) = mydb.onCreate( db )
   
   def onUpgrade( db: SQLiteDatabase, oldVersion: Int, newVersion: Int ) = 
@@ -309,6 +309,6 @@ abstract class Database( filename: String, logTag: String = null )
 
   def version = schemaUpdates.length
 
-  def apply( table: String ) = new StatementFragment( this, table )
+  def apply( table: String ) = new DbQuery( this, table )
 }
 

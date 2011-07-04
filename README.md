@@ -27,11 +27,11 @@ What's in the package right now includes the following:
 
     onOptionsItemSelected( R.id.undelete ) { doUndelete }
 
-added by a `PositronicHandler` trait and friends, which come premixed
-into `PositronicActivity`, `PositronicButton`, and so forth.  (These
-extend the corresponding Android platform classes, so if you don't
-have a Positronic shorthand for something, or just don't like it, the
-standard API is fully available.)
+These come from a `PositronicHandler` trait and friends, which come
+premixed into `PositronicActivity`, `PositronicButton`, and so forth.
+(These extend the corresponding Android platform classes, so if you
+don't have a Positronic shorthand for something, or just don't like
+it, the standard API is fully available.)
 
 ##Fluid notation for dealing with Sqlite
 

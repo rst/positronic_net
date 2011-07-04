@@ -12,6 +12,10 @@ import org.positronicnet.util.WorkerThread
 
 // Our domain model classes, such as they are:  Todo Items, Lists, etc.
 // 
+// There's no ORM here, just an AREL-style gloss for building SQL, and
+// a stylized way of building model classes that use it.  But it still
+// cuts down on the clutter.
+//
 // NB operations on these affect the database, so they happen on a
 // separate "db thread".  UI components can register as listeners for
 // changes on domain objects, and if they do, they get fresh cursors
@@ -26,20 +30,18 @@ import org.positronicnet.util.WorkerThread
 // more effective than confirmation dialogs at helping users recover
 // from mistakes.
 
+// Start by defining the DB schema...
+
 object TodoDb 
  extends Database( filename = "todos.sqlite3", logTag = "todo" ) 
  with WorkerThread
 {
   // This gets fed to a SQLiteOpenHelper, which implements the following
-  // default behavior:
+  // default behavior (unless overridden, of course):
   //
   // "version" is the length of schemaUpdates.
   // "onUpdate" runs all the updates from oldVersion to newVersion.
   // "onCreate" just runs 'em all.
-  //
-  // This can all be overridden if appropriate (e.g., override
-  // onCreate if running all updates serially is a silly way to create
-  // a completely new database with the current schema).
 
   def schemaUpdates =
     List(""" create table todo_lists (
@@ -60,15 +62,13 @@ object TodoDb
   
 }
 
-// Semi-formal domain model.  There's no ORM here, just an AREL-style
-// gloss for building SQL, and a stylized way of building model classes
-// that use it.  But it still cuts down on the clutter.
+// ... and here we factor out some of the administrative boilerplate
+// for the TodoItem, TodoList, etc. classes.
 //
-// BTW, a "PositronicCursor" is just a regular cursor with getBoolean
-// added (implementing the sqlite convention that nonzero means
-// "true").  Aside from that (and a 'foreach' method which iterates
-// over the rows, which you can ignore unless you want to use it),
-// they're just plain old Cursors.
+// BTW, a "PositronicCursor" is just a regular SQLite cursor with
+// getBoolean added (implementing the sqlite convention that nonzero
+// means "true"), and the 'foreach' method you can see below in
+// removeList below.
 
 trait TodoDbModel
   extends ChangeNotifications[ PositronicCursor ]
@@ -83,6 +83,7 @@ trait TodoDbModel
   protected def requery: PositronicCursor
 }
 
+//================================================================
 // "Todo item" model.
 // 
 // Mostly actually manipulated from within TodoList; with a more
@@ -100,7 +101,9 @@ object TodoItem {
 
 }
 
-// "Todo list" model.  Serializable so it can be stuffed in intents.
+//================================================================
+// "Todo list" model.  
+// Includes most actual manipulation of items.
 
 case class TodoList( var id: Long, var name: String )
  extends TodoDbModel
@@ -151,13 +154,6 @@ case class TodoList( var id: Long, var name: String )
   }
 
   def undeleteItems = dbWrap { dbItemsAll.update( "is_deleted" -> false ) }
-
-  // ... and the list itself
-
-  def setName( newName: String ) = {
-    name = newName; 
-    TodoDb("todo_lists").whereEq("_id" -> this.id).update( "name" -> newName )
-  }
 }
 
 object TodoList {
@@ -184,6 +180,7 @@ object TodoList {
               intent.getStringExtra( intentNameKey ))
 }
 
+//================================================================
 // Singleton object to represent the set of all available lists.
 
 object TodoLists extends TodoDbModel 
@@ -205,7 +202,7 @@ object TodoLists extends TodoDbModel
   def addList( name: String ) = dbWrap { TodoList.create( name ) }
 
   def setListName( list: TodoList, newName: String ) = dbWrap {
-    list.setName( newName )
+    TodoDb("todo_lists").whereEq("_id" -> list.id).update( "name" -> newName )
   }
 
   def removeList( victim: TodoList ) = dbWrap {

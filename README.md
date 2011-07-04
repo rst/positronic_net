@@ -1,4 +1,4 @@
-##Positronic Net
+#Positronic Net
 
 Positronic Net is an attempt to reduce the amount of boilerplate
 coding required for Android programming to just connect framework
@@ -10,14 +10,15 @@ framework itself.
 It builds using `sbt` version 0.7.7 and the [sbt-android-plugin](https://github.com/jberkel/android-plugin).
 
 The project source includes the library itself (in `src`) and a simple
-sample app; reading the sample app code might be the best way to get
-a feel for what the library is trying to accomplish.
+sample app (as an sbt subproject); reading the sample app code might
+be the best way to get a feel for what the library is trying to
+accomplish.
 
-##Features
+#Features
 
 What's in the package right now includes the following:
 
-#Event handler declarations in a style reminiscent of jQuery:
+##Event handler declarations in a style reminiscent of jQuery:
 
     listsView.onItemClick { (view, posn, id) => viewListAt( posn ) }
 
@@ -32,7 +33,7 @@ extend the corresponding Android platform classes, so if you don't
 have a Positronic shorthand for something, or just don't like it, the
 standard API is fully available.)
 
-#Fluid notation for dealing with Sqlite
+##Fluid notation for dealing with Sqlite
 
 A sample, implementing a soft deletion scheme:
 
@@ -46,7 +47,7 @@ A sample, implementing a soft deletion scheme:
       dbItems.whereEq( "is_done" -> true ).update( "is_deleted" -> true )
     }
 
-#"Change listener" framework
+##"Change listener" framework
 
 It's generally good practice on Android to manipulate databases, and
 perform other background operations, on a thread different from the
@@ -76,7 +77,7 @@ This is an attempt to meet the same basic need as the `CursorLoader`
 machinery in Android 3.0, but with better encapsulation and less
 chatter.
 
-#Miscellaneous shorthands
+##Miscellaneous shorthands
 
 The library also provides alternate overloads for a lot of standard
 framework APIs (usually to give them functional arguments instead of,

@@ -53,7 +53,6 @@ class TodosActivity
 
     useAppFacility( TodoDb )            // Open DB; arrange to close on destroy
     listsView.setAdapter( new TodosAdapter( this ))
-    TodoLists.refreshFromDb
 
     // Listen for events on widgets
 
@@ -169,7 +168,6 @@ class TodoActivity
 
     useAppFacility( TodoDb )
     listItemsView.setAdapter( new TodoItemsAdapter( this, theList ) )
-    theList.refreshFromDb
 
     // Event handlers...
 

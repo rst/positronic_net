@@ -106,11 +106,6 @@ case class TodoList( var id: Long, var name: String )
   }
 
   // Public interface --- dealing with items.
-  //
-  // Note that we requery after every change, so we don't bother updating
-  // the old in-core copies...
-
-  def refreshFromDb = doChange {/* nothing */}
 
   def addItem( description: String, isDone: Boolean = false ) = doChange { 
     TodoDb( "todo_items" ).insert( 
@@ -175,8 +170,6 @@ object TodoLists extends CursorSource( TodoDb )
   }
 
   // Public interface
-
-  def refreshFromDb = doChange{}
 
   def addList( name: String ) = doChange { TodoList.create( name ) }
 

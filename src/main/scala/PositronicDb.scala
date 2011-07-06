@@ -330,6 +330,18 @@ abstract class Database( filename: String, logTag: String = null )
 abstract class CursorSource( db: Database )
   extends ChangeNotifications[ PositronicCursor ]
 {
+  // Special favor for CursorSourceListeners:  when they sign up for
+  // notifications, they get a cursor with the current contents
+  // immediately...
+
+  override def onChange( key: AnyRef )( handler: PositronicCursor=>Unit ):Unit={
+    super.onChange( key )( handler )
+    db match {
+      case w: WorkerThread => w.runOnThread{ handler( requery ) }
+      case _ => handler( requery )
+    }
+  }
+
   // Wrapper for domain operations, which all hit the DB: we run on
   // the DB thread if there is one, and notify the listeners when
   // done.

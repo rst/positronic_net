@@ -8,6 +8,8 @@ import _root_.android.content.Context
 import _root_.android.util.Log
 
 import org.positronicnet.util.AppFacility
+import org.positronicnet.util.WorkerThread
+import org.positronicnet.util.ChangeNotifications
 
 // Mummery to make sure that on inserts and updates, strings and ints
 // are added into contentValues objects with the appropriate types.
@@ -311,4 +313,38 @@ abstract class Database( filename: String, logTag: String = null )
 
   def apply( table: String ) = new DbQuery( this, table )
 }
+
+// Useful common machinery for classes managing changes to a
+// database (or some tables within a database), which want to
+// feed listeners (e.g., a CursorSourceAdapter bound to some
+// ListView) reports on updates as they happen.
+//
+// Provides a doChange wrapper which runs some code, and then
+// notifies all change listeners with a new cursor reflecting
+// the updated DB state, as provided by the abstract method
+// 'requery'.
+//
+// If the database has a WorkerThread, then doChange handlers
+// run on that thread.
+
+abstract class CursorSource( db: Database )
+  extends ChangeNotifications[ PositronicCursor ]
+{
+  // Wrapper for domain operations, which all hit the DB: we run on
+  // the DB thread if there is one, and notify the listeners when
+  // done.
+
+  def doChange( thunk: => Unit ) = { 
+    db match {
+      case w: WorkerThread => w.runOnThread{ thunk; noteChangeEach{ requery }}
+      case _ => thunk; noteChangeEach{ requery }
+    }
+  }
+
+  // Class-specific measure to yield the cursor that is passed to
+  // our listeners when a change happens.
+
+  protected def requery: PositronicCursor
+}
+
 

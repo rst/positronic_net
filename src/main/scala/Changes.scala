@@ -23,3 +23,4 @@ trait ChangeNotifications[T] {
 }
 
 class ChangeNotifier[T] extends ChangeNotifications[T]
+

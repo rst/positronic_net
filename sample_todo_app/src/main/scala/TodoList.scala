@@ -6,8 +6,8 @@ import android.content.Intent
 import org.positronicnet.db.Database
 import org.positronicnet.db.PositronicCursor
 import org.positronicnet.db.DbQuery
+import org.positronicnet.db.CursorSource
 
-import org.positronicnet.util.ChangeNotifications
 import org.positronicnet.util.WorkerThread
 
 // Our domain model classes, such as they are:  Todo Items, Lists, etc.
@@ -62,27 +62,6 @@ object TodoDb
   
 }
 
-// ... and here we factor out some of the administrative boilerplate
-// for the TodoItem, TodoList, etc. classes.
-//
-// BTW, a "PositronicCursor" is just a regular SQLite cursor with
-// getBoolean added (implementing the sqlite convention that nonzero
-// means "true"), and the 'foreach' method you can see below in
-// removeList below.
-
-trait TodoDbModel
-  extends ChangeNotifications[ PositronicCursor ]
-{
-  // Wrapper for domain operations, which all hit the DB:
-  // we run on the DB thread, and notify the listeners when done.
-
-  def dbWrap( thunk: => Unit ) = { 
-    TodoDb.runOnThread{ thunk; noteChangeEach{ requery }} 
-  }
-
-  protected def requery: PositronicCursor
-}
-
 //================================================================
 // "Todo item" model.
 // 
@@ -106,7 +85,7 @@ object TodoItem {
 // Includes most actual manipulation of items.
 
 case class TodoList( var id: Long, var name: String )
- extends TodoDbModel
+ extends CursorSource( TodoDb )
 {
   // In-core status fields; set on requery.
 
@@ -131,29 +110,29 @@ case class TodoList( var id: Long, var name: String )
   // Note that we requery after every change, so we don't bother updating
   // the old in-core copies...
 
-  def refreshFromDb = dbWrap {/* nothing */}
+  def refreshFromDb = doChange {/* nothing */}
 
-  def addItem( description: String, isDone: Boolean = false ) = dbWrap { 
+  def addItem( description: String, isDone: Boolean = false ) = doChange { 
     TodoDb( "todo_items" ).insert( 
         "todo_list_id" -> this.id, 
         "description"  -> description,
         "is_done"      -> isDone )
   }
 
-  def setItemDescription( it: TodoItem, desc: String ) = dbWrap { 
+  def setItemDescription( it: TodoItem, desc: String ) = doChange { 
     dbItems.whereEq("_id" -> it.id).update( "description" -> desc )
   }
 
-  def setItemDone( it: TodoItem, isDone: Boolean ) = dbWrap { 
+  def setItemDone( it: TodoItem, isDone: Boolean ) = doChange { 
     dbItems.whereEq("_id" -> it.id).update( "is_done" -> isDone )
   }
 
-  def deleteWhereDone = dbWrap {
+  def deleteWhereDone = doChange {
     dbItemsAll.whereEq( "is_deleted" -> true ).delete // purge the last batch
     dbItems.whereEq( "is_done" -> true ).update( "is_deleted" -> true )
   }
 
-  def undeleteItems = dbWrap { dbItemsAll.update( "is_deleted" -> false ) }
+  def undeleteItems = doChange { dbItemsAll.update( "is_deleted" -> false ) }
 }
 
 object TodoList {
@@ -183,7 +162,7 @@ object TodoList {
 //================================================================
 // Singleton object to represent the set of all available lists.
 
-object TodoLists extends TodoDbModel 
+object TodoLists extends CursorSource( TodoDb )
 {
   private lazy val dbListsAll = TodoDb("todo_lists")
   private lazy val dbLists = dbListsAll.whereEq("is_deleted"-> false)
@@ -197,15 +176,15 @@ object TodoLists extends TodoDbModel
 
   // Public interface
 
-  def refreshFromDb = dbWrap{}
+  def refreshFromDb = doChange{}
 
-  def addList( name: String ) = dbWrap { TodoList.create( name ) }
+  def addList( name: String ) = doChange { TodoList.create( name ) }
 
-  def setListName( list: TodoList, newName: String ) = dbWrap {
+  def setListName( list: TodoList, newName: String ) = doChange {
     dbLists.whereEq("_id" -> list.id).update( "name" -> newName )
   }
 
-  def removeList( victim: TodoList ) = dbWrap {
+  def removeList( victim: TodoList ) = doChange {
 
     // Purge all previously deleted lists...
     for ( c <- dbListsAll.whereEq( "is_deleted" -> true ).select( "_id" )) {
@@ -218,6 +197,6 @@ object TodoLists extends TodoDbModel
     TodoDb("todo_lists").whereEq("_id"->victim.id).update("is_deleted" -> true)
   }
 
-  def undelete = dbWrap { dbListsAll.update( "is_deleted" -> false ) }
+  def undelete = doChange { dbListsAll.update( "is_deleted" -> false ) }
 } 
 

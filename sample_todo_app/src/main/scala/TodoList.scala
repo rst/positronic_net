@@ -141,11 +141,11 @@ case class TodoList( var id: Long, var name: String )
   }
 
   def setItemDescription( it: TodoItem, desc: String ) = dbWrap { 
-    TodoDb("todo_items").whereEq("_id" -> it.id).update( "description" -> desc )
+    dbItems.whereEq("_id" -> it.id).update( "description" -> desc )
   }
 
   def setItemDone( it: TodoItem, isDone: Boolean ) = dbWrap { 
-    TodoDb("todo_items").whereEq("_id" -> it.id).update( "is_done" -> isDone )
+    dbItems.whereEq("_id" -> it.id).update( "is_done" -> isDone )
   }
 
   def deleteWhereDone = dbWrap {
@@ -202,7 +202,7 @@ object TodoLists extends TodoDbModel
   def addList( name: String ) = dbWrap { TodoList.create( name ) }
 
   def setListName( list: TodoList, newName: String ) = dbWrap {
-    TodoDb("todo_lists").whereEq("_id" -> list.id).update( "name" -> newName )
+    dbLists.whereEq("_id" -> list.id).update( "name" -> newName )
   }
 
   def removeList( victim: TodoList ) = dbWrap {

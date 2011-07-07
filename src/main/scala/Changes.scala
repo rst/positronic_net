@@ -6,21 +6,19 @@ trait ChangeNotifications[T] {
   val changeHandlers = new HashMap[ AnyRef, T => Unit ]
   def onChange( key: AnyRef )( handler: T => Unit ):Unit = {
     changeHandlers( key ) = handler
+    handler( currentValue )
   }
   def stopChangeNotifications( key: AnyRef ):Unit = {
     changeHandlers.remove( key )
   }
-  def noteChange( datum: T ) = {
+  def noteChange = {
     for ((key, handler) <- changeHandlers) {
-      handler( datum )
+      handler( currentValue )           // fresh copy for each listener
     }
   }
-  def noteChangeEach( thunk: => T ) = {
-    for ((key, handler) <- changeHandlers) {
-      handler( thunk )
-    }
-  }
+  protected def currentValue: T
 }
 
-class ChangeNotifier[T] extends ChangeNotifications[T]
+abstract class ChangeNotifier[T] extends ChangeNotifications[T]
+
 

@@ -99,7 +99,7 @@ case class TodoList( var id: Long, var name: String )
 
   // Method to get cursors for our change listeners (and refresh cached state):
 
-  protected def requery: PositronicCursor = {
+  protected def currentValue: PositronicCursor = {
     hasDoneItems = dbItems.whereEq( "is_done" -> true ).count > 0
     hasDeletedItems = dbItemsAll.whereEq( "is_deleted" -> true ).count > 0
     return TodoItem.doQuery( dbItems )
@@ -164,7 +164,7 @@ object TodoLists extends CursorSource( TodoDb )
 
   var hasDeleted = false                // reset on query
 
-  protected def requery: PositronicCursor = {
+  protected def currentValue: PositronicCursor = {
     hasDeleted = dbListsAll.whereEq( "is_deleted" -> true ).count > 0
     return TodoList.doQuery( dbLists )
   }

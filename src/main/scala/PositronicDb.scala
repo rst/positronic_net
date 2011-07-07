@@ -319,44 +319,22 @@ abstract class Database( filename: String, logTag: String = null )
 // feed listeners (e.g., a CursorSourceAdapter bound to some
 // ListView) reports on updates as they happen.
 //
-// Provides a doChange wrapper which runs some code, and then
-// notifies all change listeners with a new cursor reflecting
-// the updated DB state, as provided by the abstract method
-// 'requery'.
-//
 // If the database has a WorkerThread, then doChange handlers
 // run on that thread.
 
 abstract class CursorSource( db: Database )
   extends ChangeNotifications[ PositronicCursor ]
 {
-  // Special favor for CursorSourceListeners:  when they sign up for
-  // notifications, they get a cursor with the current contents
-  // immediately...
-
-  override def onChange( key: AnyRef )( handler: PositronicCursor=>Unit ):Unit={
-    super.onChange( key )( handler )
-    db match {
-      case w: WorkerThread => w.runOnThread{ handler( requery ) }
-      case _ => handler( requery )
-    }
-  }
-
   // Wrapper for domain operations, which all hit the DB: we run on
   // the DB thread if there is one, and notify the listeners when
   // done.
 
   def doChange( thunk: => Unit ) = { 
     db match {
-      case w: WorkerThread => w.runOnThread{ thunk; noteChangeEach{ requery }}
-      case _ => thunk; noteChangeEach{ requery }
+      case w: WorkerThread => w.runOnThread{ thunk; noteChange }
+      case _ => thunk; noteChange
     }
   }
-
-  // Class-specific measure to yield the cursor that is passed to
-  // our listeners when a change happens.
-
-  protected def requery: PositronicCursor
 }
 
 

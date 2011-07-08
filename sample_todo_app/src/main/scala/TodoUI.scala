@@ -5,6 +5,9 @@ import org.positronicnet.ui.PositronicDialog
 import org.positronicnet.ui.PositronicActivity
 import org.positronicnet.ui.CursorSourceAdapter
 
+import org.positronicnet.util.ChangeNotifications
+import org.positronicnet.db.PositronicCursor
+
 import android.app.Activity
 import android.os.Bundle
 import android.content.Context
@@ -144,6 +147,7 @@ class TodoActivity
   var showingDoneItems = true
 
   lazy val newItemText = findView( TR.newItemText )
+  lazy val listItemsQuery = theList.itemsQuery( showingDoneItems )
   lazy val listItemsView = findView( TR.listItemsView )
   lazy val editDialog = new EditStringDialog( this )
 
@@ -158,7 +162,7 @@ class TodoActivity
     setTitle( "Todo for: " + theList.name )
 
     useAppFacility( TodoDb )
-    listItemsView.setAdapter( new TodoItemsAdapter( this, theList ) )
+    listItemsView.setAdapter( new TodoItemsAdapter( this, listItemsQuery ) )
 
     // Event handlers...
 
@@ -183,19 +187,23 @@ class TodoActivity
     }
   }
 
-  // UI instance state
+  // UI instance state, less the "super.foo()" noise.
+  // recreateInstanceState runs onCreate, *before* the onCreate handlers.
 
-  override def onSaveInstanceState( b: Bundle ) = 
+  override def saveInstanceState( b: Bundle ) = 
     b.putBoolean( "showing_done_items", showingDoneItems )
 
-  override def onRestoreInstanceState( b: Bundle ) = 
+  override def restoreInstanceState( b: Bundle ) = 
+    setShowingDoneItems( b.getBoolean( "showing_done_items" ) )
+
+  override def recreateInstanceState( b: Bundle ) = 
     setShowingDoneItems( b.getBoolean( "showing_done_items" ) )
 
   // Dealing with mode switching
 
   def setShowingDoneItems( newValue: Boolean ) = {
     showingDoneItems = newValue
-    // Query swapping will go here.
+    listItemsQuery.requery( showingDoneItems )
   }
 
   onPrepareOptionsMenu { menu =>
@@ -244,9 +252,10 @@ class TodoActivity
   }
 }
 
-class TodoItemsAdapter( activity: PositronicActivity, list: TodoList )
+class TodoItemsAdapter( activity: PositronicActivity, 
+                        query: ChangeNotifications[PositronicCursor] )
  extends CursorSourceAdapter( activity,
-                              source = list.items,
+                              source = query,
                               converter = TodoItem.fromCursor(_),
                               itemViewResourceId = R.layout.todo_row )
 {

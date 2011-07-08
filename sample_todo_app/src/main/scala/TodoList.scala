@@ -95,6 +95,15 @@ case class TodoList( var id: Long, var name: String )
   // Things that UI elements (etc.) can monitor
 
   lazy val items = cursorStream { TodoItem.doQuery( dbItems ) }
+
+  def itemsQuery( initialShowDone: Boolean ) = {
+    cursorQuery( initialShowDone ){ showDone => 
+      TodoItem.doQuery(
+        if ( showDone ) dbItems else dbItems.whereEq( "is_done" -> false )
+      )
+    }
+  }
+
   lazy val numDoneItems = valueStream { 
     dbItems.whereEq( "is_done" -> true ).count 
   }

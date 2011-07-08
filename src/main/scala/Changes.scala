@@ -51,6 +51,19 @@ trait CachingChangeNotifications[T]
   }
 }
 
+// Machinery for change listeners which also depend on query
+// parameters from the UI...
+
+abstract class NotifierWithQuery[ Q, R ]( initialQuery: Q )
+  extends ChangeNotifications[ R ]
+{
+  protected var currentQuery = initialQuery
+
+  def requery( q: Q ) = {
+    currentQuery = q; noteChange
+  } 
+}
+
 // Useful common machinery for classes managing changes to some
 // resource (e.g., a database) which might maintain multiple
 // change listeners.
@@ -65,6 +78,20 @@ class NonSharedValueStream[T]( generator: () => T )
   extends NonSharedChangeNotifications[T]
 {
   def currentValue = generator()
+}
+
+class ValueQuery[Q, R]( initialQuery: Q, queryFunc: Q => R )
+  extends NotifierWithQuery[ Q, R ]( initialQuery )
+  with CachingChangeNotifications[ R ]
+{
+  def currentValue = queryFunc( currentQuery )
+}
+
+class NonSharedValueQuery[Q, R]( initialQuery: Q, queryFunc: Q => R )
+  extends NotifierWithQuery[ Q, R ]( initialQuery )
+  with NonSharedChangeNotifications[ R ]
+{
+  def currentValue = queryFunc( currentQuery )
 }
 
 abstract class ChangeManager( facility: AppFacility )
@@ -95,6 +122,18 @@ abstract class ChangeManager( facility: AppFacility )
 
   def cursorStream[T](thunk: => T): ChangeNotifications[T] = {
     val it = new NonSharedValueStream( () => thunk )
+    notifiers += it
+    return it
+  }
+
+  def valueQuery[Q,R]( initialVal: Q)(queryFunc: Q => R ): ValueQuery[Q, R] = {
+    val it = new ValueQuery( initialVal, queryFunc )
+    notifiers += it
+    return it
+  }
+
+  def cursorQuery[Q,R]( initialVal: Q)(queryFunc: Q => R ): NonSharedValueQuery[Q, R] = {
+    val it = new NonSharedValueQuery( initialVal, queryFunc )
     notifiers += it
     return it
   }

@@ -306,6 +306,17 @@ trait PositronicActivityHelpers
     }
   }
 
+  var onPrepareOptionsMenuHandlers = new ArrayBuffer[ Menu => Unit ]
+
+  override def onPrepareOptionsMenu( m: Menu ):Boolean = { 
+    super.onPrepareOptionsMenu( m ); 
+    for( handler <- onPrepareOptionsMenuHandlers ) { handler( m ) }
+    return true;
+  }
+  
+  def onPrepareOptionsMenu( handler: Menu => Unit ) = 
+    onPrepareOptionsMenuHandlers.append( handler )
+
   // And these, just to cut down on noise.
 
   def toast( msgResId: Int, duration: Int = Toast.LENGTH_SHORT ):Unit = {

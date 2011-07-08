@@ -73,16 +73,6 @@ class TodosActivity
     }
   }
 
-  override def recreateInstanceState( b: Bundle ) {
-    // No state to pull out of a bundle when recreating an instance,
-    // but if there were, this is where we'd put the code to do it.
-    // (The general philosophy I'm trying to follow here is that if
-    // you always need to do something, like invoking "super.onCreate",
-    // the framework ought to do it for you --- and if you might not
-    // need to do something, like dealing with the Bundle, it shouldn't
-    // be in your face.)
-  }
-
   // Determining relevant context for the ContextMenu
 
   def getContextItem( menuInfo: ContextMenu.ContextMenuInfo, view: View ) =
@@ -151,6 +141,7 @@ class TodoActivity
  with ViewFinder 
 {
   var theList: TodoList = null
+  var showingDoneItems = true
 
   lazy val newItemText = findView( TR.newItemText )
   lazy val listItemsView = findView( TR.listItemsView )
@@ -179,6 +170,8 @@ class TodoActivity
 
     onOptionsItemSelected( R.id.delete_where_done ) { deleteWhereDone }
     onOptionsItemSelected( R.id.undelete ) { undelete }
+    onOptionsItemSelected( R.id.hide_done ) { setShowingDoneItems( false ) }
+    onOptionsItemSelected( R.id.show_done ) { setShowingDoneItems( true ) }
 
     registerForContextMenu( listItemsView )
 
@@ -188,6 +181,27 @@ class TodoActivity
     onContextItemSelected( R.id.toggledone ){ 
       (menuInfo, view) => toggleDone( getContextItem( menuInfo, view ))
     }
+  }
+
+  // UI instance state
+
+  override def onSaveInstanceState( b: Bundle ) = 
+    b.putBoolean( "showing_done_items", showingDoneItems )
+
+  override def onRestoreInstanceState( b: Bundle ) = 
+    setShowingDoneItems( b.getBoolean( "showing_done_items" ) )
+
+  // Dealing with mode switching
+
+  def setShowingDoneItems( newValue: Boolean ) = {
+    showingDoneItems = newValue
+    // Query swapping will go here.
+  }
+
+  onPrepareOptionsMenu { menu =>
+    // Hide mode-switch item which switches to the current mode...
+    menu.findItem( R.id.hide_done ).setVisible(  showingDoneItems )
+    menu.findItem( R.id.show_done ).setVisible( !showingDoneItems )
   }
 
   // Finding target items for listItemsView taps (including the ContextMenu)

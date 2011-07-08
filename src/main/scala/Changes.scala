@@ -62,7 +62,7 @@ class ValueStream[T]( generator: () => T )
 }
 
 class NonSharedValueStream[T]( generator: () => T )
-  extends CachingChangeNotifications[T]
+  extends NonSharedChangeNotifications[T]
 {
   def currentValue = generator()
 }

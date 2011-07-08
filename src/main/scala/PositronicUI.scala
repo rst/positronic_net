@@ -173,7 +173,7 @@ trait PositronicActivityHelpers
   def onCreate( b: Bundle, layoutResourceId: Int ) = {
     super.onCreate( b )
     if (layoutResourceId != 0) { setContentView( layoutResourceId ) }
-    recreateInstanceState( b )
+    if ( b != null ) recreateInstanceState( b )
     onCreateNotifier.runAll
   }
 
@@ -214,18 +214,22 @@ trait PositronicActivityHelpers
   
   def onDestroy( thunk: => Unit ) = { onDestroyNotifier.append( () => thunk )}
 
+  // Versions of onSaveInstanceState and friends which eliminate
+  // the super.foo() noise, and only get called if there *is* a
+  // bundle to unpack.
+
   def saveInstanceState( b: Bundle ) = {}
   def recreateInstanceState( b: Bundle ) = {}
   def restoreInstanceState( b: Bundle ) = {}
 
   override def onSaveInstanceState( b: Bundle ) = {
     super.onSaveInstanceState( b )
-    saveInstanceState( b )
+    if ( b != null ) saveInstanceState( b )
   }
 
   override def onRestoreInstanceState( b: Bundle ) = {
     super.onRestoreInstanceState( b )
-    restoreInstanceState( b )
+    if ( b != null ) restoreInstanceState( b )
   }
 
   // Alternate overloadings of some standard methods, for convenience.

@@ -387,7 +387,7 @@ class PositronicActivity( layoutResourceId: Int = 0 )
 // gubbish...
 
 abstract class CursorSourceAdapter[T <: AnyRef]( 
-  activity: PositronicActivity,
+  activity: PositronicActivityHelpers,
   converter: PositronicCursor => T,
   source: ChangeNotifications[PositronicCursor] = null,
   itemViewResourceId: Int = 0
@@ -397,9 +397,10 @@ abstract class CursorSourceAdapter[T <: AnyRef](
   var inflater: LayoutInflater = null
 
   if (source != null) {
-    activity.onChangeTo( source ){ 
+    source.onChange( this ) {
       cursor => activity.runOnUiThread{ this.changeCursor( cursor ) }
     }
+    activity.onDestroy{ source.stopChangeNotifications( this ) }
   }
 
   def newView( context: Context, 

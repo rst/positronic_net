@@ -6,9 +6,9 @@ import android.content.Intent
 import org.positronicnet.db.Database
 import org.positronicnet.db.PositronicCursor
 import org.positronicnet.db.DbQuery
-import org.positronicnet.db.CursorSource
 
 import org.positronicnet.util.WorkerThread
+import org.positronicnet.util.ChangeManager
 
 // Our domain model classes, such as they are:  Todo Items, Lists, etc.
 // 
@@ -85,27 +85,24 @@ object TodoItem {
 // Includes most actual manipulation of items.
 
 case class TodoList( var id: Long, var name: String )
- extends CursorSource( TodoDb )
+ extends ChangeManager( TodoDb )
 {
-  // In-core status fields; set on requery.
-
-  var hasDoneItems = false
-  var hasDeletedItems = false
-
   // Setting up (and use of) prebaked query fragments.
 
   private lazy val dbItemsAll = TodoDb("todo_items").whereEq("todo_list_id"->id)
   private lazy val dbItems    = dbItemsAll.whereEq( "is_deleted" -> false )
 
-  // Method to get cursors for our change listeners (and refresh cached state):
+  // Things that UI elements (etc.) can monitor
 
-  protected def currentValue: PositronicCursor = {
-    hasDoneItems = dbItems.whereEq( "is_done" -> true ).count > 0
-    hasDeletedItems = dbItemsAll.whereEq( "is_deleted" -> true ).count > 0
-    return TodoItem.doQuery( dbItems )
+  lazy val items = cursorStream { TodoItem.doQuery( dbItems ) }
+  lazy val numDoneItems = valueStream { 
+    dbItems.whereEq( "is_done" -> true ).count 
+  }
+  lazy val numDeletedItems= valueStream { 
+    dbItemsAll.whereEq( "is_deleted" -> true).count
   }
 
-  // Public interface --- dealing with items.
+  // Changes that UI elements (etc.) can ask for
 
   def addItem( description: String, isDone: Boolean = false ) = doChange { 
     TodoDb( "todo_items" ).insert( 
@@ -157,19 +154,20 @@ object TodoList {
 //================================================================
 // Singleton object to represent the set of all available lists.
 
-object TodoLists extends CursorSource( TodoDb )
+object TodoLists extends ChangeManager( TodoDb )
 {
   private lazy val dbListsAll = TodoDb("todo_lists")
   private lazy val dbLists = dbListsAll.whereEq("is_deleted"-> false)
 
-  var hasDeleted = false                // reset on query
+  // Things UI can monitor
 
-  protected def currentValue: PositronicCursor = {
-    hasDeleted = dbListsAll.whereEq( "is_deleted" -> true ).count > 0
-    return TodoList.doQuery( dbLists )
+  lazy val lists = cursorStream { TodoList.doQuery( dbLists ) }
+
+  lazy val numDeletedLists= valueStream {
+    dbListsAll.whereEq("is_deleted"-> true).count
   }
 
-  // Public interface
+  // Changes UI can request
 
   def addList( name: String ) = doChange { TodoList.create( name ) }
 

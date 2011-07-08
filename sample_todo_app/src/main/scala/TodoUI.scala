@@ -27,7 +27,7 @@ import android.graphics.Canvas
 
 class TodosAdapter( activity: PositronicActivity )
  extends CursorSourceAdapter( activity, 
-                              source = TodoLists,
+                              source = TodoLists.lists,
                               converter = TodoList.fromCursor(_),
                               itemViewResourceId = R.layout.todos_row )
 {
@@ -109,7 +109,7 @@ class TodosActivity
   }
 
   def doUndelete = { 
-    if (TodoLists.hasDeleted) TodoLists.undelete
+    if (TodoLists.numDeletedLists.value > 0) TodoLists.undelete
     else toast( R.string.undeletes_exhausted )
   }
 
@@ -216,14 +216,14 @@ class TodoActivity
   def toggleDone( it: TodoItem ) = theList.setItemDone( it, !it.isDone )
 
   def deleteWhereDone = {
-    if (theList.hasDoneItems) 
+    if (theList.numDoneItems.value > 0) 
       theList.deleteWhereDone
     else
       toast( R.string.no_tasks_done )
   }
 
   def undelete = {
-    if (theList.hasDeletedItems)
+    if (theList.numDeletedItems.value > 0)
       theList.undeleteItems
     else
       toast( R.string.undeletes_exhausted )
@@ -232,7 +232,7 @@ class TodoActivity
 
 class TodoItemsAdapter( activity: PositronicActivity, list: TodoList )
  extends CursorSourceAdapter( activity,
-                              source = list,
+                              source = list.items,
                               converter = TodoItem.fromCursor(_),
                               itemViewResourceId = R.layout.todo_row )
 {

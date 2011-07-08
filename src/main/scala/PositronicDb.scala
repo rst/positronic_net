@@ -314,27 +314,5 @@ abstract class Database( filename: String, logTag: String = null )
   def apply( table: String ) = new DbQuery( this, table )
 }
 
-// Useful common machinery for classes managing changes to a
-// database (or some tables within a database), which want to
-// feed listeners (e.g., a CursorSourceAdapter bound to some
-// ListView) reports on updates as they happen.
-//
-// If the database has a WorkerThread, then doChange handlers
-// run on that thread.
-
-abstract class CursorSource( db: Database )
-  extends ChangeNotifications[ PositronicCursor ]
-{
-  // Wrapper for domain operations, which all hit the DB: we run on
-  // the DB thread if there is one, and notify the listeners when
-  // done.
-
-  def doChange( thunk: => Unit ) = { 
-    db match {
-      case w: WorkerThread => w.runOnThread{ thunk; noteChange }
-      case _ => thunk; noteChange
-    }
-  }
-}
 
 

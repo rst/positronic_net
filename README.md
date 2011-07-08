@@ -57,7 +57,7 @@ used like so:
 
     class TodosAdapter( activity: PositronicActivity )
      extends CursorSourceAdapter( activity, 
-                                  source = TodoLists,
+                                  source = TodoLists.lists,
                                   converter = TodoList.fromCursor(_),
                                   itemViewResourceId = R.layout.todos_row )
     {

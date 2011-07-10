@@ -371,9 +371,18 @@ trait PositronicActivityHelpers
 
   // And these, just to cut down on noise.
 
-  def toast( msgResId: Int, duration: Int = Toast.LENGTH_SHORT ):Unit = {
+  def toast( msgResId: Int, duration: Int = Toast.LENGTH_SHORT ):Unit =
     Toast.makeText( this, msgResId, duration ).show
-  }
+
+  def toastShort( msgResId: Int ):Unit =
+    Toast.makeText( this, msgResId, Toast.LENGTH_SHORT ).show
+  def toastShort( msg: String ):Unit =
+    Toast.makeText( this, msg,      Toast.LENGTH_SHORT ).show
+
+  def toastLong( msgResId: Int ):Unit =
+    Toast.makeText( this, msgResId, Toast.LENGTH_LONG ).show
+  def toastLong( msg: String ):Unit =
+    Toast.makeText( this, msg,      Toast.LENGTH_LONG ).show
 } 
 
 // Widgets (and other things) with our traits premixed in.

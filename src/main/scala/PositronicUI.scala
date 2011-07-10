@@ -119,12 +119,60 @@ trait PositronicItemHandlers {
 
   def getItemAtPosition( posn: Int ):Object
 
+  def setOnItemSelectedListener( l: AdapterView.OnItemSelectedListener ):Unit
+
+  // The item selected listener stuff is particularly awkward, since
+  // we've got two distinct event handlers bundled up in one listener
+  // class...
+
+  var haveOnItemSelectedListener = false
+  var itemSelectedHandler:    (( View, Int, Long ) => Unit) = null
+  var nothingSelectedHandler: (View => Unit)                = null
+
+  private def installOnItemSelectedListener = {
+    if (!haveOnItemSelectedListener) {
+
+      haveOnItemSelectedListener = true
+
+      setOnItemSelectedListener( new AdapterView.OnItemSelectedListener {
+
+        def onItemSelected( parent: AdapterView[_], view: View, 
+                            position: Int, id: Long ) = {
+          handleItemSelected( view, position, id )
+        }
+
+        def onNothingSelected( parent: AdapterView[_] ) = {
+          handleNothingSelected
+        }
+
+      })
+    }
+  }
+
+  def onItemSelected( handler: (View, Int, Long) => Unit ) = {
+    installOnItemSelectedListener
+    itemSelectedHandler = handler
+  }
+
+  def onNothingSelected( handler: View => Unit ) = {
+    installOnItemSelectedListener
+    nothingSelectedHandler = handler
+  }
+
+  def handleItemSelected( view: View, posn: Int, id: Long ) =
+    if (itemSelectedHandler != null) itemSelectedHandler( view, posn, id )
+
+  def handleNothingSelected =
+    if (nothingSelectedHandler != null) nothingSelectedHandler
+
   def selectedContextMenuItem( info: ContextMenu.ContextMenuInfo ):Object = {
     val posn = info.asInstanceOf[ AdapterView.AdapterContextMenuInfo ].position
     return getItemAtPosition( posn )
   }
    
 }
+
+// Shorthand notations for handling activity lifecyle events, etc.
 
 trait PositronicActivityHelpers
  extends _root_.android.app.Activity
@@ -362,6 +410,11 @@ class PositronicTextView( context: Context, attrs: AttributeSet = null )
 
 class PositronicListView( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.ListView( context, attrs ) 
+ with PositronicHandlers 
+ with PositronicItemHandlers
+
+class PositronicSpinner( context: Context, attrs: AttributeSet = null )
+ extends _root_.android.widget.Spinner( context, attrs ) 
  with PositronicHandlers 
  with PositronicItemHandlers
 

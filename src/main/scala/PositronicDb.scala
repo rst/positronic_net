@@ -11,6 +11,8 @@ import org.positronicnet.util.AppFacility
 import org.positronicnet.util.WorkerThread
 import org.positronicnet.util.ChangeNotifications
 
+import scala.collection.mutable.ArrayBuffer
+
 // Mummery to make sure that on inserts and updates, strings and ints
 // are added into contentValues objects with the appropriate types.
 // We declare an "SqlValue" variant type, declare these things as
@@ -248,6 +250,13 @@ class PositronicCursor( db: SQLiteDatabase,
      close
    }
 
+  def map[T]( func: PositronicCursor => T ):IndexedSeq[T] = {
+    var buf = new ArrayBuffer[T]
+    moveToFirst
+    while (! isAfterLast ) { buf += func( this ); moveToNext }
+    close
+    return buf
+  }
 }
 
 class CursorFactory extends SQLiteDatabase.CursorFactory {

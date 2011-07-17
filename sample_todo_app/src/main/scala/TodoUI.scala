@@ -3,7 +3,7 @@ package org.positronicnet.sample.todo
 import org.positronicnet.ui.IndexedSeqAdapter
 import org.positronicnet.ui.PositronicDialog
 import org.positronicnet.ui.PositronicActivity
-import org.positronicnet.ui.CursorSourceAdapter
+import org.positronicnet.ui.IndexedSeqSourceAdapter
 
 import org.positronicnet.util.ChangeNotifications
 import org.positronicnet.db.PositronicCursor
@@ -29,10 +29,9 @@ import android.graphics.Canvas
 // so long as the activity is running.
 
 class TodosAdapter( activity: PositronicActivity )
- extends CursorSourceAdapter( activity, 
-                              source = TodoLists.lists,
-                              converter = TodoList.fromCursor(_),
-                              itemViewResourceId = R.layout.todos_row )
+ extends IndexedSeqSourceAdapter( activity, 
+                                  source = TodoLists.lists,
+                                  itemViewResourceId = R.layout.todos_row )
 {
   def bindItem( view: View, list: TodoList ) =
     view.asInstanceOf[ TextView ].setText( list.name )
@@ -253,11 +252,10 @@ class TodoActivity
 }
 
 class TodoItemsAdapter( activity: PositronicActivity, 
-                        query: ChangeNotifications[PositronicCursor] )
- extends CursorSourceAdapter( activity,
-                              source = query,
-                              converter = TodoItem.fromCursor(_),
-                              itemViewResourceId = R.layout.todo_row )
+                        query: ChangeNotifications[IndexedSeq[TodoItem]] )
+ extends IndexedSeqSourceAdapter( activity,
+                                  source = query,
+                                  itemViewResourceId = R.layout.todo_row )
 {
   def bindItem( view: View, it: TodoItem ) =
     view.asInstanceOf[ TodoItemView ].setTodoItem( it )

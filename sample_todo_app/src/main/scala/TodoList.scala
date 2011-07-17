@@ -73,10 +73,10 @@ case class TodoItem(var id: Long, var description: String, var isDone: Boolean)
 
 object TodoItem {
 
-  def doQuery( query: DbQuery )= query.select("_id", "description", "is_done")
-
-  def fromCursor( c: PositronicCursor ) = 
-    TodoItem( c.getLong( 0 ), c.getString( 1 ), c.getBoolean( 2 ))
+  def seqFromRows( query: DbQuery ) = 
+    query.select("_id", "description", "is_done").map {
+      c => TodoItem( c.getLong( 0 ), c.getString( 1 ), c.getBoolean( 2 ))
+    }
 
 }
 
@@ -92,17 +92,9 @@ case class TodoList( var id: Long, var name: String )
   private lazy val dbItemsAll = TodoDb("todo_items").whereEq("todo_list_id"->id)
   private lazy val dbItems    = dbItemsAll.whereEq( "is_deleted" -> false )
 
-  // Things that UI elements (etc.) can monitor
-
-  lazy val items = cursorStream { TodoItem.doQuery( dbItems ) }
-
-  def itemsQuery( initialShowDone: Boolean ) = {
-    cursorQuery( initialShowDone ){ showDone => 
-      TodoItem.doQuery(
-        if ( showDone ) dbItems else dbItems.whereEq( "is_done" -> false )
-      )
-    }
-  }
+  // Things that UI elements (etc.) can monitor:
+  //
+  // Statistics...
 
   lazy val numDoneItems = valueStream { 
     dbItems.whereEq( "is_done" -> true ).count 
@@ -111,6 +103,20 @@ case class TodoList( var id: Long, var name: String )
     dbItemsAll.whereEq( "is_deleted" -> true).count
   }
 
+  // Set of all items
+
+  lazy val items = valueStream { TodoItem.seqFromRows( dbItems ) }
+
+  // Set that may or may not be all items, depending on the
+  // current state of the "show all items" flag...
+
+  def itemsQuery( initialShowDone: Boolean ) = {
+    valueQuery( initialShowDone ){ showDone => 
+      TodoItem.seqFromRows(
+        if ( showDone ) dbItems else dbItems.whereEq( "is_done" -> false )
+      )
+    }
+  }
   // Changes that UI elements (etc.) can ask for
 
   def addItem( description: String, isDone: Boolean = false ) = doChange { 
@@ -138,10 +144,9 @@ case class TodoList( var id: Long, var name: String )
 
 object TodoList {
 
-  def doQuery( query: DbQuery ) = query.select("_id", "name")
-
-  def fromCursor( c: PositronicCursor ) = 
-    TodoList( c.getLong( 0 ), c.getString( 1 ))
+  def seqFromRows( query: DbQuery ) = 
+    query.select("_id", "name").map{ c => 
+      TodoList( c.getLong( 0 ), c.getString( 1 )) }
 
   def create( name: String ) = TodoDb( "todo_lists" ).insert( "name" -> name )
 
@@ -170,7 +175,7 @@ object TodoLists extends ChangeManager( TodoDb )
 
   // Things UI can monitor
 
-  lazy val lists = cursorStream { TodoList.doQuery( dbLists ) }
+  lazy val lists = valueStream { TodoList.seqFromRows( dbLists ) }
 
   lazy val numDeletedLists= valueStream {
     dbListsAll.whereEq("is_deleted"-> true).count

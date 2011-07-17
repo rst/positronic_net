@@ -565,3 +565,24 @@ class IndexedSeqAdapter[T <: Object](var seq:IndexedSeq[T] = new ArrayBuffer[T],
   def getItemId(position: Int) = getItem(position).hashCode()
   def getCount = seq.size
 }
+
+// Adapter for change sources of IndexedSeqs.
+//
+// Generally a lot simpler than managing cursors.  Particularly since,
+// under the Android 3+ "no I/O on your cursors restrictions", the cursor
+// is largely reduced to a somewhat clumsy accessor for an in-core
+// result set anyway...
+
+class IndexedSeqSourceAdapter[T <: Object](activity: PositronicActivityHelpers,
+                                           source: ChangeNotifications[IndexedSeq[T]],
+                                           itemViewResourceId: Int = 0, 
+                                           itemTextResourceId: Int = 0 ) 
+  extends IndexedSeqAdapter[T]( itemViewResourceId = itemViewResourceId,
+                                itemTextResourceId = itemTextResourceId )
+{
+  source.onChange( this ) {
+    seq => activity.runOnUiThread{ this.resetSeq( seq ) }
+  }
+
+  activity.onDestroy{ source.stopChangeNotifications( this ) }
+}

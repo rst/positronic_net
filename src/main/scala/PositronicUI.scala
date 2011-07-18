@@ -427,6 +427,14 @@ class PositronicSpinner( context: Context, attrs: AttributeSet = null )
  with PositronicHandlers 
  with PositronicItemHandlers
 
+class PositronicImageView( context: Context, attrs: AttributeSet = null )
+ extends android.widget.ImageView( context, attrs ) 
+ with PositronicHandlers
+
+class PositronicLinearLayout( context: Context, attrs: AttributeSet = null )
+ extends android.widget.LinearLayout( context, attrs ) 
+ with PositronicHandlers
+
 class PositronicDialog( context: Context, 
                         theme: Int = 0, 
                         layoutResourceId: Int = 0 )

@@ -33,7 +33,7 @@ class TodosAdapter( activity: PositronicActivity )
                                   source = TodoLists.lists,
                                   itemViewResourceId = R.layout.todos_row )
 {
-  def bindItem( view: View, list: TodoList ) =
+  override def bindView( view: View, list: TodoList ) =
     view.asInstanceOf[ TextView ].setText( list.name )
 }
 
@@ -257,7 +257,7 @@ class TodoItemsAdapter( activity: PositronicActivity,
                                   source = query,
                                   itemViewResourceId = R.layout.todo_row )
 {
-  def bindItem( view: View, it: TodoItem ) =
+  override def bindView( view: View, it: TodoItem ) =
     view.asInstanceOf[ TodoItemView ].setTodoItem( it )
 }
 

@@ -180,9 +180,13 @@ class DbQuery( db: Database,
         b.append( "values ")
         val it = contentValues.valueSet.iterator
         while (it.hasNext()) {
+
           val entry = it.next()
+          val entryVal = entry.getValue
+          val entryValStr =(if (entryVal == null) "NULL" else entryVal.toString)
+
           b.append( entry.getKey ); b.append( "=" ); 
-          b.append( entry.getValue.toString ); b.append(" ")
+          b.append( entryValStr ); b.append(" ")
         }
       }
       if (cols != null) {

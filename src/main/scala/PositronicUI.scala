@@ -180,10 +180,25 @@ trait PositronicActivityHelpers
   // Correctly scope change handling, so we don't wind up processing
   // change notifications for defunct activities.  Meant to be called
   // from onCreate; automatically unregisters the handler onDestroy.
+  //
+  // Handler is automatically run on the UI thread, even if notifications
+  // come from somewhere else (e.g., a db thread).
 
-  def onChangeTo[T]( frob: ChangeNotifications[T] )( handler: T => Unit ) {
-    frob.onChange( this ){ handler }
-    this.onDestroy{ frob.stopChangeNotifications( this ) }
+  def onChangeTo[T]( frob: ChangeNotifications[T] )( handler: T => Unit ) = 
+    manageListener( this, frob )( handler )
+
+  // More general:  managing the activity of some *other* listener.
+  //
+  // While this activity is alive (until onDestroy), any time the 
+  // "source" distributes a change, the "handler" will get a peek
+  // at it, running on the activity's UI thread.
+
+  def manageListener[T]( listener: AnyRef, source: ChangeNotifications[T])( handler: T => Unit ) = {
+    source.onChange( listener ){ notice =>
+      this.runOnUiThread{ handler( notice ) }
+    }
+
+    this.onDestroy{ source.stopChangeNotifications( listener ) }
   }
 
   // Likewise for AppFacilities...
@@ -467,10 +482,9 @@ abstract class CursorSourceAdapter[T <: AnyRef](
   var inflater: LayoutInflater = null
 
   if (source != null) {
-    source.onChange( this ) {
-      cursor => activity.runOnUiThread{ this.changeCursor( cursor ) }
+    activity.manageListener( this, source ) {
+      this.changeCursor( _ )
     }
-    activity.onDestroy{ source.stopChangeNotifications( this ) }
   }
 
   def newView( context: Context, 
@@ -588,9 +602,5 @@ class IndexedSeqSourceAdapter[T <: Object](activity: PositronicActivityHelpers,
   extends IndexedSeqAdapter[T]( itemViewResourceId = itemViewResourceId,
                                 itemTextResourceId = itemTextResourceId )
 {
-  source.onChange( this ) {
-    seq => activity.runOnUiThread{ this.resetSeq( seq ) }
-  }
-
-  activity.onDestroy{ source.stopChangeNotifications( this ) }
+  activity.manageListener( this, source ) { resetSeq( _ ) }
 }

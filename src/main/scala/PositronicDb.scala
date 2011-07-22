@@ -95,7 +95,7 @@ object ContentValue {
     CvString( value )
 }
 
-class DbQuery( db: Database, 
+class DbQuery( source: ContentSource, 
                tableName: String,
                orderString: String = null,
                whereString: String = null,
@@ -103,13 +103,13 @@ class DbQuery( db: Database,
                limitString: String = null
              ) 
 {
-  def dinkedCopy( db: Database               = this.db, 
-                  tableName: String          = this.tableName,
-                  orderString: String        = this.orderString,
-                  whereString: String        = this.whereString,
-                  whereValues: Array[String] = this.whereValues,
-                  limitString: String        = this.limitString ) =
-    new DbQuery( db, tableName, orderString, 
+  protected def dinkedCopy( source: ContentSource      = this.source, 
+                            tableName: String          = this.tableName,
+                            orderString: String        = this.orderString,
+                            whereString: String        = this.whereString,
+                            whereValues: Array[String] = this.whereValues,
+                            limitString: String        = this.limitString ) =
+    new DbQuery( source, tableName, orderString, 
                  whereString, whereValues, limitString )
 
   def order( s: String ) = { dinkedCopy( orderString = s ) }
@@ -161,7 +161,7 @@ class DbQuery( db: Database,
            contentValues: ContentValues = null, 
            cols: Array[String]=null ) =
   {
-    if (db.getLogTag != null) {
+    if (source.getLogTag != null) {
       val b = new StringBuffer(120)
 
       b.append( "DB: " ); 
@@ -201,31 +201,31 @@ class DbQuery( db: Database,
         b.append( "columns " )
         for( col <- cols ) { b.append( col ); b.append( " " ) }
       }
-      Log.d( db.getLogTag, b.toString )
+      Log.d( source.getLogTag, b.toString )
     }
   }
 
   def delete = {
     log( "delete" )
-    db.getWritableDatabase.delete( tableName, whereString, whereValues )
+    source.delete( tableName, whereString, whereValues )
   }
 
   def update( assigns: (String, ContentValue)* ) = {
     val cv = buildContentValues( assigns:_* )
     log( "update", contentValues = cv )
-    db.getWritableDatabase.update( tableName, cv, whereString, whereValues )
+    source.update( tableName, cv, whereString, whereValues )
   }
 
   def insert( assigns: (String, ContentValue)* ) = {
     val cv = buildContentValues( assigns:_* )
     log( "insert", contentValues = cv )
-    db.getWritableDatabase.insert( tableName, null, cv )
+    source.insert( tableName, cv )
   }
 
   def select( cols: String* ) = {
     val colsArr = cols.toArray
     log( "select", cols = colsArr )
-    val rawCursor = db.getWritableDatabase.query( 
+    val rawCursor = source.query( 
       tableName, colsArr, whereString, whereValues, null, null, 
       orderString, limitString )
     new PositronicCursor( rawCursor )
@@ -351,15 +351,52 @@ class CursorWrapper( wrappedCursor: android.database.Cursor )
   def getWantsAllOnMoveCalls = wrappedCursor.getWantsAllOnMoveCalls
 }
 
+// Generic interface to "content sources", including databases
+// and (soon) content providers...
+
+trait ContentSource {
+  def delete( whence: String, where: String, whereArgs: Array[String] ): Int
+  def update( whence: String, vals: ContentValues, 
+              where: String, whereArgs: Array[ String ] ): Int
+  def insert( where: String, vals: ContentValues ): Long
+  def query( whence: String, cols: Array[ String ], 
+             where: String, whereArgs: Array[ String ],
+             groupBy: String, having: String,
+             order: String, limit: String ): Cursor
+  def getLogTag: String
+}
+
 // Database interface.
 
 class DbWrapper( ctx: Context, mydb: Database ) 
-extends SQLiteOpenHelper( ctx, mydb.getFilename, null, mydb.version )
+  extends SQLiteOpenHelper( ctx, mydb.getFilename, null, mydb.version )
+  with ContentSource
 {
   def onCreate( db: SQLiteDatabase ) = mydb.onCreate( db )
   
   def onUpgrade( db: SQLiteDatabase, oldVersion: Int, newVersion: Int ) = 
     mydb.onUpgrade( db, oldVersion, newVersion )
+
+  def getLogTag = mydb.getLogTag
+
+  def delete( whence: String, where: String, whereArgs: Array[String] ) = 
+    getWritableDatabase.delete( whence, where, whereArgs )
+
+  def update( whence: String, vals: ContentValues, 
+              where: String, whereArgs: Array[ String ] ) =
+    getWritableDatabase.update( whence, vals, where, whereArgs )
+
+  def insert( where: String, vals: ContentValues ) =
+    getWritableDatabase.insert( where, null, vals )
+
+  def query( whence: String, cols: Array[ String ], 
+             where: String, whereArgs: Array[ String ],
+             groupBy: String, having: String,
+             order: String, limit: String ) =
+    getWritableDatabase.query( whence, cols, 
+                               where, whereArgs, 
+                               groupBy, having,
+                               order, limit )
 }
 
 abstract class Database( filename: String, logTag: String = null ) 
@@ -403,7 +440,7 @@ abstract class Database( filename: String, logTag: String = null )
 
   def version = schemaUpdates.length
 
-  def apply( table: String ) = new DbQuery( this, table )
+  def apply( table: String ) = new DbQuery( dbWrapper, table )
 }
 
 

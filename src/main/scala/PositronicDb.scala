@@ -15,9 +15,9 @@ import scala.collection.mutable.ArrayBuffer
 
 // Mummery to make sure that on inserts and updates, strings and ints
 // are added into contentValues objects with the appropriate types.
-// We declare an "SqlValue" variant type, declare these things as
-// taking ((String, SqlValue)*) arguments, and supply implicit
-// conversions from the primitive types to SqlValue.
+// We declare an "ContentValue" variant type, declare these things as
+// taking ((String, ContentValue)*) arguments, and supply implicit
+// conversions from the primitive types to ContentValue.
 //
 // The only point of this, right at the moment, is to handle the
 // Boolean conversions --- SQLite has no native boolean type, and
@@ -28,7 +28,7 @@ import scala.collection.mutable.ArrayBuffer
 // since 'where' clause values if supplied are bound as strings,
 // but frequently used for comparison to int-valued columns.)
 
-abstract class SqlValue {
+abstract class ContentValue {
 
   // Android's Database API has two forms of binding:  in a lot
   // of places, you can stuff things into a contentValues, which
@@ -45,46 +45,47 @@ abstract class SqlValue {
   def asConditionString: String
   def putContentValues( cv: ContentValues, key: String )
 }
-case class SqlString( value: String ) extends SqlValue {
+case class CvString( value: String ) extends ContentValue {
   def asConditionString = value
   def putContentValues( cv:ContentValues, key:String ) = cv.put( key, value )
 }
-case class SqlBoolean( value: Boolean ) extends SqlValue {
+case class CvBoolean( value: Boolean ) extends ContentValue {
   def intValue = if (value) 1 else 0
   def asConditionString = intValue.toString
   def putContentValues( cv:ContentValues, key:String ) = 
     cv.put(key, new java.lang.Integer(intValue))
 }
-case class SqlInt( value: Int ) extends SqlValue {
+case class CvInt( value: Int ) extends ContentValue {
   // The explicit construction of a wrapped integer here is needed to
   // keep overload resolution in scalac 2.8.1 from getting confused.
   def asConditionString = value.toString
   def putContentValues( cv:ContentValues, key:String ) = 
     cv.put( key, new java.lang.Integer( value ))
 }
-case class SqlLong( value: Long ) extends SqlValue {
+case class CvLong( value: Long ) extends ContentValue {
   def asConditionString = value.toString
   def putContentValues( cv:ContentValues, key:String ) = 
     cv.put( key, new java.lang.Long( value ))
 }
-case class SqlFloat( value: Float ) extends SqlValue {
+case class CvFloat( value: Float ) extends ContentValue {
   def asConditionString = value.toString
   def putContentValues( cv:ContentValues, key:String ) = 
     cv.put( key, new java.lang.Float( value ))
 }
-case class SqlDouble( value: Double ) extends SqlValue {
+case class CvDouble( value: Double ) extends ContentValue {
   def asConditionString = value.toString
   def putContentValues( cv:ContentValues, key:String ) = 
     cv.put( key, new java.lang.Double( value ))
 }
 
-object SqlValue {
-  implicit def intToSqlValue( value: Int ):SqlValue = SqlInt( value )
-  implicit def longToSqlValue( value: Long ):SqlValue = SqlLong( value )
-  implicit def stringToSqlValue( value: String ):SqlValue = SqlString( value )
-  implicit def booleanToSqlValue( value: Boolean ) = SqlBoolean( value )
-  implicit def floatToSqlValue( value: Float ) = SqlFloat( value )
-  implicit def doubleToSqlValue( value: Double ) = SqlDouble( value )
+object ContentValue {
+  implicit def intToContentValue( value: Int ):ContentValue = CvInt( value )
+  implicit def longToContentValue( value: Long ):ContentValue = CvLong( value )
+  implicit def booleanToContentValue( value: Boolean ) = CvBoolean( value )
+  implicit def floatToContentValue( value: Float ) = CvFloat( value )
+  implicit def doubleToContentValue( value: Double ) = CvDouble( value )
+  implicit def stringToContentValue( value: String ):ContentValue = 
+    CvString( value )
 }
 
 class DbQuery( db: Database, 
@@ -108,7 +109,7 @@ class DbQuery( db: Database,
   def limit( s: String ) = { dinkedCopy( limitString = s ) }
   def limit( l: Int )    = { dinkedCopy( limitString = l.toString ) }
 
-  def where( s: String, arr: Array[SqlValue] = null ):DbQuery = {
+  def where( s: String, arr: Array[ContentValue] = null ):DbQuery = {
 
     val newValues = 
       if (arr == null) null
@@ -125,7 +126,7 @@ class DbQuery( db: Database,
     )
   }
 
-  def whereEq( pairs: (String, SqlValue)* ):DbQuery = {
+  def whereEq( pairs: (String, ContentValue)* ):DbQuery = {
     
     // Note that this conses up a *lot* of temporary objects.
     // In performance-sensitive contexts, directly invoking
@@ -141,7 +142,7 @@ class DbQuery( db: Database,
 
   }
 
-  def buildContentValues( assigns: (String, SqlValue)* ):ContentValues = {
+  def buildContentValues( assigns: (String, ContentValue)* ):ContentValues = {
     val cv = new ContentValues
     for ( (key, sqlVal) <- assigns ) {
       sqlVal.putContentValues( cv, key )
@@ -202,13 +203,13 @@ class DbQuery( db: Database,
     db.getWritableDatabase.delete( tableName, whereString, whereValues )
   }
 
-  def update( assigns: (String, SqlValue)* ) = {
+  def update( assigns: (String, ContentValue)* ) = {
     val cv = buildContentValues( assigns:_* )
     log( "update", contentValues = cv )
     db.getWritableDatabase.update( tableName, cv, whereString, whereValues )
   }
 
-  def insert( assigns: (String, SqlValue)* ) = {
+  def insert( assigns: (String, ContentValue)* ) = {
     val cv = buildContentValues( assigns:_* )
     log( "insert", contentValues = cv )
     db.getWritableDatabase.insert( tableName, null, cv )

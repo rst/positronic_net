@@ -16,7 +16,7 @@ import _root_.android.util.Log
 import org.positronicnet.util.AppFacility
 import org.positronicnet.util.ChangeNotifications
 
-import org.positronicnet.db.PositronicCursor // for CursorSourceAdapter
+import org.positronicnet.content.PositronicCursor // for CursorSourceAdapter
 import _root_.android.database.Cursor
 
 import scala.collection.mutable.HashMap

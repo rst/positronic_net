@@ -6,7 +6,6 @@ import org.positronicnet.ui.PositronicActivity
 import org.positronicnet.ui.IndexedSeqSourceAdapter
 
 import org.positronicnet.util.ChangeNotifications
-import org.positronicnet.db.PositronicCursor
 
 import android.app.Activity
 import android.os.Bundle

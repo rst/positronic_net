@@ -1,9 +1,7 @@
 package org.positronicnet.db
 
 import org.positronicnet.content._
-
 import org.positronicnet.util.AppFacility
-import org.positronicnet.util.WorkerThread
 
 import _root_.android.database.sqlite._
 import _root_.android.content.Context
@@ -101,12 +99,12 @@ class DbQuery( source: ContentSource,
   extends ContentQuery( source, tableName, orderString,
                         whereString, whereValues, limitString )
 {
-  protected def dinkedCopy( source: ContentSource      = this.source, 
-                            tableName: String          = this.tableName,
-                            orderString: String        = this.orderString,
-                            whereString: String        = this.whereString,
-                            whereValues: Array[String] = this.whereValues,
-                            limitString: String        = this.limitString ) =
+  private def dinkedCopy( source: ContentSource      = this.source, 
+                          tableName: String          = this.tableName,
+                          orderString: String        = this.orderString,
+                          whereString: String        = this.whereString,
+                          whereValues: Array[String] = this.whereValues,
+                          limitString: String        = this.limitString ) =
     new DbQuery( source, tableName, orderString, 
                  whereString, whereValues, limitString )
 

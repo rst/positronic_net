@@ -1,8 +1,15 @@
 package org.positronicnet.db
 
+import _root_.android.database.Cursor
+import _root_.android.os.Bundle
+
 import _root_.android.database.sqlite._
+import _root_.android.database.ContentObserver
+import _root_.android.database.DataSetObserver
+import _root_.android.database.CharArrayBuffer
 
 import _root_.android.content.ContentValues
+import _root_.android.content.ContentResolver
 import _root_.android.content.Context
 
 import _root_.android.util.Log
@@ -218,9 +225,10 @@ class DbQuery( db: Database,
   def select( cols: String* ) = {
     val colsArr = cols.toArray
     log( "select", cols = colsArr )
-    db.getWritableDatabase.query( 
+    val rawCursor = db.getWritableDatabase.query( 
       tableName, colsArr, whereString, whereValues, null, null, 
-      orderString, limitString ).asInstanceOf[ PositronicCursor ]
+      orderString, limitString )
+    new PositronicCursor( rawCursor )
   }
 
   def oneRow( cols: String* ) = {
@@ -236,24 +244,23 @@ class DbQuery( db: Database,
   }
 }
 
-// Arrange to produce cursors which support a proper 'foreach', so
+// Wrapper around cursors to support a proper 'foreach', so
 // "for ( c <- myQuery.select(...))" works.
 //
 // These also implement the read-side of our Boolean conversions.
 
-class PositronicCursor( db: SQLiteDatabase,
-                        driver: SQLiteCursorDriver,
-                        table: String,
-                        query: SQLiteQuery )
- extends SQLiteCursor( db, driver, table, query ) 
+class PositronicCursor( wrappedCursor: android.database.Cursor )
+  extends CursorWrapper( wrappedCursor )
 {
-   def getBoolean( colIdx: Int ) = { getInt( colIdx ) != 0 }
+  // Our extensions...
 
-   def foreach( func: PositronicCursor => Unit ):Unit = {
-     moveToFirst
-     while (! isAfterLast ) { func( this ); moveToNext }
-     close
-   }
+  def getBoolean( colIdx: Int ) = { getInt( colIdx ) != 0 }
+
+  def foreach( func: PositronicCursor => Unit ):Unit = {
+    moveToFirst
+    while (! isAfterLast ) { func( this ); moveToNext }
+    close
+  }
 
   def map[T]( func: PositronicCursor => T ):IndexedSeq[T] = {
     var buf = new ArrayBuffer[T]
@@ -264,24 +271,95 @@ class PositronicCursor( db: SQLiteDatabase,
   }
 }
 
-class CursorFactory extends SQLiteDatabase.CursorFactory {
-  def newCursor( db: SQLiteDatabase,
-                 driver: SQLiteCursorDriver,
-                 table: String,
-                 query: SQLiteQuery ) = {
-    new PositronicCursor( db, driver, table, query )
-  }
+// And the wrapper machinery itself.
+
+class CursorWrapper( wrappedCursor: android.database.Cursor ) 
+  extends android.database.Cursor
+{
+  // Provide a way to get the underlying object back, if 
+  // somebody needs it ...
+
+  def wrappedCursorAs[T] = wrappedCursor.asInstanceOf[ T ]
+
+  // ... and delegate the full standard API.  (Including the 
+  // deprecated bits.)
+
+  // Lifecycle stuff
+  
+  def close = wrappedCursor.close
+  def deactivate = wrappedCursor.deactivate
+  def isClosed = wrappedCursor.isClosed
+  def requery = wrappedCursor.requery
+
+  // Properties of current data set
+
+  def getCount = wrappedCursor.getCount
+  def getPosition = wrappedCursor.getPosition
+
+  def getColumnCount = wrappedCursor.getColumnCount
+  def getColumnName( idx: Int ) = wrappedCursor.getColumnName( idx )
+  def getColumnNames = wrappedCursor.getColumnNames
+  def getColumnIndex( colName: String ) = 
+    wrappedCursor.getColumnIndex( colName )
+  def getColumnIndexOrThrow( colName: String ) =
+    wrappedCursor.getColumnIndexOrThrow( colName )
+
+  // Positioning.  
+
+  def isAfterLast = wrappedCursor.isAfterLast
+  def isBeforeFirst = wrappedCursor.isBeforeFirst
+  def isFirst = wrappedCursor.isFirst
+  def isLast = wrappedCursor.isLast
+  def isNull( idx: Int ) = wrappedCursor.isNull( idx )
+  def move( offset: Int ) = wrappedCursor.move( offset )
+  def moveToFirst = wrappedCursor.moveToFirst
+  def moveToLast  = wrappedCursor.moveToLast
+  def moveToNext  = wrappedCursor.moveToNext
+  def moveToPosition( offset: Int ) = wrappedCursor.moveToPosition( offset )
+  def moveToPrevious = wrappedCursor.moveToPrevious
+
+  // Getting contents out.
+
+  def copyStringToBuffer( idx: Int, buf: CharArrayBuffer ) =
+    wrappedCursor.copyStringToBuffer( idx, buf )
+  def getBlob( idx: Int ) = wrappedCursor.getBlob( idx )
+  def getDouble( idx: Int ) = wrappedCursor.getDouble( idx )
+  def getFloat( idx: Int ) = wrappedCursor.getFloat( idx )
+  def getInt( idx: Int ) = wrappedCursor.getInt( idx )
+  def getLong( idx: Int ) = wrappedCursor.getLong( idx )
+  def getShort( idx: Int ) = wrappedCursor.getShort( idx )
+  def getString( idx: Int ) = wrappedCursor.getString( idx )
+  // def getType( idx: Int ) = wrappedCursor.getType( idx )
+
+  // Notifications and observers
+
+  def setNotificationUri( cr: ContentResolver, uri: android.net.Uri ) =
+    wrappedCursor.setNotificationUri( cr, uri )
+  def registerContentObserver( observer: ContentObserver ) = 
+    wrappedCursor.registerContentObserver( observer )
+  def registerDataSetObserver( observer: DataSetObserver ) =
+    wrappedCursor.registerDataSetObserver( observer )
+  def unregisterContentObserver( observer: ContentObserver ) =
+    wrappedCursor.unregisterContentObserver( observer )
+  def unregisterDataSetObserver( observer: DataSetObserver ) =
+    wrappedCursor.unregisterDataSetObserver( observer )
+
+  // "Out-of-band" stuff, and similar oddities
+
+  def getExtras = wrappedCursor.getExtras
+  def respond( extras: Bundle ) = wrappedCursor.respond( extras )
+  def getWantsAllOnMoveCalls = wrappedCursor.getWantsAllOnMoveCalls
 }
 
+// Database interface.
+
 class DbWrapper( ctx: Context, mydb: Database ) 
-extends SQLiteOpenHelper( ctx, mydb.getFilename, 
-                          new CursorFactory, mydb.version )
+extends SQLiteOpenHelper( ctx, mydb.getFilename, null, mydb.version )
 {
   def onCreate( db: SQLiteDatabase ) = mydb.onCreate( db )
   
   def onUpgrade( db: SQLiteDatabase, oldVersion: Int, newVersion: Int ) = 
     mydb.onUpgrade( db, oldVersion, newVersion )
-
 }
 
 abstract class Database( filename: String, logTag: String = null ) 

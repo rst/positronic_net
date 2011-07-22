@@ -102,6 +102,8 @@ class DbQuery( source: ContentSource,
                whereValues: Array[String] = null,
                limitString: String = null
              ) 
+  extends ContentQuery( source, tableName, orderString,
+                        whereString, whereValues, limitString )
 {
   protected def dinkedCopy( source: ContentSource      = this.source, 
                             tableName: String          = this.tableName,
@@ -116,37 +118,68 @@ class DbQuery( source: ContentSource,
   def limit( s: String ) = { dinkedCopy( limitString = s ) }
   def limit( l: Int )    = { dinkedCopy( limitString = l.toString ) }
 
-  def where( s: String, arr: Array[ContentValue] = null ):DbQuery = {
+  def where( s: String, arr: Array[ContentValue] = null ):DbQuery =
+    withUpdatedWhere( s, arr ){ (str, arr) => 
+      dinkedCopy( whereString = str, whereValues = arr )}
 
-    val newValues = 
+  def whereEq( pairs: (String, ContentValue)* ):DbQuery =
+    withUpdatedWhere( pairs ){ (str, arr) => 
+      dinkedCopy( whereString = str, whereValues = arr )}
+
+  // Non-generic query variants...
+
+  def oneRow( cols: String* ) = limit( 1 ).select( cols:_* )
+
+  def count:Long = {
+    val c = this.select( "count(*)" );
+    c.moveToFirst
+    val result = c.getLong(0)
+    c.close
+    return result
+  }
+}
+
+// Query on an arbitrary content source, with no syntactic sugar.
+// Note that as an implementation cheat, this internally represents
+// query parameters (e.g., limitString) which not all ContentSources
+// will support.  We stay safe because the publicly exported subclasses
+// that you get from the content sources won't let users *set* the 
+// fields that the source can't support.
+
+class ContentQuery( source: ContentSource, 
+                    tableName: String,
+                    orderString: String,
+                    whereString: String,
+                    whereValues: Array[String],
+                    limitString: String
+                  ) 
+{
+  def withUpdatedWhere[T]( s: String, arr: Array[ContentValue] )
+                         ( handler: (String, Array[String]) => T ):T =
+  {
+    val addingValues = 
       if (arr == null) null
       else arr.map{ _.asConditionString }
 
-    dinkedCopy(
-      whereString =
-        if (this.whereString == null) s
-        else "(" + this.whereString + ") and (" + s + ")",
-      whereValues =
-        if (this.whereValues == null) newValues
-        else if (arr == null || arr.length == 0) this.whereValues
-        else this.whereValues ++ newValues
-    )
+    val newString = 
+      if (this.whereString == null) s
+      else "(" + this.whereString + ") and (" + s + ")"
+
+    val newVals =
+      if (this.whereValues == null) addingValues
+      else if (arr == null || arr.length == 0) this.whereValues
+      else this.whereValues ++ addingValues
+
+    handler( newString, newVals )
   }
 
-  def whereEq( pairs: (String, ContentValue)* ):DbQuery = {
-    
-    // Note that this conses up a *lot* of temporary objects.
-    // In performance-sensitive contexts, directly invoking
-    // "where" won't look as neat, but it may go faster.
-    //
-    // Then again, replacing whereString with a StringBuffer
-    // would ameliorate a lot of the consing.
-
+  def withUpdatedWhere[T]( pairs: Seq[(String, ContentValue)] )
+                         ( handler: (String, Array[String]) => T ):T = 
+  {
     val str = pairs.map{ "(" + _._1 + " = ?)" }.reduceLeft{ _ + " and " + _ }
     val vals = pairs.map{ _._2 }.toArray
 
-    this.where( str, vals )
-
+    this.withUpdatedWhere( str, vals )( handler )
   }
 
   def buildContentValues( assigns: (String, ContentValue)* ):ContentValues = {
@@ -229,18 +262,6 @@ class DbQuery( source: ContentSource,
       tableName, colsArr, whereString, whereValues, null, null, 
       orderString, limitString )
     new PositronicCursor( rawCursor )
-  }
-
-  def oneRow( cols: String* ) = {
-    val c = limit( 1 ).select( cols:_* )
-  }
-
-  def count:Long = {
-    val c = this.select( "count(*)" );
-    c.moveToFirst
-    val result = c.getLong(0)
-    c.close
-    return result
   }
 }
 

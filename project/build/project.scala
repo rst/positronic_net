@@ -8,8 +8,8 @@ class Parent(info: ProjectInfo) extends ParentProject(info) {
   override def updateAction = task { None }
 
   lazy val positronic_net = project(".", "PositronicNetLib", new LibProject(_))
-  lazy val todo = project("sample_todo_app", "SampleTodo", new SampleProject(_), positronic_net)
-  lazy val todo_tests = project("sample_todo_tests",  "SampleTodoTests", new TestProject(_), positronic_net, todo)
+  lazy val todo = project("sample" / "todo_app", "SampleTodo", new SampleProject(_), positronic_net)
+  lazy val todo_tests = project("sample" / "todo_tests",  "SampleTodoTests", new TestProject(_), positronic_net, todo)
 
   class LibProject(info: ProjectInfo) 
    extends AndroidProject(info) with Defaults with MarketPublish with TypedResources {

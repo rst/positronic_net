@@ -12,7 +12,7 @@ case class CallLogEntry( callType: Int, number: String,
 object CallLog
   extends PositronicContentResolver( "call_log_app" )
 {
-  val src = this( Calls.CONTENT_URI.toString ).order(Calls.DEFAULT_SORT_ORDER)
+  val src = this( Calls.CONTENT_URI ).order(Calls.DEFAULT_SORT_ORDER)
 
   def since( when: Long ) = {
     val qualified_src = src.where( Calls.DATE + ">" + when )

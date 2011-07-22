@@ -58,7 +58,7 @@ abstract class Database( filename: String, logTag: String = null )
 
 class DbWrapper( ctx: Context, mydb: Database ) 
   extends SQLiteOpenHelper( ctx, mydb.getFilename, null, mydb.version )
-  with ContentSource
+  with ContentSource[ String ]
 {
   def onCreate( db: SQLiteDatabase ) = mydb.onCreate( db )
   
@@ -89,22 +89,22 @@ class DbWrapper( ctx: Context, mydb: Database )
 
 // Queries on Databases.
 
-class DbQuery( source: ContentSource, 
+class DbQuery( source: ContentSource[ String ], 
                tableName: String,
                orderString: String = null,
                whereString: String = null,
                whereValues: Array[String] = null,
                limitString: String = null
              ) 
-  extends ContentQuery( source, tableName, orderString,
-                        whereString, whereValues, limitString )
+  extends ContentQuery[String]( source, tableName, orderString,
+                                whereString, whereValues, limitString )
 {
-  private def dinkedCopy( source: ContentSource      = this.source, 
-                          tableName: String          = this.tableName,
-                          orderString: String        = this.orderString,
-                          whereString: String        = this.whereString,
-                          whereValues: Array[String] = this.whereValues,
-                          limitString: String        = this.limitString ) =
+  private def dinkedCopy( source: ContentSource[ String ] = this.source, 
+                          tableName: String               = this.tableName,
+                          orderString: String             = this.orderString,
+                          whereString: String             = this.whereString,
+                          whereValues: Array[String]      = this.whereValues,
+                          limitString: String             = this.limitString ) =
     new DbQuery( source, tableName, orderString, 
                  whereString, whereValues, limitString )
 

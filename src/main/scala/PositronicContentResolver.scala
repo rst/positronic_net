@@ -3,16 +3,16 @@ package org.positronicnet.content
 import _root_.android.content.Context
 import _root_.android.content.ContentValues
 import _root_.android.content.ContentUris
+import _root_.android.net.Uri
 
 import org.positronicnet.util.AppFacility
 import org.positronicnet.util.WorkerThread
 
-// Class for database singletons.  Manages a SQLiteOpenHelper (details
-// below), with some mutual delegation.
+// Basic machinery for wrapping ContentResolver and friends.
 
 class PositronicContentResolver( logTag: String = null ) 
   extends AppFacility( logTag )
-  with ContentSource
+  with ContentSource[ Uri ]
 {
   var realResolver: android.content.ContentResolver = null
 
@@ -20,48 +20,49 @@ class PositronicContentResolver( logTag: String = null )
     realResolver = ctx.getContentResolver
   }
 
-  def apply( uri: String ) = new ContentProviderQuery( this, uri )
+  def apply( uri: Uri ) = new ContentProviderQuery( this, uri )
 
-  def delete( whence: String, where: String, whereArgs: Array[String] ) = 
-    realResolver.delete( asUri( whence ), where, whereArgs )
+  def delete( whence: Uri, where: String, whereArgs: Array[String] ) = 
+    realResolver.delete( whence, where, whereArgs )
 
-  def update( whence: String, vals: ContentValues, 
+  def update( whence: Uri, vals: ContentValues, 
               where: String, whereArgs: Array[ String ] ) =
-    realResolver.update( asUri( whence ), vals, where, whereArgs )
+    realResolver.update( whence, vals, where, whereArgs )
 
-  def insert( where: String, vals: ContentValues ) =
-    ContentUris.parseId( realResolver.insert( asUri( where ), vals ))
+  def insert( where: Uri, vals: ContentValues ) =
+    ContentUris.parseId( realResolver.insert( where, vals ))
 
   // Note that we ignore limit, groupBy, and order; ContentProviderQuery
   // gives users no way to set them, so they're NULL unless someone's
   // playing very nasty games on us...
 
-  def query( whence: String, cols: Array[ String ], 
+  def query( whence: Uri, cols: Array[ String ], 
              where: String, whereArgs: Array[ String ],
              groupBy: String, having: String,
              order: String, limit: String ) =
-    realResolver.query( asUri( whence ), cols, where, whereArgs, order )
+    realResolver.query( whence, cols, where, whereArgs, order )
 
-  private def asUri( s: String ) = android.net.Uri.parse( s )
+  private def asUri( s: String ) = Uri.parse( s )
 }
 
 // Queries on Databases.
 
-class ContentProviderQuery( source: ContentSource, 
-                            tableName: String,
+class ContentProviderQuery( source: ContentSource[ android.net.Uri ], 
+                            uri: Uri,
                             orderString: String = null,
                             whereString: String = null,
                             whereValues: Array[String] = null
-             ) 
-  extends ContentQuery( source, tableName, orderString,
-                        whereString, whereValues, limitString = null )
+                          ) 
+  extends ContentQuery[ android.net.Uri ]( source, uri, orderString,
+                                           whereString, whereValues, 
+                                           limitString = null )
 {
-  protected def dinkedCopy( source: ContentSource      = this.source, 
-                            tableName: String          = this.tableName,
-                            orderString: String        = this.orderString,
-                            whereString: String        = this.whereString,
-                            whereValues: Array[String] = this.whereValues ) =
-    new ContentProviderQuery( source, tableName, orderString, 
+  protected def dinkedCopy( source: ContentSource[ Uri ] = this.source, 
+                            uri: android.net.Uri         = this.uri,
+                            orderString: String          = this.orderString,
+                            whereString: String          = this.whereString,
+                            whereValues: Array[String]   = this.whereValues ) =
+    new ContentProviderQuery( source, uri, orderString, 
                               whereString, whereValues )
 
   def order( s: String ) = dinkedCopy( orderString = s )

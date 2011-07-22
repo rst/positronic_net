@@ -89,6 +89,24 @@ object ContentValue {
     CvString( value )
 }
 
+// Generic interface to "content sources", including databases
+// and content providers.  Type-arg is the type of "subresource"
+// designators --- it's just a string (table name) for databases;
+// it could also be an android.net.Uri for content-provider or
+// net-based data sources, etc. ...
+
+trait ContentSource[T] {
+  def delete( whence: T, where: String, whereArgs: Array[String] ): Int
+  def update( whence: T, vals: ContentValues, 
+              where: String, whereArgs: Array[ String ] ): Int
+  def insert( where: T, vals: ContentValues ): Long
+  def query( whence: T, cols: Array[ String ], 
+             where: String, whereArgs: Array[ String ],
+             groupBy: String, having: String,
+             order: String, limit: String ): Cursor
+  def getLogTag: String
+}
+
 // Query on an arbitrary content source, with no syntactic sugar.
 // Note that as an implementation cheat, this internally represents
 // query parameters (e.g., limitString) which not all ContentSources
@@ -96,13 +114,13 @@ object ContentValue {
 // that you get from the content sources won't let users *set* the 
 // fields that the source can't support.
 
-class ContentQuery( source: ContentSource, 
-                    tableName: String,
-                    orderString: String,
-                    whereString: String,
-                    whereValues: Array[String],
-                    limitString: String
-                  ) 
+class ContentQuery[T]( source: ContentSource[T], 
+                       subSource: T,
+                       orderString: String,
+                       whereString: String,
+                       whereValues: Array[String],
+                       limitString: String
+                     ) 
 {
   def withUpdatedWhere[T]( s: String, arr: Array[ContentValue] )
                          ( handler: (String, Array[String]) => T ):T =
@@ -149,7 +167,7 @@ class ContentQuery( source: ContentSource,
 
       b.append( "DB: " ); 
       b.append( stmtType );  b.append( " " )
-      b.append( tableName ); b.append( " " )
+      b.append( subSource.toString ); b.append( " " )
 
       if (whereString != null) {
         b.append( "where " ); b.append( whereString )
@@ -190,26 +208,26 @@ class ContentQuery( source: ContentSource,
 
   def delete = {
     log( "delete" )
-    source.delete( tableName, whereString, whereValues )
+    source.delete( subSource, whereString, whereValues )
   }
 
   def update( assigns: (String, ContentValue)* ) = {
     val cv = buildContentValues( assigns:_* )
     log( "update", contentValues = cv )
-    source.update( tableName, cv, whereString, whereValues )
+    source.update( subSource, cv, whereString, whereValues )
   }
 
   def insert( assigns: (String, ContentValue)* ) = {
     val cv = buildContentValues( assigns:_* )
     log( "insert", contentValues = cv )
-    source.insert( tableName, cv )
+    source.insert( subSource, cv )
   }
 
   def select( cols: String* ) = {
     val colsArr = cols.toArray
     log( "select", cols = colsArr )
     val rawCursor = source.query( 
-      tableName, colsArr, whereString, whereValues, null, null, 
+      subSource, colsArr, whereString, whereValues, null, null, 
       orderString, limitString )
     new PositronicCursor( rawCursor )
   }
@@ -322,18 +340,4 @@ class CursorWrapper( wrappedCursor: android.database.Cursor )
   def getWantsAllOnMoveCalls = wrappedCursor.getWantsAllOnMoveCalls
 }
 
-// Generic interface to "content sources", including databases
-// and (soon) content providers...
-
-trait ContentSource {
-  def delete( whence: String, where: String, whereArgs: Array[String] ): Int
-  def update( whence: String, vals: ContentValues, 
-              where: String, whereArgs: Array[ String ] ): Int
-  def insert( where: String, vals: ContentValues ): Long
-  def query( whence: String, cols: Array[ String ], 
-             where: String, whereArgs: Array[ String ],
-             groupBy: String, having: String,
-             order: String, limit: String ): Cursor
-  def getLogTag: String
-}
 

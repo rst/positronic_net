@@ -41,11 +41,9 @@ class PositronicContentResolver( logTag: String = null )
              groupBy: String, having: String,
              order: String, limit: String ) =
     realResolver.query( whence, cols, where, whereArgs, order )
-
-  private def asUri( s: String ) = Uri.parse( s )
 }
 
-// Queries on Databases.
+// Queries on ContentResolvers.
 
 class ContentProviderQuery( source: ContentSource[ android.net.Uri ], 
                             uri: Uri,

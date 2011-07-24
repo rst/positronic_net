@@ -89,18 +89,17 @@ object ContentValue {
     CvString( value )
 }
 
-// Generic interface to "content sources", including databases
-// and content providers.  Type-arg is the type of "subresource"
-// designators --- it's just a string (table name) for databases;
-// it could also be an android.net.Uri for content-provider or
-// net-based data sources, etc. ...
+// Generic interface to "content repositories", including databases
+// and content providers.  Each repository can host multiple "sources"
+// (tables in a database, ContentProviders for the content resolver,
+// etc.).  Also generic in the IdType returned by an 'insert'.
 
-trait ContentSource[T] {
-  def delete( whence: T, where: String, whereArgs: Array[String] ): Int
-  def update( whence: T, vals: ContentValues, 
+trait ContentRepository[ SourceType, IdType ] {
+  def delete( whence: SourceType, where: String, whereArgs: Array[String] ): Int
+  def update( whence: SourceType, vals: ContentValues, 
               where: String, whereArgs: Array[ String ] ): Int
-  def insert( where: T, vals: ContentValues ): Long
-  def query( whence: T, cols: Array[ String ], 
+  def insert( where: SourceType, vals: ContentValues ): IdType
+  def query( whence: SourceType, cols: Array[ String ], 
              where: String, whereArgs: Array[ String ],
              groupBy: String, having: String,
              order: String, limit: String ): Cursor
@@ -114,13 +113,13 @@ trait ContentSource[T] {
 // that you get from the content sources won't let users *set* the 
 // fields that the source can't support.
 
-class ContentQuery[T]( source: ContentSource[T], 
-                       subSource: T,
-                       orderString: String,
-                       whereString: String,
-                       whereValues: Array[String],
-                       limitString: String
-                     ) 
+class ContentQuery[SourceType,IdType](source: ContentRepository[SourceType,IdType], 
+                                      subSource: SourceType,
+                                      orderString: String,
+                                      whereString: String,
+                                      whereValues: Array[String],
+                                      limitString: String
+                                     ) 
 {
   def withUpdatedWhere[T]( s: String, arr: Array[ContentValue] )
                          ( handler: (String, Array[String]) => T ):T =

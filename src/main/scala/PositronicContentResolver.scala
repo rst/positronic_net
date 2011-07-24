@@ -9,10 +9,11 @@ import org.positronicnet.util.AppFacility
 import org.positronicnet.util.WorkerThread
 
 // Basic machinery for wrapping ContentResolver and friends.
+// SourceType and IdType are both android.net.Uri.
 
 class PositronicContentResolver( logTag: String = null ) 
   extends AppFacility( logTag )
-  with ContentSource[ Uri ]
+  with ContentRepository[ Uri, Uri ]
 {
   var realResolver: android.content.ContentResolver = null
 
@@ -30,7 +31,7 @@ class PositronicContentResolver( logTag: String = null )
     realResolver.update( whence, vals, where, whereArgs )
 
   def insert( where: Uri, vals: ContentValues ) =
-    ContentUris.parseId( realResolver.insert( where, vals ))
+    realResolver.insert( where, vals )
 
   // Note that we ignore limit, groupBy, and order; ContentProviderQuery
   // gives users no way to set them, so they're NULL unless someone's
@@ -45,17 +46,17 @@ class PositronicContentResolver( logTag: String = null )
 
 // Queries on ContentResolvers.
 
-class ContentProviderQuery( source: ContentSource[ android.net.Uri ], 
+class ContentProviderQuery( source: PositronicContentResolver, 
                             uri: Uri,
                             orderString: String = null,
                             whereString: String = null,
                             whereValues: Array[String] = null
                           ) 
-  extends ContentQuery[ android.net.Uri ]( source, uri, orderString,
-                                           whereString, whereValues, 
-                                           limitString = null )
+  extends ContentQuery( source, uri, orderString,
+                        whereString, whereValues, 
+                        limitString = null )
 {
-  protected def dinkedCopy( source: ContentSource[ Uri ] = this.source, 
+  protected def dinkedCopy( source: PositronicContentResolver = this.source, 
                             uri: android.net.Uri         = this.uri,
                             orderString: String          = this.orderString,
                             whereString: String          = this.whereString,

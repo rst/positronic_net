@@ -113,14 +113,19 @@ trait ContentRepository[ SourceType, IdType ] {
 // that you get from the content sources won't let users *set* the 
 // fields that the source can't support.
 
-class ContentQuery[SourceType,IdType](source: ContentRepository[SourceType,IdType], 
-                                      subSource: SourceType,
-                                      orderString: String,
-                                      whereString: String,
-                                      whereValues: Array[String],
-                                      limitString: String
-                                     ) 
+abstract class ContentQuery[SourceType,IdType](
+    source: ContentRepository[SourceType,IdType], 
+    subSource: SourceType,
+    orderString: String,
+    whereString: String,
+    whereValues: Array[String],
+    limitString: String
+  ) 
 {
+  def where( s: String, arr: Array[ContentValue] = null ):ContentQuery[SourceType,IdType]
+
+  def whereEq( pairs: (String, ContentValue)* ):ContentQuery[SourceType,IdType]
+
   def withUpdatedWhere[T]( s: String, arr: Array[ContentValue] )
                          ( handler: (String, Array[String]) => T ):T =
   {

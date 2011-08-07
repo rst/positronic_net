@@ -250,15 +250,23 @@ class PositronicCursor( wrappedCursor: android.database.Cursor )
   def getBoolean( colIdx: Int ) = { getInt( colIdx ) != 0 }
 
   def foreach( func: PositronicCursor => Unit ):Unit = {
+    var hitLast = false                 // Work around robolectric bugs!
     moveToFirst
-    while (! isAfterLast ) { func( this ); moveToNext }
+    while (! isAfterLast && ! hitLast ) { 
+      hitLast = hitLast || ( getPosition == getCount - 1 )
+      func( this ); moveToNext 
+    }
     close
   }
 
   def map[T]( func: PositronicCursor => T ):IndexedSeq[T] = {
     var buf = new ArrayBuffer[T]
+    var hitLast = false                 // Work around robolectric bugs!
     moveToFirst
-    while (! isAfterLast ) { buf += func( this ); moveToNext }
+    while (! isAfterLast && ! hitLast ) { 
+      hitLast = hitLast || ( getPosition == getCount - 1 )
+      buf += func( this ); moveToNext 
+    }
     close
     return buf
   }

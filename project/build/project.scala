@@ -19,6 +19,8 @@ class Parent(info: ProjectInfo) extends ParentProject(info) {
      val scalatest   = "org.scalatest"   % "scalatest"   % "1.3"     % "test"
      val robolectric = "com.pivotallabs" % "robolectric" % "1.0-RC1" % "test"
 
+     // Tell Robolectric where to find manifest and Android resources
+
      val testArgs = Seq( 
        "-DandroidManifestPath=" + androidManifestPath.absolutePath,
        "-DandroidResPath="      + mainResPath.absolutePath )

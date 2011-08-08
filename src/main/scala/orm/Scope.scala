@@ -15,7 +15,7 @@ trait BaseScope[ T <: ManagedRecord ]
 
   def records = valueStream{ mgr.rawQuery( baseQuery ) }
   def count = baseQuery match {
-    case query: { def count: Int } => valueStream{ query.count }
+    case query: { def count: Long } => valueStream{ query.count }
     case _ => throw new IllegalArgumentException( "Can't count rows from a " 
                                                   + baseQuery.getClass.getName )
   }
@@ -26,9 +26,20 @@ trait BaseScope[ T <: ManagedRecord ]
   def whereEq( pairs: (String, ContentValue)* ): Scope[T] =
     new Scope( this, baseQuery.whereEq( pairs: _* ))
 
-  def deleteAll = doChange { baseQuery.delete }
+  def deleteAll = doChange { deleteAllOnThisThread }
   def updateAll( assigns: (String, ContentValue)* ) =
-    doChange { baseQuery.update( assigns: _* ) }
+    doChange { updateAllOnThisThread( assigns: _* ) }
+
+  def countOnThisThread = baseQuery match {
+    case query: { def count: Long } => query.count
+    case _ => throw new IllegalArgumentException( "Can't count rows from a " 
+                                                  + baseQuery.getClass.getName )
+  }
+
+  def queryOnThisThread = mgr.rawQuery( baseQuery )
+  def deleteAllOnThisThread = baseQuery.delete
+  def updateAllOnThisThread( assigns: (String, ContentValue)* ) = 
+    baseQuery.update( assigns: _* )
 }
 
 class Scope[ T <: ManagedRecord ]( base: BaseScope[T], query: ContentQuery[_,_])

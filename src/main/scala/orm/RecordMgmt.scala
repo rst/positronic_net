@@ -24,31 +24,38 @@ trait ManagedRecord {
   // Bookkeeping
 
   private [orm]
-  var newRecord = true
-
-  private [orm]
   var unsaved = true
 
-  def isNewRecord = newRecord
+  val id: Long
+
+  def isNewRecord = (id == ManagedRecord.unsavedId)
   def isUnsaved   = unsaved
 
   // Actions on individual records, delegated to the manager...
 
   def delete = manager.delete( this )
-  def save = manager.save( this )
+  def save   = manager.save( this )
+
+  def deleteOnThisThread = manager.deleteOnThisThread( this )
+  def saveOnThisThread   = manager.saveOnThisThread( this )
+}
+
+object ManagedRecord {
+  val unsavedId = -1
 }
 
 // Class that actually manages shuffling in-core records into and
 // out of persistent storage.
 
-abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( facility: AppFacility )
-  extends ChangeManager( facility )
+abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( facilityArg: AppFacility )
+  extends ChangeManager( facilityArg )
   with BaseScope[T]
 {
   // Interface to storage...
   // Where we store stuff.
 
   def repository: ContentQuery[_,_]
+  val facility = facilityArg
 
   // Producing a new object (to be populated with mapped data from a query). 
   // Note that the default implementation requires a niladic constructor 
@@ -116,27 +123,30 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( facility: Ap
   private [orm] 
   def instantiateFrom( c: Cursor ): T = {
     val result = newRecord
-    result.newRecord = false            // we just retrieved it...
-    result.unsaved = false              // ... and it's not yet altered.
+    result.unsaved = false              // ... not yet altered.
     for( field <- fields ) field.setFromCursorColumn( result, c )
     return result
   }
 
   private [orm]
-  def save( rec: ManagedRecord ) = {
-    val data = nonKeyFields.map{ f => f.valPair( rec ) }
+  def save( rec: ManagedRecord ) = doChange { saveOnThisThread( rec ) }
 
-    doChange {
-      if (rec.newRecord) 
-        repository.insert( data: _* )
-      else
-        repository.whereEq( primaryKeyField.valPair( rec )).update( data: _* )
-    }
+  private [orm]
+  def saveOnThisThread( rec: ManagedRecord ) = {
+    val data = nonKeyFields.map{ f => f.valPair( rec ) }
+    if (rec.isNewRecord) 
+      repository.insert( data: _* )
+    else
+      repository.whereEq( primaryKeyField.valPair( rec )).update( data: _* )
   }
 
   private [orm]
   def delete( rec: ManagedRecord ): Unit = 
     whereEq( primaryKeyField.valPair( rec )).deleteAll
+
+  private [orm]
+  def deleteOnThisThread( rec: ManagedRecord ): Unit = 
+    whereEq( primaryKeyField.valPair( rec )).deleteAllOnThisThread
 }
 
 object ReflectUtils

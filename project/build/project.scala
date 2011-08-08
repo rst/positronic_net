@@ -18,6 +18,13 @@ class Parent(info: ProjectInfo) extends ParentProject(info) {
      val keyalias    = "change-me"
      val scalatest   = "org.scalatest"   % "scalatest"   % "1.3"     % "test"
      val robolectric = "com.pivotallabs" % "robolectric" % "1.0-RC1" % "test"
+
+     val testArgs = Seq( 
+       "-DandroidManifestPath=" + androidManifestPath.absolutePath,
+       "-DandroidResPath="      + mainResPath.absolutePath )
+
+     override def testOptions = super.testOptions ++
+       testArgs.map{ TestArgument( TestFrameworks.ScalaTest, _ ) }
   }
 
   class SampleProject(info: ProjectInfo) extends AndroidProject(info) with Defaults with MarketPublish with TypedResources {

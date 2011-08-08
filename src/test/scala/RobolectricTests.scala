@@ -10,6 +10,8 @@ import com.xtremelabs.robolectric.shadows.ShadowApplication;
 
 import android.net.Uri__FromAndroid     // from Robolectric shadows
 
+import scala.collection.mutable.HashMap
+
 // Run Scalatest suites with partial workalikes for Android framework
 // classes defined, from the "Robolectric" library.  The imitations
 // aren't perfect --- the database is H2, for instance, which speaks a
@@ -68,7 +70,7 @@ trait RobolectricTests
     configMap: Map[String, Any],
     tracker: Tracker
   ) = {
-    setupAndroidEnvironmentForTest
+    setupAndroidEnvironmentForTest( configMap )
     super.runTest( testName, reporter, stopper, configMap, tracker )
   }
 
@@ -78,22 +80,53 @@ trait RobolectricTests
   // The "real" Robolectric test runner lets subclasses hook in here
   // to wire up more shadow classes, or recreate application state.
 
-  val config = RobolectricTests.config
-
-  def setupAndroidEnvironmentForTest = {
+  def setupAndroidEnvironmentForTest( configMap: Map[String,Any] ) = {
 
     Robolectric.bindDefaultShadowClasses
     Robolectric.resetStaticState
 
-    val app = new ApplicationResolver( config ).resolveApplication
-    Robolectric.application = ShadowApplication.bind( app, resourceLoader )
+    config( configMap ) match {
+      case ( config, resourceLoader ) =>
+        val app = new ApplicationResolver( config ).resolveApplication
+        Robolectric.application = ShadowApplication.bind( app, resourceLoader )
+    }
   }
 
-  lazy val resourceLoader = 
-    new ResourceLoader( config.getSdkVersion,
-                        Class.forName( config.getRClassName ),
-                        config.getResourceDirectory,
-                        config.getAssetsDirectory )
+  // Managing configuration.  Robolectric needs to know where the
+  // manifest and resources are; we use command-line arguments (or the
+  // moral equivalent --- sbt testArgs or whatever) so the build tooling
+  // can tell us.
+
+  var configs = new HashMap[(String, String), 
+                            (RobolectricConfig, ResourceLoader)]
+
+  def config(configMap: Map[String,Any]):(RobolectricConfig,ResourceLoader) = {
+
+    val manifestPath   = configMap( "androidManifestPath" ).asInstanceOf[String]
+    val androidResPath = configMap( "androidResPath" ).asInstanceOf[String]
+    val key            = (manifestPath, androidResPath)
+
+    configs.get( key ) match {
+
+      case Some( stuff ) => stuff
+
+      case None =>
+
+        val config = new RobolectricConfig( 
+          new java.io.File( manifestPath ),
+          new java.io.File( androidResPath ))
+
+        val resourceLoader =
+          new ResourceLoader( config.getSdkVersion,
+                              Class.forName( config.getRClassName ),
+                              config.getResourceDirectory,
+                              config.getAssetsDirectory )
+
+        configs( key ) = (config, resourceLoader)
+        (config, resourceLoader)
+    }
+  }
+
 }
 
 // One-time setup for the Robolectric library.  
@@ -119,16 +152,5 @@ object RobolectricTests {
     loader.delegateLoadingOf( this.getClass.getName )
     loader
   }
-
-  // Tell Robolectric where to find the manifest and resources.
-  // KLUDGE --- will *not* work for subprojects!
-
-  lazy val base = "./src/main/"
-  lazy val config = {
-    new RobolectricConfig( 
-      new java.io.File( base + "AndroidManifest.xml" ),
-      new java.io.File( base + "res" ))
-  }
-
 }
 

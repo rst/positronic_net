@@ -4,7 +4,7 @@ import org.positronicnet.db._
 import org.positronicnet.orm._
 import org.positronicnet.test.RobolectricTests
 
-import org.scalatest.Spec
+import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 import com.xtremelabs.robolectric.Robolectric
 
@@ -46,6 +46,7 @@ object TodoItem extends RecordManager[ TodoItem ]( TodoDb )
 class SingleThreadOrmSpec
   extends Spec 
   with ShouldMatchers
+  with BeforeAndAfterEach
   with RobolectricTests
 {
   lazy val db = {
@@ -53,7 +54,7 @@ class SingleThreadOrmSpec
     TodoDb
   }
 
-  def setup = {
+  override def beforeEach = {
     db( "todo_items" ).delete
     db( "todo_items" ).insert( "description" -> "wash dog",
                                    "is_done"     -> false )
@@ -70,8 +71,6 @@ class SingleThreadOrmSpec
 
   describe( "Single-thread ORM queries" ){
     it ("should find all the records") {
-      setup
-
       val results = TodoItem.queryOnThisThread
       results should have size (3)
 
@@ -80,7 +79,6 @@ class SingleThreadOrmSpec
       assert( haveItem( "walk dog" , true,  results ))
     }
     it ("should retrieve only matching records with conds"){
-      setup
       val undoneItems = TodoItem.whereEq( "is_done" -> false ).queryOnThisThread
 
       undoneItems should have size (2)
@@ -91,11 +89,9 @@ class SingleThreadOrmSpec
 
   describe( "Single-thread ORM count") {
     it ("should count all records with no conds") {
-      setup
       TodoItem.countOnThisThread should equal (3)
     }
     it ("should count the right records with conds") {
-      setup
       TodoItem.whereEq( "is_done" -> false ).countOnThisThread should equal (2)
       TodoItem.whereEq( "is_done" -> true  ).countOnThisThread should equal (1)
     }
@@ -103,7 +99,6 @@ class SingleThreadOrmSpec
 
   describe( "Single-thread ORM delete via scope" ) {
     it ("should eliminate selected records") {
-      setup
       TodoItem.whereEq( "is_done" -> true ).deleteAllOnThisThread
       TodoItem.countOnThisThread should equal (2)
       TodoItem.whereEq( "is_done" -> false ).countOnThisThread should equal (2)
@@ -112,8 +107,6 @@ class SingleThreadOrmSpec
 
   describe( "Single-thread ORM delete via record selection" ) {
     it ("should kill the selected record") {
-      setup
-
       val doneItems = TodoItem.whereEq( "is_done" -> true ).queryOnThisThread
       doneItems should have size (1)
 
@@ -126,7 +119,6 @@ class SingleThreadOrmSpec
 
   describe( "Single-thread ORM update via scope" ) {
     it ("should change counts") {
-      setup
       TodoItem.whereEq( "description" -> "feed dog" ).updateAllOnThisThread("is_done" -> true)
       TodoItem.whereEq( "is_done" -> true ).countOnThisThread should equal (2)
     }
@@ -135,7 +127,6 @@ class SingleThreadOrmSpec
   describe( "Single-thread ORM update via record selection" ) {
 
     def doUpdate = {
-      setup
       val undoneItems = TodoItem.whereEq( "is_done" -> false ).queryOnThisThread
       undoneItems should have size (2)
 
@@ -161,10 +152,7 @@ class SingleThreadOrmSpec
 
   describe( "Single-thread ORM insert" ) {
 
-    def doInsert = {
-      setup
-      TodoItem( "train dog", false ).saveOnThisThread
-    }
+    def doInsert = TodoItem( "train dog", false ).saveOnThisThread
     
     it ("should alter counts") {
       doInsert

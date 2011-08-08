@@ -2,7 +2,7 @@ package org.positronicnet.test
 
 import org.positronicnet.db._
 
-import org.scalatest.Spec
+import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 import com.xtremelabs.robolectric.Robolectric
 
@@ -22,9 +22,10 @@ object TodoDb
          """)
 }
 
-class ContentSpecs 
+class DbSpecs 
   extends Spec 
   with ShouldMatchers
+  with BeforeAndAfterEach
   with RobolectricTests
 {
   lazy val db = {
@@ -32,7 +33,7 @@ class ContentSpecs
     TodoDb
   }
 
-  def setup = {
+  override def beforeEach = {
     db( "todo_items" ).delete
     db( "todo_items" ).insert( "description" -> "wash dog",
                                    "is_done"     -> false )
@@ -44,7 +45,6 @@ class ContentSpecs
 
   describe( "queries" ){
     it( "should retrieve all records with no conditions" ){
-      setup
       val results = db( "todo_items" ).select("description")
       val descriptions = results.map{ _.getString(0) }
       descriptions should have size (3)
@@ -53,7 +53,6 @@ class ContentSpecs
       descriptions should contain ("feed dog")
     }
     it ("should retrieve only matching records with conds"){
-      setup
       val undoneItems = db( "todo_items" ).whereEq( "is_done" -> false )
       val descriptions = undoneItems.select("description").map{_.getString(0)}
       descriptions should have size (2)
@@ -64,7 +63,6 @@ class ContentSpecs
 
   describe( "delete" ) {
     it( "should delete matching records" ){
-      setup
       db( "todo_items" ).whereEq( "is_done" -> true ).delete
       val descriptions = 
         db( "todo_items" ).select( "description" ).map{ _.getString(0) }
@@ -75,7 +73,6 @@ class ContentSpecs
   }
   describe( "update" ) {
     it( "should change things" ){
-      setup
       db("todo_items").whereEq("description"->"feed dog").update("is_done"->true)
       val undoneItems = db( "todo_items" ).whereEq( "is_done" -> false )
       val descriptions = undoneItems.select("description").map{_.getString(0)}

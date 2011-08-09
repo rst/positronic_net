@@ -73,6 +73,8 @@ class ContentProviderQuery( source: PositronicContentResolver,
   def whereEq( pairs: (String, ContentValue)* ) =
     withUpdatedWhere( pairs ){ (str, arr) => 
       dinkedCopy( whereString = str, whereValues = arr )}
+
+  def facility = source
 }
 
 

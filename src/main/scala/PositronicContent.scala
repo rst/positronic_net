@@ -235,6 +235,8 @@ abstract class ContentQuery[SourceType,IdType](
       orderString, limitString )
     new PositronicCursor( rawCursor )
   }
+
+  def facility: org.positronicnet.util.AppFacility
 }
 
 // Wrapper around cursors to support a proper 'foreach', so

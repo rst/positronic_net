@@ -88,6 +88,8 @@ class DbWrapper( ctx: Context, mydb: Database )
                                where, whereArgs, 
                                groupBy, having,
                                order, limit )
+
+  def facility = mydb
 }
 
 // Queries on Databases.
@@ -134,6 +136,8 @@ class DbQuery( source: DbWrapper,
     c.close
     return result
   }
+
+  def facility = source.facility
 }
 
 

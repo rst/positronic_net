@@ -47,16 +47,10 @@ object ManagedRecord {
 // Class that actually manages shuffling in-core records into and
 // out of persistent storage.
 
-abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( facilityArg: AppFacility )
-  extends ChangeManager( facilityArg )
+abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
+  extends ChangeManager( repository.facility )
   with BaseScope[T]
 {
-  // Interface to storage...
-  // Where we store stuff.
-
-  def repository: ContentQuery[_,_]
-  val facility = facilityArg
-
   // Producing a new object (to be populated with mapped data from a query). 
   // Note that the default implementation requires a niladic constructor 
   // to exist in bytecode, which will *not* be the case if there's a
@@ -108,6 +102,7 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( facilityArg:
 
   // Feeding the Scope machinery what it needs
 
+  private [orm] val facility = repository.facility
   private [orm] val mgr = this
   private [orm] val baseQuery = repository
 

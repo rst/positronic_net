@@ -27,13 +27,12 @@ case class TodoItem( description: String  = null,
                      isDone:      Boolean = false,
                      id:          Long    = ManagedRecord.unsavedId
                    )
-  extends ManagedRecord
+  extends ManagedRecord( TodoItems )
 {
-  def manager = TodoItem
   def isDone( newVal: Boolean ) = copy( isDone = newVal )
 }
 
-object TodoItem 
+object TodoItems
   extends RecordManager[ TodoItem ]( TodoDb("todo_items") )
 {
   override def newRecord = TodoItem( null, false )
@@ -71,7 +70,7 @@ class SingleThreadOrmSpec
 
   describe( "Single-thread ORM queries" ){
     it ("should find all the records") {
-      val results = TodoItem.queryOnThisThread
+      val results = TodoItems.queryOnThisThread
       results should have size (3)
 
       assert( haveItem( "wash dog" , false, results ))
@@ -79,7 +78,7 @@ class SingleThreadOrmSpec
       assert( haveItem( "walk dog" , true,  results ))
     }
     it ("should retrieve only matching records with conds"){
-      val undoneItems = TodoItem.whereEq( "is_done" -> false ).queryOnThisThread
+      val undoneItems = TodoItems.whereEq( "is_done" -> false).queryOnThisThread
 
       undoneItems should have size (2)
       assert( haveItem( "wash dog" , false, undoneItems ))
@@ -89,45 +88,45 @@ class SingleThreadOrmSpec
 
   describe( "Single-thread ORM count") {
     it ("should count all records with no conds") {
-      TodoItem.countOnThisThread should equal (3)
+      TodoItems.countOnThisThread should equal (3)
     }
     it ("should count the right records with conds") {
-      TodoItem.whereEq( "is_done" -> false ).countOnThisThread should equal (2)
-      TodoItem.whereEq( "is_done" -> true  ).countOnThisThread should equal (1)
+      TodoItems.whereEq( "is_done" -> false ).countOnThisThread should equal (2)
+      TodoItems.whereEq( "is_done" -> true  ).countOnThisThread should equal (1)
     }
   }
 
   describe( "Single-thread ORM delete via scope" ) {
     it ("should eliminate selected records") {
-      TodoItem.whereEq( "is_done" -> true ).deleteAllOnThisThread
-      TodoItem.countOnThisThread should equal (2)
-      TodoItem.whereEq( "is_done" -> false ).countOnThisThread should equal (2)
+      TodoItems.whereEq( "is_done" -> true ).deleteAllOnThisThread
+      TodoItems.countOnThisThread should equal (2)
+      TodoItems.whereEq( "is_done" -> false ).countOnThisThread should equal (2)
     }
   }
 
   describe( "Single-thread ORM delete via record selection" ) {
     it ("should kill the selected record") {
-      val doneItems = TodoItem.whereEq( "is_done" -> true ).queryOnThisThread
+      val doneItems = TodoItems.whereEq( "is_done" -> true ).queryOnThisThread
       doneItems should have size (1)
 
       doneItems.foreach{ _.delete }
 
-      TodoItem.countOnThisThread should equal (2)
-      TodoItem.whereEq( "is_done" -> false ).countOnThisThread should equal (2)
+      TodoItems.countOnThisThread should equal (2)
+      TodoItems.whereEq( "is_done" -> false ).countOnThisThread should equal (2)
     }
   }
 
   describe( "Single-thread ORM update via scope" ) {
     it ("should change counts") {
-      TodoItem.whereEq( "description" -> "feed dog" ).updateAllOnThisThread("is_done" -> true)
-      TodoItem.whereEq( "is_done" -> true ).countOnThisThread should equal (2)
+      TodoItems.whereEq( "description" -> "feed dog" ).updateAllOnThisThread("is_done" -> true)
+      TodoItems.whereEq( "is_done" -> true ).countOnThisThread should equal (2)
     }
   }
 
   describe( "Single-thread ORM update via record selection" ) {
 
     def doUpdate = {
-      val undoneItems = TodoItem.whereEq( "is_done" -> false ).queryOnThisThread
+      val undoneItems = TodoItems.whereEq( "is_done" -> false).queryOnThisThread
       undoneItems should have size (2)
 
       val doneItem = undoneItems( 0 ).isDone( true )
@@ -138,14 +137,14 @@ class SingleThreadOrmSpec
 
     it ("should change counts") {
       doUpdate
-      TodoItem.countOnThisThread should equal (3)
-      TodoItem.whereEq( "is_done" -> true  ).countOnThisThread should equal (2)
-      TodoItem.whereEq( "is_done" -> false ).countOnThisThread should equal (1)
+      TodoItems.countOnThisThread should equal (3)
+      TodoItems.whereEq( "is_done" -> true  ).countOnThisThread should equal (2)
+      TodoItems.whereEq( "is_done" -> false ).countOnThisThread should equal (1)
     }
       
     it ("should alter the record") {
       val changedItem = doUpdate
-      val doneItems = TodoItem.queryOnThisThread
+      val doneItems = TodoItems.queryOnThisThread
       assert( haveItem( changedItem.description, true, doneItems ))
     }
   }
@@ -156,12 +155,12 @@ class SingleThreadOrmSpec
     
     it ("should alter counts") {
       doInsert
-      TodoItem.countOnThisThread should equal (4)
+      TodoItems.countOnThisThread should equal (4)
     }
 
     it ("should make the record show up on queries") {
       doInsert
-      val items = TodoItem.queryOnThisThread
+      val items = TodoItems.queryOnThisThread
       assert( haveItem( "train dog", false, items ))
       items.find{ _.description == "train dog" }.map{ 
         _.id should not equal( -1 )

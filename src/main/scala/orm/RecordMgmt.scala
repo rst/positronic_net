@@ -12,19 +12,15 @@ import scala.collection._
 //
 // Most of the heavy lifting is delegated to a RecordManager singleton,
 // for which see below.
+//
+// Note that the manager MUST be a RecordManager[ thisclass ], but it's
+// awfully awkward to write that constraint...
 
-trait ManagedRecord {
-
-  // Manager of this record type.  MUST be a "RecordManager[ ThisClass ]",
-  // but it's really awkward to declare it that way.
-
-  private [orm] 
-  def manager: RecordManager[ _ ]
+abstract class ManagedRecord( private[orm] val manager: RecordManager[_] ) {
 
   // Bookkeeping
 
-  private [orm]
-  var unsaved = true
+  private [orm] var unsaved = true
 
   val id: Long
 

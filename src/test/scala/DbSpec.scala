@@ -6,43 +6,11 @@ import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 import com.xtremelabs.robolectric.Robolectric
 
-object TodoDb 
-  extends Database( filename = "todos.sqlite3", logTag = "todo" ) 
-{
-  // Note that this schema definition is for H2, the Robolectric DB engine,
-  // which speaks a different dialect from SQLite...
-
-  def schemaUpdates =
-    List(""" create table todo_items (
-               _id int identity,
-               todo_list_id integer,
-               description varchar(100),
-               is_done integer
-             )
-         """)
-}
-
 class DbSpecs 
   extends Spec 
   with ShouldMatchers
-  with BeforeAndAfterEach
-  with RobolectricTests
+  with DbTestFixtures
 {
-  lazy val db = {
-    TodoDb.openInContext( Robolectric.application )
-    TodoDb
-  }
-
-  override def beforeEach = {
-    db( "todo_items" ).delete
-    db( "todo_items" ).insert( "description" -> "wash dog",
-                                   "is_done"     -> false )
-    db( "todo_items" ).insert( "description" -> "feed dog",
-                                   "is_done"     -> false )
-    db( "todo_items" ).insert( "description" -> "walk dog",
-                                   "is_done"     -> true )
-  }
-
   describe( "queries" ){
     it( "should retrieve all records with no conditions" ){
       val results = db( "todo_items" ).select("description")

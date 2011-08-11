@@ -1,60 +1,16 @@
-package org.positronicnet.orm.test
+package org.positronicnet.test
 
 import org.positronicnet.db._
 import org.positronicnet.orm._
-import org.positronicnet.test.RobolectricTests
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
-import com.xtremelabs.robolectric.Robolectric
-
-object TodoDb 
-  extends Database( filename = "todos.sqlite3", logTag = "todo" ) 
-{
-  // Note that this schema definition is for H2, the Robolectric DB engine,
-  // which speaks a different dialect from SQLite...
-
-  def schemaUpdates =
-    List(""" create table todo_items (
-               _id int identity,
-               description varchar(100),
-               is_done integer
-             )
-         """)
-}
-
-case class TodoItem( description: String  = null, 
-                     isDone:      Boolean = false,
-                     id:          Long    = ManagedRecord.unsavedId
-                   )
-  extends ManagedRecord( TodoItems )
-{
-  def isDone( newVal: Boolean ) = copy( isDone = newVal )
-}
-
-object TodoItems extends RecordManager[ TodoItem ]( TodoDb("todo_items") )
 
 class SingleThreadOrmSpec
   extends Spec 
   with ShouldMatchers
-  with BeforeAndAfterEach
-  with RobolectricTests
+  with DbTestFixtures
 {
-  lazy val db = {
-    TodoDb.openInContext( Robolectric.application )
-    TodoDb
-  }
-
-  override def beforeEach = {
-    db( "todo_items" ).delete
-    db( "todo_items" ).insert( "description" -> "wash dog",
-                                   "is_done"     -> false )
-    db( "todo_items" ).insert( "description" -> "feed dog",
-                                   "is_done"     -> false )
-    db( "todo_items" ).insert( "description" -> "walk dog",
-                                   "is_done"     -> true )
-  }
-
   def haveItem[T<:Seq[TodoItem]]( description: String, 
                                   isDone: Boolean, 
                                   items: T ) =

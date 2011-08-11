@@ -43,7 +43,7 @@ trait RobolectricTests
   // "Upper half":  set up the shadow wrangler, and tell the delegate
   // to actually run the test.
 
-  protected override def runTest(
+  protected abstract override def runTest(
     testName: String,
     reporter: Reporter,
     stopper: Stopper,

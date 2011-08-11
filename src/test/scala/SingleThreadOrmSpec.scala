@@ -35,8 +35,6 @@ case class TodoItem( description: String  = null,
 object TodoItems
   extends RecordManager[ TodoItem ]( TodoDb("todo_items") )
 {
-  override def newRecord = TodoItem( null, false )
-  
   mapField( "id", "_id", primaryKey = true )
   mapField( "description", "description" )
   mapField( "isDone",      "is_done" )

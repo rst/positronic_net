@@ -51,10 +51,16 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
   // Note that the default implementation requires a niladic constructor 
   // to exist in bytecode, which will *not* be the case if there's a
   // with-args constructor that supplies defaults for all args (viz.
-  // case classes).  For now, RecordManagers can override; for later,
-  // the reflection to deal with this situation is possible, but painful.
+  // case classes).  
+  //
+  // Default is to use a niladic constructor if one exists.  Failing that,
+  // if there is *one* constructor, and defaults for all its arguments,
+  // we'll use that.  (See ReflectUtils.getObjectBuilder for details.)
+  //
+  // In other cases, RecordManagers can override.
 
-  def newRecord = klass.newInstance.asInstanceOf[T]  // if niladic constructor exists!
+  def newRecord = builder()
+  private lazy val builder = ReflectUtils.getObjectBuilder[ T ] 
 
   // Setting up the mapping of fields to storage columns.
 

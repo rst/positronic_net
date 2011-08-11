@@ -32,13 +32,7 @@ case class TodoItem( description: String  = null,
   def isDone( newVal: Boolean ) = copy( isDone = newVal )
 }
 
-object TodoItems
-  extends RecordManager[ TodoItem ]( TodoDb("todo_items") )
-{
-  mapField( "id", "_id", primaryKey = true )
-  mapField( "description", "description" )
-  mapField( "isDone",      "is_done" )
-}
+object TodoItems extends RecordManager[ TodoItem ]( TodoDb("todo_items") )
 
 class SingleThreadOrmSpec
   extends Spec 

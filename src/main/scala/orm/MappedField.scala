@@ -65,7 +65,8 @@ abstract class MappedField( colName: String,
 
   rfield.setAccessible( true )
 
-  val name = colName
+  val dbColumnName    = colName
+  val recordFieldName = rfield.getName
 
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit
   

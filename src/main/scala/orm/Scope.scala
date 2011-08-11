@@ -8,7 +8,7 @@ trait BaseScope[ T <: ManagedRecord ]
   extends ChangeManager
 {
   private [orm] val facility: AppFacility
-  private [orm] val mgr: RecordManager[T]
+  private [orm] val mgr: BaseRecordManager[T]
   private [orm] val baseQuery: ContentQuery[_,_]
 
   def all: BaseScope[T] = this

@@ -227,8 +227,10 @@ abstract class ContentQuery[SourceType,IdType](
     source.insert( subSource, cv )
   }
 
-  def select( cols: String* ) = {
-    val colsArr = cols.toArray
+  def select( cols: String* ) = selectCols( cols.toArray )
+  def selectDefaultColumns    = selectCols( null )
+
+  private def selectCols( colsArr: Array[ String ] ) = {
     log( "select", cols = colsArr )
     val rawCursor = source.query( 
       subSource, colsArr, whereString, whereValues, null, null, 

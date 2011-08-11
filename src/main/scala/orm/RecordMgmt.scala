@@ -40,10 +40,10 @@ object ManagedRecord {
   val unsavedId = -1
 }
 
-// Class that actually manages shuffling in-core records into and
+// Base class for management of shuffling in-core records into and
 // out of persistent storage.
 
-abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
+abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
   extends ChangeManager( repository.facility )
   with BaseScope[T]
 {
@@ -68,11 +68,12 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
   // constructor.  The mapping is frozen at first use when the
   // lazy val 'fields' is computed below...
 
-  private val klass = classManifest[T].erasure
-  private val javaFields = ReflectUtils.declaredFieldsByName( klass )
+  protected[orm] val managedKlass = classManifest[T].erasure
+  protected[orm] val javaFields = 
+    ReflectUtils.declaredFieldsByName( managedKlass )
 
-  private val fieldsBuffer = new mutable.ArrayBuffer[ MappedField ]
-  private def fieldsSeq: Seq[ MappedField ] = fieldsBuffer
+  protected[orm] val fieldsBuffer = new mutable.ArrayBuffer[ MappedField ]
+  protected[orm] def fieldsSeq: Seq[ MappedField ] = fieldsBuffer
 
   private var primaryKeyField: MappedLongField = null
 
@@ -113,11 +114,12 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
 
   // Dealing with the data... internals
 
-  protected[orm] lazy val fields = fieldsSeq
-  protected[orm] lazy val nonKeyFields = 
-    fields.filter{ primaryKeyField == null || _.name != primaryKeyField.name }
+  protected [orm] lazy val fields = fieldsSeq
+  protected [orm] lazy val nonKeyFields = 
+    fields.filter{ primaryKeyField == null || 
+                   _.dbColumnName != primaryKeyField.dbColumnName }
 
-  private lazy val fieldNames = fields.map{ _.name }
+  private lazy val fieldNames = fields.map{ _.dbColumnName }
 
   private [orm]
   def rawQuery( qry: ContentQuery[_,_] ): Seq[ T ] = {
@@ -151,4 +153,63 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
   private [orm]
   def deleteOnThisThread( rec: ManagedRecord ): Unit = 
     whereEq( primaryKeyField.valPair( rec )).deleteAllOnThisThread
+}
+
+abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
+  extends BaseRecordManager[ T ]( repository )
+{
+  override protected[orm] def fieldsSeq: Seq[ MappedField ] = {
+
+    // Take explicit mappings, and add them to mappings for
+    // like-named columns available from our repository.
+    // For that, we have to do a dummy query which will
+    // (hopefully) return no rows...
+
+    val dummyCursor = repository.where( "2 + 2 = 5" ).selectDefaultColumns
+    val dbColNames  = dummyCursor.getColumnNames
+    val klassName   = managedKlass.getName
+
+    for ( i <- Range( 0, dbColNames.length )) {
+
+      val dbColName       = dbColNames( i ).toLowerCase
+      val recordFieldName = 
+        if (dbColName == "_id") "id" else camelize( dbColName )
+
+      val javaField = javaFields( recordFieldName )
+
+      val existingField = 
+        fieldsBuffer.find(mappedField => 
+            mappedField.dbColumnName == dbColName
+            || mappedField.recordFieldName == recordFieldName )
+
+      existingField match {
+        case None => null
+        case Some(x) => 
+          repository.log( "=== For " + managedKlass.getName +
+                          " found existing mapping for " + dbColName + 
+                          " db name " + x.dbColumnName + 
+                          " rec name " + x.recordFieldName )
+                              
+      }
+
+      if (javaField != null &&
+          ! fieldsBuffer.exists( mappedField => 
+            mappedField.dbColumnName == dbColName
+            || mappedField.recordFieldName == recordFieldName ))
+      {
+        // Try to map automatically
+        
+        repository.log( "=== For " + managedKlass.getName +
+                        " attempting to map " + dbColName + " to " +
+                        recordFieldName )
+
+        mapField( recordFieldName, dbColName, dbColName == "_id" )
+      }
+    }
+
+    dummyCursor.close
+    return super.fieldsSeq
+  }
+
+  def camelize( str: String ) = str.split("_").reduceLeft{ _ + _.capitalize }
 }

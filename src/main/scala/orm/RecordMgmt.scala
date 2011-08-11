@@ -139,17 +139,3 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
   def deleteOnThisThread( rec: ManagedRecord ): Unit = 
     whereEq( primaryKeyField.valPair( rec )).deleteAllOnThisThread
 }
-
-object ReflectUtils
-{
-  // Technique borrowed from sbt's ReflectUtilities, cut down to fit here.
-
-  def ancestry( klass: Class[_] ): List[ Class[_]] =
-    if (klass == classOf[ AnyRef ]) List( klass )
-    else klass :: ancestry( klass.getSuperclass )
-
-  def declaredFieldsByName( klass: Class[_] ) = {
-    val fieldList = ancestry( klass ).flatMap( _.getDeclaredFields )
-    Map( fieldList.map( f => (f.getName, f )): _* )
-  }
-}

@@ -63,12 +63,17 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
   private lazy val builder = ReflectUtils.getObjectBuilder[ T ] 
 
   // Setting up the mapping of fields to storage columns.
+  //
+  // Basics here to explicitly manipulate the list within the
+  // constructor.  The mapping is frozen at first use when the
+  // lazy val 'fields' is computed below...
 
   private val klass = classManifest[T].erasure
   private val javaFields = ReflectUtils.declaredFieldsByName( klass )
 
-  private val fields = new mutable.ArrayBuffer[ MappedField ]
-  private val nonKeyFields = new mutable.ArrayBuffer[ MappedField ]
+  private val fieldsBuffer = new mutable.ArrayBuffer[ MappedField ]
+  private def fieldsSeq: Seq[ MappedField ] = fieldsBuffer
+
   private var primaryKeyField: MappedLongField = null
 
   def mapField( fieldName: String, 
@@ -82,14 +87,12 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
                                           + fieldName )
     }
 
-    val idx = fields.size
+    val idx = fieldsBuffer.size
     val mappedField = MappedField.create( columnName, idx, javaField )
 
-    fields += mappedField
-    if (!primaryKey) {
-      nonKeyFields += mappedField
-    }
-    else {
+    fieldsBuffer += mappedField
+    
+    if (primaryKey) {
       if (primaryKeyField != null) {
         throw new IllegalArgumentException( "Multiple primary key fields" )
       }
@@ -109,6 +112,10 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
   private [orm] val baseQuery = repository
 
   // Dealing with the data... internals
+
+  protected[orm] lazy val fields = fieldsSeq
+  protected[orm] lazy val nonKeyFields = 
+    fields.filter{ primaryKeyField == null || _.name != primaryKeyField.name }
 
   private lazy val fieldNames = fields.map{ _.name }
 

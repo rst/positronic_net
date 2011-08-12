@@ -118,38 +118,33 @@ abstract class ContentQuery[SourceType,IdType](
     subSource: SourceType,
     orderString: String,
     whereString: String,
-    whereValues: Array[String],
+    whereValues: Seq[String],
     limitString: String
   ) 
 {
-  def where( s: String, arr: Array[ContentValue] = null ):ContentQuery[SourceType,IdType]
+  def where( s: String, vals: ContentValue* ):ContentQuery[SourceType,IdType]
 
   def whereEq( pairs: (String, ContentValue)* ):ContentQuery[SourceType,IdType]
 
-  def withUpdatedWhere[T]( s: String, arr: Array[ContentValue] )
-                         ( handler: (String, Array[String]) => T ):T =
+  def withUpdatedWhere[T]( s: String, vals: Seq[ContentValue] )
+                         ( handler: (String, Seq[String]) => T ):T =
   {
     val addingValues = 
-      if (arr == null) null
-      else arr.map{ _.asConditionString }
+      if (vals == null) null
+      else vals.map{ _.asConditionString }
 
     val newString = 
       if (this.whereString == null) s
       else "(" + this.whereString + ") and (" + s + ")"
 
-    val newVals =
-      if (this.whereValues == null) addingValues
-      else if (arr == null || arr.length == 0) this.whereValues
-      else this.whereValues ++ addingValues
-
-    handler( newString, newVals )
+    handler( newString, this.whereValues ++ addingValues )
   }
 
   def withUpdatedWhere[T]( pairs: Seq[(String, ContentValue)] )
-                         ( handler: (String, Array[String]) => T ):T = 
+                         ( handler: (String, Seq[String]) => T ):T = 
   {
     val str = pairs.map{ "(" + _._1 + " = ?)" }.reduceLeft{ _ + " and " + _ }
-    val vals = pairs.map{ _._2 }.toArray
+    val vals = pairs.map{ _._2 }
 
     this.withUpdatedWhere( str, vals )( handler )
   }
@@ -212,13 +207,13 @@ abstract class ContentQuery[SourceType,IdType](
 
   def delete = {
     log( "delete" )
-    source.delete( subSource, whereString, whereValues )
+    source.delete( subSource, whereString, whereValues.toArray )
   }
 
   def update( assigns: (String, ContentValue)* ) = {
     val cv = buildContentValues( assigns:_* )
     log( "update", contentValues = cv )
-    source.update( subSource, cv, whereString, whereValues )
+    source.update( subSource, cv, whereString, whereValues.toArray )
   }
 
   def insert( assigns: (String, ContentValue)* ) = {
@@ -233,7 +228,7 @@ abstract class ContentQuery[SourceType,IdType](
   private def selectCols( colsArr: Array[ String ] ) = {
     log( "select", cols = colsArr )
     val rawCursor = source.query( 
-      subSource, colsArr, whereString, whereValues, null, null, 
+      subSource, colsArr, whereString, whereValues.toArray, null, null, 
       orderString, limitString )
     new PositronicCursor( rawCursor )
   }

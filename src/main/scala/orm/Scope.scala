@@ -20,8 +20,8 @@ trait BaseScope[ T <: ManagedRecord ]
                                                   + baseQuery.getClass.getName )
   }
 
-  def where( str: String, arr: Array[ContentValue] = null ): Scope[T] = 
-    new Scope( this, baseQuery.where( str, arr ))
+  def where( str: String, vals: ContentValue* ): Scope[T] = 
+    new Scope( this, baseQuery.where( str, vals: _* ))
 
   def whereEq( pairs: (String, ContentValue)* ): Scope[T] =
     new Scope( this, baseQuery.whereEq( pairs: _* ))

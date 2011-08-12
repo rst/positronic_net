@@ -11,7 +11,7 @@ class DbSpecs
   with ShouldMatchers
   with DbTestFixtures
 {
-  describe( "queries" ){
+  describe( "simplequeries" ){
     it( "should retrieve all records with no conditions" ){
       val results = db( "todo_items" ).select("description")
       val descriptions = results.map{ _.getString(0) }
@@ -20,7 +20,9 @@ class DbSpecs
       descriptions should contain ("wash dog")
       descriptions should contain ("feed dog")
     }
-    it ("should retrieve only matching records with conds"){
+  }
+  describe( "whereEq" ) {
+    it ("should retrieve only matching records"){
       val undoneItems = db( "todo_items" ).whereEq( "is_done" -> false )
       val descriptions = undoneItems.select("description").map{_.getString(0)}
       descriptions should have size (2)
@@ -28,7 +30,13 @@ class DbSpecs
       descriptions should contain ("wash dog")
     }
   }
-
+  describe( "where" ) {
+    it ("should retrieve only matching records"){
+      val descPastG = db( "todo_items" ).where( "description > ?", "g" )
+      val descriptions = descPastG.select("description").map{_.getString(0)}
+      assert( descriptions.sorted == Seq("walk dog", "wash dog"))
+    }
+  }
   describe( "delete" ) {
     it( "should delete matching records" ){
       db( "todo_items" ).whereEq( "is_done" -> true ).delete

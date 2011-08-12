@@ -50,29 +50,29 @@ class ContentProviderQuery( source: PositronicContentResolver,
                             uri: Uri,
                             orderString: String = null,
                             whereString: String = null,
-                            whereValues: Array[String] = null
+                            whereValues: Seq[String] = Seq.empty
                           ) 
   extends ContentQuery( source, uri, orderString,
                         whereString, whereValues, 
                         limitString = null )
 {
   protected def dinkedCopy( source: PositronicContentResolver = this.source, 
-                            uri: android.net.Uri         = this.uri,
-                            orderString: String          = this.orderString,
-                            whereString: String          = this.whereString,
-                            whereValues: Array[String]   = this.whereValues ) =
+                            uri: android.net.Uri     = this.uri,
+                            orderString: String      = this.orderString,
+                            whereString: String      = this.whereString,
+                            whereValues: Seq[String] = this.whereValues ) =
     new ContentProviderQuery( source, uri, orderString, 
                               whereString, whereValues )
 
   def order( s: String ) = dinkedCopy( orderString = s )
 
-  def where( s: String, arr: Array[ContentValue] = null ) =
-    withUpdatedWhere( s, arr ){ (str, arr) => 
-      dinkedCopy( whereString = str, whereValues = arr )}
+  override def where( s: String, vals: ContentValue* ) =
+    withUpdatedWhere( s, vals ){ (str, vals) => 
+      dinkedCopy( whereString = str, whereValues = vals )}
 
-  def whereEq( pairs: (String, ContentValue)* ) =
-    withUpdatedWhere( pairs ){ (str, arr) => 
-      dinkedCopy( whereString = str, whereValues = arr )}
+  override def whereEq( pairs: (String, ContentValue)* ) =
+    withUpdatedWhere( pairs ){ (str, vals) => 
+      dinkedCopy( whereString = str, whereValues = vals )}
 
   def facility = source
 }

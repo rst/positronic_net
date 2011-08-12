@@ -98,18 +98,18 @@ class DbQuery( source: DbWrapper,
                tableName: String,
                orderString: String = null,
                whereString: String = null,
-               whereValues: Seq[String] = Seq.empty,
+               whereValues: Array[String] = null,
                limitString: String = null
              ) 
   extends ContentQuery( source, tableName, orderString,
                         whereString, whereValues, limitString )
 {
-  private def dinkedCopy( source: DbWrapper        = this.source, 
-                          tableName: String        = this.tableName,
-                          orderString: String      = this.orderString,
-                          whereString: String      = this.whereString,
-                          whereValues: Seq[String] = this.whereValues,
-                          limitString: String      = this.limitString ) =
+  private def dinkedCopy( source: DbWrapper           = this.source, 
+                          tableName: String           = this.tableName,
+                          orderString: String         = this.orderString,
+                          whereString: String         = this.whereString,
+                          whereValues: Array[String]  = this.whereValues,
+                          limitString: String         = this.limitString ) =
     new DbQuery( source, tableName, orderString, 
                  whereString, whereValues, limitString )
 
@@ -117,9 +117,9 @@ class DbQuery( source: DbWrapper,
   def limit( s: String ) = { dinkedCopy( limitString = s ) }
   def limit( l: Int )    = { dinkedCopy( limitString = l.toString ) }
 
-  override def where( s: String, vals: ContentValue* ):DbQuery =
-    withUpdatedWhere( s, vals ){ (str, vals) => 
-      dinkedCopy( whereString = str, whereValues = vals )}
+  def where( s: String, arr: Array[ContentValue] = null ):DbQuery =
+    withUpdatedWhere( s, arr ){ (str, arr) => 
+      dinkedCopy( whereString = str, whereValues = arr )}
 
   def whereEq( pairs: (String, ContentValue)* ):DbQuery =
     withUpdatedWhere( pairs ){ (str, arr) => 

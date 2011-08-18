@@ -3,7 +3,10 @@ package org.positronicnet.util
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer
 
-trait ChangeNotifications[T] {
+// Basic definition of something that can notify watchers about
+// an object of type T.
+
+trait Notifier[T] {
   protected val changeHandlers = new HashMap[ AnyRef, T => Unit ]
 
   def onThread( thunk: => Unit ): Unit
@@ -24,7 +27,7 @@ trait ChangeNotifications[T] {
   def onChange( key: AnyRef )( handler: T => Unit ):Unit = {
     fetchAndWatch( key )( handler )
   }
-  def stopChangeNotifications( key: AnyRef ):Unit = {
+  def stopNotifier( key: AnyRef ):Unit = {
     changeHandlers.remove( key )
   }
   def noteChange: Unit
@@ -36,8 +39,8 @@ trait ChangeNotifications[T] {
 // different listeners *can't* share without stomping all over
 // each other.
 
-trait NonSharedChangeNotifications[T]
-  extends ChangeNotifications[T]
+trait NonSharedNotifier[T]
+  extends Notifier[T]
 {
   def noteChange = {
     for ((key, handler) <- changeHandlers) {
@@ -51,8 +54,8 @@ trait NonSharedChangeNotifications[T]
 // one new value, which all listeners share (and which can be
 // interrogated on the fly):
 
-trait CachingChangeNotifications[T]
-  extends ChangeNotifications[T]
+trait CachingNotifier[T]
+  extends Notifier[T]
 {
   protected var cachedValue: T = currentValue
 
@@ -70,7 +73,7 @@ trait CachingChangeNotifications[T]
 // parameters from the UI...
 
 trait NotifierWithQuery[ Q, R ]
-  extends ChangeNotifications[ R ]
+  extends Notifier[ R ]
 {
   protected var currentQuery: Q
 
@@ -83,7 +86,7 @@ trait NotifierWithQuery[ Q, R ]
 // resource (e.g., a database) which might maintain multiple
 // change listeners.
 
-class BaseChangeNotifications( facility: AppFacility )
+class BaseNotifier( facility: AppFacility )
 {
   def onThread( thunk: => Unit ) = { 
     facility match {
@@ -94,24 +97,24 @@ class BaseChangeNotifications( facility: AppFacility )
 }
 
 class ValueStream[T]( facility: AppFacility, generator: () => T )
-  extends BaseChangeNotifications( facility )
-  with CachingChangeNotifications[T]
+  extends BaseNotifier( facility )
+  with CachingNotifier[T]
 {
   def currentValue = generator()
 }
 
 class NonSharedValueStream[T]( facility: AppFacility, generator: () => T )
-  extends BaseChangeNotifications( facility )
-  with NonSharedChangeNotifications[T]
+  extends BaseNotifier( facility )
+  with NonSharedNotifier[T]
 {
   def currentValue = generator()
 }
 
 class ValueQuery[Q, R]( facility: AppFacility, 
                         initialQuery: Q, queryFunc: Q => R )
-  extends BaseChangeNotifications( facility )
+  extends BaseNotifier( facility )
   with NotifierWithQuery[ Q, R ]
-  with CachingChangeNotifications[ R ]
+  with CachingNotifier[ R ]
 {
   protected var currentQuery: Q = initialQuery
   def currentValue = queryFunc( currentQuery )
@@ -119,18 +122,18 @@ class ValueQuery[Q, R]( facility: AppFacility,
 
 class NonSharedValueQuery[Q, R]( facility: AppFacility,
                                  initialQuery: Q, queryFunc: Q => R )
-  extends BaseChangeNotifications( facility )
+  extends BaseNotifier( facility )
   with NotifierWithQuery[ Q, R ]
-  with NonSharedChangeNotifications[ R ]
+  with NonSharedNotifier[ R ]
 {
   protected var currentQuery: Q = initialQuery
   def currentValue = queryFunc( currentQuery )
 }
 
 abstract class ChangeManager( facility: AppFacility )
-  extends BaseChangeNotifications( facility )
+  extends BaseNotifier( facility )
 {
-  private val notifiers = new ArrayBuffer[ ChangeNotifications[_] ]
+  private val notifiers = new ArrayBuffer[ Notifier[_] ]
 
   // Wrapper for domain operations:  we run on the facility's
   // worker thread if there is one, and notify the listeners when
@@ -138,18 +141,18 @@ abstract class ChangeManager( facility: AppFacility )
 
   def doChange( thunk: => Unit ) = onThread{ thunk; noteChange }
 
-  def addSubNotifier[T]( notifier: ChangeNotifications[T] ) = 
+  def addSubNotifier[T]( notifier: Notifier[T] ) = 
     notifiers += notifier
 
   def noteChange = notifiers.foreach{ _.noteChange }
 
-  def valueStream[T](thunk: => T): CachingChangeNotifications[T] = {
+  def valueStream[T](thunk: => T): CachingNotifier[T] = {
     val it = new ValueStream( facility, () => thunk )
     notifiers += it
     return it
   }
 
-  def cursorStream[T](thunk: => T): ChangeNotifications[T] = {
+  def cursorStream[T](thunk: => T): Notifier[T] = {
     val it = new NonSharedValueStream( facility, () => thunk )
     notifiers += it
     return it

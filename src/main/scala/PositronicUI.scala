@@ -14,7 +14,7 @@ import _root_.android.widget.Toast
 import _root_.android.util.Log
 
 import org.positronicnet.util.AppFacility
-import org.positronicnet.util.ChangeNotifications
+import org.positronicnet.util.Notifier
 
 import org.positronicnet.content.PositronicCursor // for CursorSourceAdapter
 import _root_.android.database.Cursor
@@ -184,7 +184,7 @@ trait PositronicActivityHelpers
   // Handler is automatically run on the UI thread, even if notifications
   // come from somewhere else (e.g., a db thread).
 
-  def onChangeTo[T]( frob: ChangeNotifications[T] )( handler: T => Unit ) = 
+  def onChangeTo[T]( frob: Notifier[T] )( handler: T => Unit ) = 
     manageListener( this, frob )( handler )
 
   // More general:  managing the activity of some *other* listener.
@@ -193,12 +193,12 @@ trait PositronicActivityHelpers
   // "source" distributes a change, the "handler" will get a peek
   // at it, running on the activity's UI thread.
 
-  def manageListener[T]( listener: AnyRef, source: ChangeNotifications[T])( handler: T => Unit ) = {
+  def manageListener[T]( listener: AnyRef, source: Notifier[T])( handler: T => Unit ) = {
     source.onChange( listener ){ notice =>
       this.runOnUiThread{ handler( notice ) }
     }
 
-    this.onDestroy{ source.stopChangeNotifications( listener ) }
+    this.onDestroy{ source.stopNotifier( listener ) }
   }
 
   // Likewise for AppFacilities...
@@ -474,7 +474,7 @@ class PositronicActivity( layoutResourceId: Int = 0 )
 abstract class CursorSourceAdapter[T <: AnyRef]( 
   activity: PositronicActivityHelpers,
   converter: PositronicCursor => T,
-  source: ChangeNotifications[PositronicCursor] = null,
+  source: Notifier[PositronicCursor] = null,
   itemViewResourceId: Int = 0
 )
  extends _root_.android.widget.CursorAdapter( activity, null )
@@ -596,7 +596,7 @@ class IndexedSeqAdapter[T <: Object](var seq:IndexedSeq[T] = new ArrayBuffer[T],
 // result set anyway...
 
 class IndexedSeqSourceAdapter[T <: Object](activity: PositronicActivityHelpers,
-                                           source: ChangeNotifications[IndexedSeq[T]],
+                                           source: Notifier[IndexedSeq[T]],
                                            itemViewResourceId: Int = 0, 
                                            itemTextResourceId: Int = 0 ) 
   extends IndexedSeqAdapter[T]( itemViewResourceId = itemViewResourceId,

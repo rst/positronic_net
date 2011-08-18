@@ -5,7 +5,7 @@ import org.positronicnet.ui.PositronicDialog
 import org.positronicnet.ui.PositronicActivity
 import org.positronicnet.ui.IndexedSeqSourceAdapter
 
-import org.positronicnet.util.ChangeNotifications
+import org.positronicnet.util.Notifier
 
 import android.app.Activity
 import android.os.Bundle
@@ -251,7 +251,7 @@ class TodoActivity
 }
 
 class TodoItemsAdapter( activity: PositronicActivity, 
-                        query: ChangeNotifications[IndexedSeq[TodoItem]] )
+                        query: Notifier[IndexedSeq[TodoItem]] )
  extends IndexedSeqSourceAdapter( activity,
                                   source = query,
                                   itemViewResourceId = R.layout.todo_row )

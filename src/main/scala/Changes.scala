@@ -102,10 +102,12 @@ abstract class ChangeManager( facility: AppFacility )
   // worker thread if there is one, and notify the listeners when
   // done.
 
-  def doChange( thunk: => Unit ) = { 
+  def doChange( thunk: => Unit ) = onThread{ thunk; noteChange }
+
+  def onThread( thunk: => Unit ) = { 
     facility match {
-      case w: WorkerThread => w.runOnThread{ thunk; noteChange }
-      case _ => thunk; noteChange
+      case w: WorkerThread => w.runOnThread{ thunk }
+      case _ => thunk
     }
   }
 

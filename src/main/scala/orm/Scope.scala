@@ -13,12 +13,13 @@ trait BaseScope[ T <: ManagedRecord ]
 
   def all: BaseScope[T] = this
 
-  def records = valueStream{ mgr.rawQuery( baseQuery ) }
-  def count = baseQuery match {
-    case query: { def count: Long } => valueStream{ query.count }
-    case _ => throw new IllegalArgumentException( "Can't count rows from a " 
+  lazy val records = valueStream{ mgr.rawQuery( baseQuery ) }
+  lazy val count = 
+    baseQuery match {
+      case query: { def count: Long } => valueStream{ query.count }
+      case _ => throw new IllegalArgumentException( "Can't count rows from a " 
                                                   + baseQuery.getClass.getName )
-  }
+    }
 
   def where( str: String, arr: Array[ContentValue] = null ): Scope[T] = 
     new Scope( this, baseQuery.where( str, arr ))
@@ -26,20 +27,14 @@ trait BaseScope[ T <: ManagedRecord ]
   def whereEq( pairs: (String, ContentValue)* ): Scope[T] =
     new Scope( this, baseQuery.whereEq( pairs: _* ))
 
-  def deleteAll = doChange { deleteAllOnThisThread }
+  def deleteAll = onThread { deleteAllOnThisThread }
   def updateAll( assigns: (String, ContentValue)* ) =
-    doChange { updateAllOnThisThread( assigns: _* ) }
+    onThread { updateAllOnThisThread( assigns: _* ) }
 
-  def countOnThisThread = baseQuery match {
-    case query: { def count: Long } => query.count
-    case _ => throw new IllegalArgumentException( "Can't count rows from a " 
-                                                  + baseQuery.getClass.getName )
-  }
-
-  def queryOnThisThread = mgr.rawQuery( baseQuery )
-  def deleteAllOnThisThread = baseQuery.delete
+  def queryOnThisThread = records.value
+  def deleteAllOnThisThread = { baseQuery.delete; noteChange }
   def updateAllOnThisThread( assigns: (String, ContentValue)* ) = 
-    baseQuery.update( assigns: _* )
+    baseQuery.update( assigns: _* ); noteChange
 }
 
 class Scope[ T <: ManagedRecord ]( base: BaseScope[T], query: ContentQuery[_,_])
@@ -55,8 +50,14 @@ class Scope[ T <: ManagedRecord ]( base: BaseScope[T], query: ContentQuery[_,_])
   private [orm] val baseScope = base
   private [orm] val baseQuery = query
 
+  override def toString = {
+    val (str, vals) = query.conditionKey
+    val valsStr = vals.reduceLeft{ _.toString + _.toString }
+    base.toString + " where [" + str + "; " + valsStr + "]" 
+  }
+
   override def noteChange = {
-    base.noteChange
     super.noteChange
+    base.noteChange
   }
 }

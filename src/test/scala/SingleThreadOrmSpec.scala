@@ -36,19 +36,19 @@ class SingleThreadOrmSpec
 
   describe( "Single-thread ORM count") {
     it ("should count all records with no conds") {
-      TodoItems.countOnThisThread should equal (3)
+      TodoItems.count.value should equal (3)
     }
     it ("should count the right records with conds") {
-      TodoItems.whereEq( "is_done" -> false ).countOnThisThread should equal (2)
-      TodoItems.whereEq( "is_done" -> true  ).countOnThisThread should equal (1)
+      TodoItems.whereEq( "is_done" -> false ).count.value should equal (2)
+      TodoItems.whereEq( "is_done" -> true  ).count.value should equal (1)
     }
   }
 
   describe( "Single-thread ORM delete via scope" ) {
     it ("should eliminate selected records") {
       TodoItems.whereEq( "is_done" -> true ).deleteAllOnThisThread
-      TodoItems.countOnThisThread should equal (2)
-      TodoItems.whereEq( "is_done" -> false ).countOnThisThread should equal (2)
+      TodoItems.count.value should equal (2)
+      TodoItems.whereEq( "is_done" -> false ).count.value should equal (2)
     }
   }
 
@@ -59,15 +59,15 @@ class SingleThreadOrmSpec
 
       doneItems.foreach{ _.delete }
 
-      TodoItems.countOnThisThread should equal (2)
-      TodoItems.whereEq( "is_done" -> false ).countOnThisThread should equal (2)
+      TodoItems.count.value should equal (2)
+      TodoItems.whereEq( "is_done" -> false ).count.value should equal (2)
     }
   }
 
   describe( "Single-thread ORM update via scope" ) {
     it ("should change counts") {
       TodoItems.whereEq( "description" -> "feed dog" ).updateAllOnThisThread("is_done" -> true)
-      TodoItems.whereEq( "is_done" -> true ).countOnThisThread should equal (2)
+      TodoItems.whereEq( "is_done" -> true ).count.value should equal (2)
     }
   }
 
@@ -85,9 +85,9 @@ class SingleThreadOrmSpec
 
     it ("should change counts") {
       doUpdate
-      TodoItems.countOnThisThread should equal (3)
-      TodoItems.whereEq( "is_done" -> true  ).countOnThisThread should equal (2)
-      TodoItems.whereEq( "is_done" -> false ).countOnThisThread should equal (1)
+      TodoItems.count.value should equal (3)
+      TodoItems.whereEq( "is_done" -> true  ).count.value should equal (2)
+      TodoItems.whereEq( "is_done" -> false ).count.value should equal (1)
     }
       
     it ("should alter the record") {
@@ -103,7 +103,7 @@ class SingleThreadOrmSpec
     
     it ("should alter counts") {
       doInsert
-      TodoItems.countOnThisThread should equal (4)
+      TodoItems.count.value should equal (4)
     }
 
     it ("should make the record show up on queries") {

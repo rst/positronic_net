@@ -144,6 +144,8 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
       repository.insert( data: _* )
     else
       repository.whereEq( primaryKeyField.valPair( rec )).update( data: _* )
+    
+    noteChange
   }
 
   private [orm]

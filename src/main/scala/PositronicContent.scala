@@ -122,6 +122,8 @@ abstract class ContentQuery[SourceType,IdType](
     limitString: String
   ) 
 {
+  def conditionKey = (whereString, whereValues)
+
   def where( s: String, arr: Array[ContentValue] = null ):ContentQuery[SourceType,IdType]
 
   def whereEq( pairs: (String, ContentValue)* ):ContentQuery[SourceType,IdType]

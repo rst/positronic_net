@@ -5,9 +5,24 @@ import scala.collection.mutable.ArrayBuffer
 
 trait ChangeNotifications[T] {
   protected val changeHandlers = new HashMap[ AnyRef, T => Unit ]
-  def onChange( key: AnyRef )( handler: T => Unit ):Unit = {
+
+  def onThread( thunk: => Unit ): Unit
+
+  def watch( key: AnyRef )( handler: T => Unit ): Unit = {
     changeHandlers( key ) = handler
-    handler( currentValue )
+  }
+
+  def fetch( handler: T => Unit ): Unit = {
+    onThread{ handler( currentValue ) }
+  }
+
+  def fetchAndWatch( key: AnyRef )( handler: T => Unit ) = {
+    fetch( handler )
+    watch( key )( handler )
+  }
+
+  def onChange( key: AnyRef )( handler: T => Unit ):Unit = {
+    fetchAndWatch( key )( handler )
   }
   def stopChangeNotifications( key: AnyRef ):Unit = {
     changeHandlers.remove( key )
@@ -54,10 +69,10 @@ trait CachingChangeNotifications[T]
 // Machinery for change listeners which also depend on query
 // parameters from the UI...
 
-abstract class NotifierWithQuery[ Q, R ]( initialQuery: Q )
+trait NotifierWithQuery[ Q, R ]
   extends ChangeNotifications[ R ]
 {
-  protected var currentQuery = initialQuery
+  protected var currentQuery: Q
 
   def requery( q: Q ) = {
     currentQuery = q; noteChange
@@ -68,33 +83,52 @@ abstract class NotifierWithQuery[ Q, R ]( initialQuery: Q )
 // resource (e.g., a database) which might maintain multiple
 // change listeners.
 
-class ValueStream[T]( generator: () => T )
-  extends CachingChangeNotifications[T]
+class BaseChangeNotifications( facility: AppFacility )
+{
+  def onThread( thunk: => Unit ) = { 
+    facility match {
+      case w: WorkerThread => w.runOnThread{ thunk }
+      case _ => thunk
+    }
+  }
+}
+
+class ValueStream[T]( facility: AppFacility, generator: () => T )
+  extends BaseChangeNotifications( facility )
+  with CachingChangeNotifications[T]
 {
   def currentValue = generator()
 }
 
-class NonSharedValueStream[T]( generator: () => T )
-  extends NonSharedChangeNotifications[T]
+class NonSharedValueStream[T]( facility: AppFacility, generator: () => T )
+  extends BaseChangeNotifications( facility )
+  with NonSharedChangeNotifications[T]
 {
   def currentValue = generator()
 }
 
-class ValueQuery[Q, R]( initialQuery: Q, queryFunc: Q => R )
-  extends NotifierWithQuery[ Q, R ]( initialQuery )
+class ValueQuery[Q, R]( facility: AppFacility, 
+                        initialQuery: Q, queryFunc: Q => R )
+  extends BaseChangeNotifications( facility )
+  with NotifierWithQuery[ Q, R ]
   with CachingChangeNotifications[ R ]
 {
+  protected var currentQuery: Q = initialQuery
   def currentValue = queryFunc( currentQuery )
 }
 
-class NonSharedValueQuery[Q, R]( initialQuery: Q, queryFunc: Q => R )
-  extends NotifierWithQuery[ Q, R ]( initialQuery )
+class NonSharedValueQuery[Q, R]( facility: AppFacility,
+                                 initialQuery: Q, queryFunc: Q => R )
+  extends BaseChangeNotifications( facility )
+  with NotifierWithQuery[ Q, R ]
   with NonSharedChangeNotifications[ R ]
 {
+  protected var currentQuery: Q = initialQuery
   def currentValue = queryFunc( currentQuery )
 }
 
 abstract class ChangeManager( facility: AppFacility )
+  extends BaseChangeNotifications( facility )
 {
   private val notifiers = new ArrayBuffer[ ChangeNotifications[_] ]
 
@@ -104,38 +138,31 @@ abstract class ChangeManager( facility: AppFacility )
 
   def doChange( thunk: => Unit ) = onThread{ thunk; noteChange }
 
-  def onThread( thunk: => Unit ) = { 
-    facility match {
-      case w: WorkerThread => w.runOnThread{ thunk }
-      case _ => thunk
-    }
-  }
-
   def addSubNotifier[T]( notifier: ChangeNotifications[T] ) = 
     notifiers += notifier
 
   def noteChange = notifiers.foreach{ _.noteChange }
 
   def valueStream[T](thunk: => T): CachingChangeNotifications[T] = {
-    val it = new ValueStream( () => thunk )
+    val it = new ValueStream( facility, () => thunk )
     notifiers += it
     return it
   }
 
   def cursorStream[T](thunk: => T): ChangeNotifications[T] = {
-    val it = new NonSharedValueStream( () => thunk )
+    val it = new NonSharedValueStream( facility, () => thunk )
     notifiers += it
     return it
   }
 
   def valueQuery[Q,R]( initialVal: Q)(queryFunc: Q => R ): ValueQuery[Q, R] = {
-    val it = new ValueQuery( initialVal, queryFunc )
+    val it = new ValueQuery( facility, initialVal, queryFunc )
     notifiers += it
     return it
   }
 
   def cursorQuery[Q,R]( initialVal: Q)(queryFunc: Q => R ): NonSharedValueQuery[Q, R] = {
-    val it = new NonSharedValueQuery( initialVal, queryFunc )
+    val it = new NonSharedValueQuery( facility, initialVal, queryFunc )
     notifiers += it
     return it
   }

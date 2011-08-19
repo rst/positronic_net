@@ -129,7 +129,7 @@ class DbQuery( source: DbWrapper,
 
   def oneRow( cols: String* ) = limit( 1 ).select( cols:_* )
 
-  def count:Long = {
+  override def count:Long = {
     val c = this.select( "count(*)" );
     c.moveToFirst
     val result = c.getLong(0)

@@ -212,6 +212,10 @@ abstract class ContentQuery[SourceType,IdType](
     }
   }
 
+  def count:Long = {
+    throw new RuntimeException( "Count not supported for " + getClass.getName )
+  }
+
   def delete = {
     log( "delete" )
     source.delete( subSource, whereString, whereValues )

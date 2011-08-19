@@ -19,12 +19,20 @@ trait BaseScope[ T <: ManagedRecord ]
   private [orm] val mgr: BaseRecordManager[T]
   private [orm] val baseQuery: ContentQuery[_,_]
 
-  lazy val records = valueStream{ mgr.rawQuery( baseQuery ) }
+  lazy val fullQuery = mgr.queryForAll( baseQuery )
+
+  lazy val records = valueStream{ mgr.fetchRecords( fullQuery )}
+
   lazy val count = 
-    baseQuery match {
+    fullQuery match {
+
+      // Warnings on the next line --- always matches due to type erasure.
+      // So, the catch-all below it catches nothing.
+      // Sigh...
+
       case query: { def count: Long } => valueStream{ query.count }
       case _ => throw new IllegalArgumentException( "Can't count rows from a " 
-                                                  + baseQuery.getClass.getName )
+                                                   + fullQuery.getClass.getName)
     }
 
   // Conditions

@@ -114,7 +114,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   private lazy val fieldNames = fields.map{ _.dbColumnName }
 
   private [orm]
-  def rawQuery( qry: ContentQuery[_,_] ): IndexedSeq[ T ] = {
+  def fetchRecords( qry: ContentQuery[_,_] ): IndexedSeq[ T ] = {
     qry.select( fieldNames: _* ).map{ c => instantiateFrom( c ) }
   }
 
@@ -142,6 +142,9 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   protected 
   def queryForRecord( rec: T ) =
     repository.whereEq( primaryKeyField.valPair ( rec ))
+
+  protected
+  def queryForAll( qry: ContentQuery[_,_] ) = qry
 
   protected
   def insert( vals: Seq[(String, ContentValue)] ) = repository.insert( vals:_* )

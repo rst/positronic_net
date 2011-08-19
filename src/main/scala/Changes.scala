@@ -11,6 +11,40 @@ trait Notifier[T] {
 
   def onThread( thunk: => Unit ): Unit
 
+  private def wrapHandler( handler: T => Unit ) = {
+    val cbManager = CallbackManager.forThisThread
+    (( v: T ) => {
+      cbManager.post( new Runnable{ 
+       override def run = { handler( v ) }
+     }).asInstanceOf[Unit]
+    })
+  }
+
+  def !( action: Action[T] ): Unit = 
+    action match {
+      case Fetch( handler ) => {
+        val wrapped = wrapHandler( handler )
+        onThread{ wrapped( currentValue ) }
+      }
+      case AddWatcher( key, handler ) => {
+        watch( key )( wrapHandler( handler ))
+      }
+      case AddWatcherAndFetch( key, handler ) => {
+        this ! Fetch( handler )
+        this ! AddWatcher( key, handler )
+      }
+      case StopWatching( key ) => stopNotifier( key )
+      case _ => onThread{ onThisThread( action ) }
+    }
+
+  def onThisThread( action: Action[T] ): Unit =
+    action match {
+      case Fetch( handler ) => handler( currentValue )
+      case _ => 
+        throw new IllegalArgumentException( "Unrecognized action: " + 
+                                            action.toString )
+    }
+
   def watch( key: AnyRef )( handler: T => Unit ): Unit = {
     changeHandlers( key ) = handler
   }
@@ -32,6 +66,31 @@ trait Notifier[T] {
   }
   def noteChange: Unit
   protected def currentValue: T
+}
+
+// Requests a notifier, to be delivered actor-style.
+
+class Action[T]
+case class Fetch[T]( handler: T => Unit ) extends Action[T]
+case class AddWatcher[T]( key: AnyRef, handler: T => Unit ) extends Action[T]
+case class StopWatching[T]( key: AnyRef ) extends Action[T]
+case class AddWatcherAndFetch[T]( key: AnyRef, handler: T => Unit ) 
+  extends Action[T]
+
+// Dealing with Android's "Handler" machinery for arranging
+// callbacks on application main threads
+
+protected[positronicnet] object CallbackManager
+  extends ThreadLocal[ android.os.Handler ]
+{
+  def forThisThread: android.os.Handler = {
+    var valueNow = this.get
+    if (valueNow == null) {
+      valueNow = new android.os.Handler
+      this.set( valueNow )
+    }
+    return valueNow
+  }
 }
 
 // Form of change notification in which each listener gets its

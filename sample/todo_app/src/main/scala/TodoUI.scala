@@ -110,7 +110,7 @@ class TodosActivity
   def viewListAt( posn: Int ) {
     val intent = new Intent( this, classOf[TodoActivity] )
     val theList = listsView.getAdapter.getItem( posn ).asInstanceOf[ TodoList ]
-    TodoList.intoIntent( theList, intent )
+    intent.putExtra( "todo_list_id", theList.id )
     startActivity( intent )
   }
 }
@@ -154,17 +154,25 @@ class TodoActivity
 
   onCreate{
 
+    useAppFacility( TodoDb )
     useOptionsMenuResource( R.menu.items_view_menu )
     useContextMenuResource( R.menu.item_context_menu )
 
-    // Setup --- get list out of our Intent, and hook up the listItemsView
+    // Arrange to get our list out of the DB on a background thread,
+    // and setup widgets when done.  (A "Fetch" does the work in 
+    // background, and then runs the body back on the caller's thread,
+    // as if by runOnUiThread.)
 
-    theList = TodoList.fromIntent( getIntent )
-    setTitle( "Todo for: " + theList.name )
+    val listId = getIntent.getLongExtra( "todo_list_id", -1 )
 
-    useAppFacility( TodoDb )
-    listItemsView.setAdapter( new TodoItemsAdapter( this, 
-                                                    theList.items.records ) )
+    TodoLists.whereEq( "_id" -> listId ) ! Fetch{
+      lists => {
+        theList = lists(0)
+        setTitle( "Todo for: " + theList.name )
+        listItemsView.setAdapter( new TodoItemsAdapter( this, 
+                                                        theList.items.records ))
+      }
+    }
 
     // Event handlers...
 

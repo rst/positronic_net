@@ -92,24 +92,7 @@ case class TodoList( name: String = null,
 object TodoLists extends RecordManager[ TodoList ]( TodoDb("todo_lists") )
   with SoftDelete[ TodoList ]
 
-object TodoList
-{
-  // Communicating these through intents...
-  // Sadly, this is easier than making them serializable.
-  // (Too much stuff needs to be marked transient.)
-
-  val intentIdKey = "todoListId"; val intentNameKey = "todoListName"
-
-  def intoIntent( list: TodoList, intent: Intent ) = {
-    intent.putExtra( intentIdKey,   list.id )
-    intent.putExtra( intentNameKey, list.name )
-  }
-
-  def fromIntent( intent: Intent ) = 
-    TodoList( id   = intent.getLongExtra( intentIdKey, -1 ), 
-              name = intent.getStringExtra( intentNameKey ))
-}
-
+//================================================================
 // We're using a "soft deletion" scheme pretty broadly, which plugs in
 // like so.  (Note that the "is_deleted" column in a soft-delete table
 // doesn't need to be mapped in core, and usually isn't.)

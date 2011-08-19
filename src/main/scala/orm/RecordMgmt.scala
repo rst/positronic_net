@@ -154,14 +154,14 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     queryForRecord( rec ).update( vals:_* )
 
   protected
-  def delete( rec: T ): Unit = queryForRecord( rec ).delete
+  def delete( rec: T ): Unit = deleteAll( queryForRecord( rec ))
 
   protected
-  def deleteAll( qry: ContentQuery[_,_] ) = qry.delete
+  def deleteAll( qry: ContentQuery[_,_] ): Unit = queryForAll( qry ).delete
 
   protected
-  def updateAll( qry: ContentQuery[_,_], vals: Seq[(String, ContentValue)] ) = 
-    qry.update( vals: _* )
+  def updateAll( qry: ContentQuery[_,_], vals: Seq[(String,ContentValue)]):Unit=
+    queryForAll( qry ).update( vals: _* )
 }
 
 abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
@@ -184,35 +184,32 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
       val recordFieldName = 
         if (dbColName == "_id") "id" else camelize( dbColName )
 
-      val javaField = javaFields( recordFieldName )
-
       val existingField = 
         fieldsBuffer.find(mappedField => 
             mappedField.dbColumnName == dbColName
             || mappedField.recordFieldName == recordFieldName )
 
       existingField match {
-        case None => null
         case Some(x) => 
           repository.log( "=== For " + managedKlass.getName +
                           " found existing mapping for " + dbColName + 
                           " db name " + x.dbColumnName + 
                           " rec name " + x.recordFieldName )
                               
-      }
+        case None => {
+          javaFields.get( recordFieldName ) match {
+            case None => // do nothing
+            case Some( javaField ) =>
 
-      if (javaField != null &&
-          ! fieldsBuffer.exists( mappedField => 
-            mappedField.dbColumnName == dbColName
-            || mappedField.recordFieldName == recordFieldName ))
-      {
-        // Try to map automatically
+              // Try to map automatically
         
-        repository.log( "=== For " + managedKlass.getName +
-                        " attempting to map " + dbColName + " to " +
-                        recordFieldName )
+              repository.log( "=== For " + managedKlass.getName +
+                             " attempting to map " + dbColName + " to " +
+                             recordFieldName )
 
-        mapField( recordFieldName, dbColName, dbColName == "_id" )
+              mapField( recordFieldName, dbColName, dbColName == "_id" )
+          }
+        }
       }
     }
 

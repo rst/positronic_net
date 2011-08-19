@@ -26,14 +26,6 @@ abstract class ManagedRecord( private[orm] val manager: RecordManager[_] ) {
 
   def isNewRecord = (id == ManagedRecord.unsavedId)
   def isUnsaved   = unsaved
-
-  // Actions on individual records, delegated to the manager...
-
-  def delete = manager.delete( this )
-  def save   = manager.save( this )
-
-  def deleteOnThisThread = manager.deleteOnThisThread( this )
-  def saveOnThisThread   = manager.saveOnThisThread( this )
 }
 
 object ManagedRecord {
@@ -122,7 +114,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   private lazy val fieldNames = fields.map{ _.dbColumnName }
 
   private [orm]
-  def rawQuery( qry: ContentQuery[_,_] ): Seq[ T ] = {
+  def rawQuery( qry: ContentQuery[_,_] ): IndexedSeq[ T ] = {
     qry.select( fieldNames: _* ).map{ c => instantiateFrom( c ) }
   }
 
@@ -135,26 +127,38 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   }
 
   private [orm]
-  def save( rec: ManagedRecord ) = doChange { saveOnThisThread( rec ) }
-
-  private [orm]
-  def saveOnThisThread( rec: ManagedRecord ) = {
+  def save( rec: T ) = {
     val data = nonKeyFields.map{ f => f.valPair( rec ) }
     if (rec.isNewRecord) 
-      repository.insert( data: _* )
+      insert( data )
     else
-      repository.whereEq( primaryKeyField.valPair( rec )).update( data: _* )
-    
-    noteChange
+      update( rec, data )
   }
 
-  private [orm]
-  def delete( rec: ManagedRecord ): Unit = 
-    whereEq( primaryKeyField.valPair( rec )).deleteAll
+  // The following are here to be overridden in classes that want to
+  // implement soft deletion policies, versioning, audit trails, or
+  // whatever.
 
-  private [orm]
-  def deleteOnThisThread( rec: ManagedRecord ): Unit = 
-    whereEq( primaryKeyField.valPair( rec )).deleteAllOnThisThread
+  protected 
+  def queryForRecord( rec: T ) =
+    repository.whereEq( primaryKeyField.valPair ( rec ))
+
+  protected
+  def insert( vals: Seq[(String, ContentValue)] ) = repository.insert( vals:_* )
+
+  protected
+  def update( rec: T, vals: Seq[(String, ContentValue)] ) =
+    queryForRecord( rec ).update( vals:_* )
+
+  protected
+  def delete( rec: T ): Unit = queryForRecord( rec ).delete
+
+  protected
+  def deleteAll( qry: ContentQuery[_,_] ) = qry.delete
+
+  protected
+  def updateAll( qry: ContentQuery[_,_], vals: Seq[(String, ContentValue)] ) = 
+    qry.update( vals: _* )
 }
 
 abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )

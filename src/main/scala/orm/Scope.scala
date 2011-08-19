@@ -4,14 +4,20 @@ import org.positronicnet.content._
 import org.positronicnet.util._
 import org.positronicnet.util.AppFacility
 
+abstract class ScopeAction[T] extends Action[IndexedSeq[T]]
+
+case class Save[T]( record: T ) extends ScopeAction[T]
+case class Delete[T]( record: T ) extends ScopeAction[T]
+case class DeleteAll[T]( dummy: T ) extends ScopeAction[T]
+case class UpdateAll[T]( vals: (String, ContentValue)* )
+  extends ScopeAction[T]
+
 trait BaseScope[ T <: ManagedRecord ]
   extends ChangeManager
 {
   private [orm] val facility: AppFacility
   private [orm] val mgr: BaseRecordManager[T]
   private [orm] val baseQuery: ContentQuery[_,_]
-
-  def all: BaseScope[T] = this
 
   lazy val records = valueStream{ mgr.rawQuery( baseQuery ) }
   lazy val count = 
@@ -21,30 +27,42 @@ trait BaseScope[ T <: ManagedRecord ]
                                                   + baseQuery.getClass.getName )
     }
 
+  // Conditions
+
   def where( str: String, arr: Array[ContentValue] = null ): Scope[T] = 
     new Scope( this, baseQuery.where( str, arr ))
 
   def whereEq( pairs: (String, ContentValue)* ): Scope[T] =
     new Scope( this, baseQuery.whereEq( pairs: _* ))
 
-  def deleteAll = onThread { deleteAllOnThisThread }
-  def updateAll( assigns: (String, ContentValue)* ) =
-    onThread { updateAllOnThisThread( assigns: _* ) }
+  // Action interface.
 
-  def queryOnThisThread = records.value
-  def deleteAllOnThisThread = { baseQuery.delete; noteChange }
-  def updateAllOnThisThread( assigns: (String, ContentValue)* ) = 
-    baseQuery.update( assigns: _* ); noteChange
+  def !( action: Action[ IndexedSeq[T]] ): Unit = action match {
+    case a: NotifierAction[ IndexedSeq [T] ] => records ! a
+    case _ => onThread{ onThisThread( action ) }
+  }
+
+  def fetchOnThisThread = records.fetchOnThisThread
+
+  def onThisThread( action: Action[ IndexedSeq [T]] ): Unit = action match {
+
+    case a: NotifierAction[ IndexedSeq [T] ] => records.onThisThread( a )
+
+    case Save( record )     => mgr.save( record );                 noteChange
+    case Delete( record )   => mgr.delete( record );               noteChange
+    case DeleteAll( dummy ) => mgr.deleteAll( baseQuery );         noteChange
+    case u: UpdateAll[ T ]  => mgr.updateAll( baseQuery, u.vals ); noteChange
+
+    case _ => 
+      throw new IllegalArgumentException( "Unrecognized action: " + 
+                                          action.toString )
+  }
 }
 
 class Scope[ T <: ManagedRecord ]( base: BaseScope[T], query: ContentQuery[_,_])
   extends ChangeManager( base.facility )
   with BaseScope[T]
 {
-  // Copy-constructor for the convenience of specialized subclasses...
-
-  def this( other: Scope[T] ) = this( other.baseScope, other.baseQuery )
-
   private [orm] val facility  = base.facility
   private [orm] val mgr       = base.mgr
   private [orm] val baseScope = base

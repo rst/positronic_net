@@ -10,6 +10,7 @@ trait Notifier[T] {
   protected val changeHandlers = new HashMap[ AnyRef, T => Unit ]
 
   def onThread( thunk: => Unit ): Unit
+  def fetchOnThisThread = currentValue
 
   private def wrapHandler( handler: T => Unit ) = {
     val cbManager = CallbackManager.forThisThread
@@ -70,12 +71,17 @@ trait Notifier[T] {
 
 // Requests a notifier, to be delivered actor-style.
 
-class Action[T]
-case class Fetch[T]( handler: T => Unit ) extends Action[T]
-case class AddWatcher[T]( key: AnyRef, handler: T => Unit ) extends Action[T]
-case class StopWatching[T]( key: AnyRef ) extends Action[T]
+abstract class Action[T]
+abstract class NotifierAction[T] extends Action[T]
+
+case class Fetch[T]( handler: T => Unit ) 
+  extends NotifierAction[T]
+case class AddWatcher[T]( key: AnyRef, handler: T => Unit ) 
+  extends NotifierAction[T]
+case class StopWatching[T]( key: AnyRef ) 
+  extends NotifierAction[T]
 case class AddWatcherAndFetch[T]( key: AnyRef, handler: T => Unit ) 
-  extends Action[T]
+  extends NotifierAction[T]
 
 // Dealing with Android's "Handler" machinery for arranging
 // callbacks on application main threads

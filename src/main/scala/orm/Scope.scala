@@ -12,6 +12,12 @@ case class DeleteAll[T]( dummy: T ) extends ScopeAction[T]
 case class UpdateAll[T]( vals: (String, ContentValue)* )
   extends ScopeAction[T]
 
+abstract class ScopedAction[T <: ManagedRecord: ClassManifest] 
+  extends ScopeAction[T]
+{
+  def act( qry: ContentQuery[_,_], mgr: BaseRecordManager[T] ): Unit
+}
+
 trait BaseScope[ T <: ManagedRecord ]
   extends ChangeManager
 {
@@ -60,6 +66,8 @@ trait BaseScope[ T <: ManagedRecord ]
     case Delete( record )   => mgr.delete( record );               noteChange
     case DeleteAll( dummy ) => mgr.deleteAll( baseQuery );         noteChange
     case u: UpdateAll[ T ]  => mgr.updateAll( baseQuery, u.vals ); noteChange
+
+    case a: ScopedAction[T] => a.act( baseQuery, mgr );            noteChange
 
     case _ => 
       throw new IllegalArgumentException( "Unrecognized action: " + 

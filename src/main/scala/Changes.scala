@@ -12,12 +12,12 @@ trait Notifier[T] {
   def onThread( thunk: => Unit ): Unit
   def fetchOnThisThread = currentValue
 
-  private def wrapHandler( handler: T => Unit ) = {
+  private def wrapHandler( handler: T => Unit ): T => Unit = {
     val cbManager = CallbackManager.forThisThread
     (( v: T ) => {
       cbManager.post( new Runnable{ 
-       override def run = { handler( v ) }
-     }).asInstanceOf[Unit]
+        override def run = { handler( v ) }
+      })
     })
   }
 

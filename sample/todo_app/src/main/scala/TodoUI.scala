@@ -5,7 +5,8 @@ import org.positronicnet.ui.PositronicDialog
 import org.positronicnet.ui.PositronicActivity
 import org.positronicnet.ui.IndexedSeqSourceAdapter
 
-import org.positronicnet.util.Notifier
+import org.positronicnet.util._
+import org.positronicnet.orm._
 
 import android.app.Activity
 import android.os.Bundle
@@ -29,7 +30,7 @@ import android.graphics.Canvas
 
 class TodosAdapter( activity: PositronicActivity )
  extends IndexedSeqSourceAdapter( activity, 
-                                  source = TodoLists.lists,
+                                  source = TodoLists.records,
                                   itemViewResourceId = R.layout.todos_row )
 {
   override def bindView( view: View, list: TodoList ) =
@@ -40,7 +41,7 @@ class TodosAdapter( activity: PositronicActivity )
 
 class TodosActivity 
  extends PositronicActivity( layoutResourceId = R.layout.all_todos ) 
- with ViewFinder 
+ with ViewFinder               // typed "findView" support
 {
   lazy val listsView = findView( TR.listsView )
   lazy val renameDialog = new EditStringDialog( this )
@@ -84,24 +85,26 @@ class TodosActivity
   def doAdd = {
     val str = findView( TR.newListName ).getText.toString
     if ( str != "" ) {
-      TodoLists.addList( name = str )
+      TodoLists ! Save( TodoList( name = str ))
       findView( TR.newListName ).setText("")
     }
   }
 
   def doRename( list: TodoList ) =
     renameDialog.doEdit( list.name ){ 
-      TodoLists.setListName( list, _ )
+      newName => TodoLists ! Save( list.setName( newName ))
     }
 
   def doDelete( list: TodoList ) = {
-    TodoLists.removeList( list )
+    TodoLists ! Delete( list )
     toast( R.string.list_deleted, Toast.LENGTH_LONG )
   }
 
   def doUndelete = { 
-    if (TodoLists.numDeletedLists.value > 0) TodoLists.undelete
-    else toast( R.string.undeletes_exhausted )
+    TodoLists ! Undelete( TodoList() )
+    // XXX the following is MIA:
+    // if (TodoLists.numDeletedLists.value > 0) TodoLists.undelete
+    // else toast( R.string.undeletes_exhausted )
   }
 
   def viewListAt( posn: Int ) {
@@ -115,8 +118,8 @@ class TodosActivity
 // The activity's generic support dialog (used by the other activity as well).
 
 class EditStringDialog( base: PositronicActivity )
- extends PositronicDialog( base, layoutResourceId = R.layout.dialog ) 
- with ViewFinder 
+  extends PositronicDialog( base, layoutResourceId = R.layout.dialog ) 
+  with ViewFinder 
 {
   val editTxt = findView( TR.dialogEditText )
   var saveHandler: ( String => Unit ) = null
@@ -138,14 +141,14 @@ class EditStringDialog( base: PositronicActivity )
 // And now, the other activity, which manages an individual todo list's items.
 
 class TodoActivity 
- extends PositronicActivity( layoutResourceId = R.layout.todo_one_list ) 
- with ViewFinder 
+  extends PositronicActivity( layoutResourceId = R.layout.todo_one_list ) 
+  with ViewFinder 
 {
   var theList: TodoList = null
-  var showingDoneItems = true
+  // var showingDoneItems = true
 
   lazy val newItemText = findView( TR.newItemText )
-  lazy val listItemsQuery = theList.itemsQuery( showingDoneItems )
+  // lazy val listItemsQuery = theList.itemsQuery( showingDoneItems )
   lazy val listItemsView = findView( TR.listItemsView )
   lazy val editDialog = new EditStringDialog( this )
 
@@ -160,7 +163,8 @@ class TodoActivity
     setTitle( "Todo for: " + theList.name )
 
     useAppFacility( TodoDb )
-    listItemsView.setAdapter( new TodoItemsAdapter( this, listItemsQuery ) )
+    listItemsView.setAdapter( new TodoItemsAdapter( this, 
+                                                    theList.items.records ) )
 
     // Event handlers...
 
@@ -188,26 +192,29 @@ class TodoActivity
   // UI instance state, less the "super.foo()" noise.
   // recreateInstanceState runs onCreate, *before* the onCreate handlers.
 
-  override def saveInstanceState( b: Bundle ) = 
-    b.putBoolean( "showing_done_items", showingDoneItems )
+  // override def saveInstanceState( b: Bundle ) = 
+  //  b.putBoolean( "showing_done_items", showingDoneItems )
 
-  override def restoreInstanceState( b: Bundle ) = 
-    setShowingDoneItems( b.getBoolean( "showing_done_items" ) )
+  // override def restoreInstanceState( b: Bundle ) = 
+  //  setShowingDoneItems( b.getBoolean( "showing_done_items" ) )
 
-  override def recreateInstanceState( b: Bundle ) = 
-    setShowingDoneItems( b.getBoolean( "showing_done_items" ) )
+  // override def recreateInstanceState( b: Bundle ) = 
+  //  setShowingDoneItems( b.getBoolean( "showing_done_items" ) )
 
   // Dealing with mode switching
 
   def setShowingDoneItems( newValue: Boolean ) = {
-    showingDoneItems = newValue
-    listItemsQuery.requery( showingDoneItems )
+    toastLong( "This menu item is in the repair shop" )
+    // showingDoneItems = newValue
+    // listItemsQuery.requery( showingDoneItems )
   }
 
   onPrepareOptionsMenu { menu =>
     // Hide mode-switch item which switches to the current mode...
-    menu.findItem( R.id.hide_done ).setVisible(  showingDoneItems )
-    menu.findItem( R.id.show_done ).setVisible( !showingDoneItems )
+    // menu.findItem( R.id.hide_done ).setVisible(  showingDoneItems )
+    // menu.findItem( R.id.show_done ).setVisible( !showingDoneItems )
+    menu.findItem( R.id.hide_done ).setVisible( false )
+    menu.findItem( R.id.show_done ).setVisible( false )
   }
 
   // Finding target items for listItemsView taps (including the ContextMenu)
@@ -223,30 +230,34 @@ class TodoActivity
   def doAdd = {
     val str = newItemText.getText.toString
     if ( str != "" ) {
-      theList.addItem( description = str, isDone = false )
+      theList.items ! Save( theList.newItem.setDescription( str ))
       newItemText.setText("")
     }
   }
 
   def doEdit( it: TodoItem ) = 
     editDialog.doEdit( it.description ) {
-       theList.setItemDescription( it, _ )
+      newDesc => theList.items ! Save( it.setDescription( newDesc ))
     }
 
-  def toggleDone( it: TodoItem ) = theList.setItemDone( it, !it.isDone )
+  def toggleDone( it: TodoItem ) = 
+    theList.items ! Save( it.setDone( !it.isDone ))
 
   def deleteWhereDone = {
-    if (theList.numDoneItems.value > 0) 
-      theList.deleteWhereDone
-    else
-      toast( R.string.no_tasks_done )
+    theList.doneItems.count ! Fetch { 
+      numDone =>
+        if (numDone > 0)
+          theList.doneItems ! DeleteAll( TodoItem() )
+        else
+          toast( R.string.no_tasks_done )
+    }
   }
 
   def undelete = {
-    if (theList.numDeletedItems.value > 0)
-      theList.undeleteItems
-    else
-      toast( R.string.undeletes_exhausted )
+    //if (theList.numDeletedItems.value > 0)
+    theList.items ! Undelete( TodoItem() )
+    //else
+    //  toast( R.string.undeletes_exhausted )
   }
 }
 

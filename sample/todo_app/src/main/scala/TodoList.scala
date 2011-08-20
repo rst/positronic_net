@@ -47,10 +47,9 @@ object TodoDb
 
 //================================================================
 // "Todo item" model.
-// 
-// Mostly actually manipulated from within TodoList; with a more
-// complicated schema, it might be better to get these query fragments
-// from methods invoked on the TodoItem companion object.
+//
+// See below for the definition of SoftDelete, which is an extension
+// to the ORM...
 
 case class TodoItem( todoListId: Long    = ManagedRecord.unsavedId,
                      description: String = null, 
@@ -68,10 +67,6 @@ object TodoItems extends RecordManager[ TodoItem ]( TodoDb( "todo_items" ))
 
 //================================================================
 // "Todo list" model.  
-// Includes most actual manipulation of items.
-//
-// See below for the definition of SoftDelete, which is an extension
-// to the ORM...
 
 case class TodoList( name: String = null,
                      id: Long     = ManagedRecord.unsavedId

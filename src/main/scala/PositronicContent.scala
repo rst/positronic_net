@@ -122,7 +122,7 @@ abstract class ContentQuery[SourceType,IdType](
     limitString: String
   ) 
 {
-  def conditionKey = (whereString, whereValues)
+  def conditionKey = (whereString, whereValues.toSeq)
 
   def where( s: String, arr: Array[ContentValue] = null ):ContentQuery[SourceType,IdType]
 

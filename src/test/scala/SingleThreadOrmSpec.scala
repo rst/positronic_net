@@ -11,11 +11,6 @@ class SingleThreadOrmSpec
   with ShouldMatchers
   with DbTestFixtures
 {
-  def haveItem[T<:Seq[TodoItem]]( description: String, 
-                                  isDone: Boolean, 
-                                  items: T ) =
-    items.exists{ it => it.description == description && it.isDone == isDone }
-
   describe( "Single-thread ORM queries" ){
     it ("should find all the records") {
       val results = TodoItems.fetchOnThisThread

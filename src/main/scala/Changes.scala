@@ -210,7 +210,7 @@ trait NotificationManager
   def valueStream[T]( thunk: => T ): CachingNotifier[T]
   def cursorStream[T]( thunk: => T ): Notifier[T]
 
-  def valueQuery[Q,R]( intialVal: Q )( func: Q => R ): ValueQuery[Q, R]
+  def valueQuery[Q,R]( initialVal: Q )( func: Q => R ): ValueQuery[Q, R]
   def cursorQuery[Q,R]( initialVal: Q )( func: Q => R ):NonSharedValueQuery[Q,R]
 }
 
@@ -252,3 +252,22 @@ abstract class BaseNotificationManager( facility: AppFacility )
     return it
   }
 }
+
+abstract class BaseNotificationDelegator[ T <: NotificationManager ]( d: T )
+{
+  protected val delegate: T = d
+
+  def onThread( thunk: => Unit ) = d.onThread( thunk )
+  def doChange( thunk: => Unit ) = d.doChange( thunk )
+  def noteChange = d.noteChange
+
+  def valueStream[T]( thunk: => T )  = d.valueStream( thunk )
+  def cursorStream[T]( thunk: => T ) = d.cursorStream( thunk )
+
+  def valueQuery[Q,R]( initialVal: Q )( func: Q => R ) = 
+    d.valueQuery( initialVal )( func )
+
+  def cursorQuery[Q,R]( initialVal: Q )( func: Q => R ) =
+    d.cursorQuery( initialVal )( func )
+}
+

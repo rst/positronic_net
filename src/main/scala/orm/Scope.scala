@@ -40,10 +40,11 @@ trait Scope[ T <: ManagedRecord ]
   // weakRefs, and periodically sweep the table looking for ones
   // that have snapped.)
 
-  private var subScopes: HashMap[( String, Array[ String ]), Scope[T]] =
+  private var subScopes: HashMap[( String, Seq[ String ]), Scope[T]] =
     HashMap.empty
 
-  private def subScopeFor( query: ContentQuery[_,_] ): Scope[T] =
+  protected[orm]
+  def subScopeFor( query: ContentQuery[_,_] ): Scope[T] =
     this.synchronized {
       subScopes.get( query.conditionKey ) match {
         case Some( scope ) => 
@@ -97,7 +98,6 @@ class SubScope[ T <: ManagedRecord ]( base: Scope[T],
 {
   private [orm] val facility  = base.facility
   private [orm] val mgr       = base.mgr
-  private [orm] val baseScope = base
   private [orm] val baseQuery = query
 
   override def toString = {
@@ -110,4 +110,22 @@ class SubScope[ T <: ManagedRecord ]( base: Scope[T],
     super.noteChange
     base.noteChange
   }
+}
+
+class HasMany[ T <: ManagedRecord ]( base:       Scope[ T ],
+                                     foreignKey: String, 
+                                     idVal:      ContentValue
+                                   )
+  extends BaseNotificationDelegator( base.whereEq( foreignKey -> idVal ))
+  with Scope[T]
+{
+  private [orm] val facility  = delegate.facility
+  private [orm] val mgr       = delegate.mgr
+  private [orm] val baseQuery = delegate.baseQuery
+
+  override def toString = "HasMany: " + delegate.toString
+
+  protected[orm]
+  override def subScopeFor( query: ContentQuery[_,_] ) =
+    delegate.subScopeFor( query )
 }

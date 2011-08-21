@@ -100,9 +100,10 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 
   // Feeding the Scope machinery what it needs
 
-  private [orm] val facility = repository.facility
   private [orm] val mgr = this
-  private [orm] val baseQuery = repository
+
+  val facility = repository.facility
+  val baseQuery = repository
 
   // Dealing with the data... internals
 

@@ -23,9 +23,10 @@ abstract class ScopedAction[T <: ManagedRecord: ClassManifest]
 trait Scope[ T <: ManagedRecord ]
   extends NotificationManager
 {
-  private [orm] val facility: AppFacility
   private [orm] val mgr: BaseRecordManager[T]
-  private [orm] val baseQuery: ContentQuery[_,_]
+
+  val facility: AppFacility
+  val baseQuery: ContentQuery[_,_]
 
   lazy val fullQuery = mgr.queryForAll( baseQuery )
 
@@ -96,9 +97,10 @@ class SubScope[ T <: ManagedRecord ]( base: Scope[T],
   extends BaseNotificationManager( base.facility )
   with Scope[T]
 {
-  private [orm] val facility  = base.facility
   private [orm] val mgr       = base.mgr
-  private [orm] val baseQuery = query
+
+  val facility  = base.facility
+  val baseQuery = query
 
   override def toString = {
     val (str, vals) = query.conditionKey
@@ -119,9 +121,10 @@ class HasMany[ T <: ManagedRecord ]( base:       Scope[ T ],
   extends BaseNotificationDelegator( base.whereEq( foreignKey -> idVal ))
   with Scope[T]
 {
-  private [orm] val facility  = delegate.facility
-  private [orm] val mgr       = delegate.mgr
-  private [orm] val baseQuery = delegate.baseQuery
+  private [orm] val mgr = delegate.mgr
+
+  val facility  = delegate.facility
+  val baseQuery = delegate.baseQuery
 
   override def toString = "HasMany: " + delegate.toString
 

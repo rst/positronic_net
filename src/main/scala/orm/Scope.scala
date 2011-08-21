@@ -4,6 +4,8 @@ import org.positronicnet.content._
 import org.positronicnet.util._
 import org.positronicnet.util.AppFacility
 
+import scala.collection.mutable.HashMap
+
 abstract class ScopeAction[T] extends Action[IndexedSeq[T]]
 
 case class Save[T]( record: T ) extends ScopeAction[T]
@@ -31,13 +33,35 @@ trait BaseScope[ T <: ManagedRecord ]
 
   lazy val count = valueStream{ fullQuery.count }
 
+  // Want to be sure we have only *one* sub-scope for any set of
+  // conditions, so notifications get properly shared.  Thus the
+  // following.  (NB that subScopes is a potential storage leak;
+  // if that gets to be a problem, we'd have to make the values
+  // weakRefs, and periodically sweep the table looking for ones
+  // that have snapped.)
+
+  private var subScopes: HashMap[( String, Array[ String ]), Scope[T]] =
+    HashMap.empty
+
+  private def subScopeFor( query: ContentQuery[_,_] ) =
+    this.synchronized {
+      subScopes.get( query.conditionKey ) match {
+        case Some( scope ) => 
+          scope
+        case None =>
+          val newScope = new Scope( this, query )
+          subScopes( query.conditionKey ) = newScope
+          newScope
+      }
+    }
+
   // Conditions
 
   def where( str: String, arr: Array[ContentValue] = null ): Scope[T] = 
-    new Scope( this, baseQuery.where( str, arr ))
+    subScopeFor( baseQuery.where( str, arr ))
 
   def whereEq( pairs: (String, ContentValue)* ): Scope[T] =
-    new Scope( this, baseQuery.whereEq( pairs: _* ))
+    subScopeFor( baseQuery.whereEq( pairs: _* ))
 
   // Action interface.
 

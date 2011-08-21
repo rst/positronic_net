@@ -101,10 +101,12 @@ class TodosActivity
   }
 
   def doUndelete = { 
-    TodoLists ! Undelete( TodoList() )
-    // XXX the following is MIA:
-    // if (TodoLists.numDeletedLists.value > 0) TodoLists.undelete
-    // else toast( R.string.undeletes_exhausted )
+    TodoLists.hasDeleted ! Fetch{ hasDeleted => {
+      if ( hasDeleted ) 
+        TodoLists ! Undelete( TodoList() )
+      else 
+        toast( R.string.undeletes_exhausted )
+    }}
   }
 
   def viewListAt( posn: Int ) {
@@ -262,10 +264,12 @@ class TodoActivity
   }
 
   def undelete = {
-    //if (theList.numDeletedItems.value > 0)
-    theList.items ! Undelete( TodoItem() )
-    //else
-    //  toast( R.string.undeletes_exhausted )
+    theList.items.hasDeleted ! Fetch{ hasDeleted => {
+      if ( hasDeleted )
+        theList.items ! Undelete( TodoItem() )
+      else
+        toast( R.string.undeletes_exhausted )
+    }}
   }
 }
 

@@ -1,13 +1,9 @@
 package org.positronicnet.sample.todo
 
-import android.util.Log
-import android.content.Intent
-
 import org.positronicnet.db.Database
 import org.positronicnet.util.WorkerThread
 
 import org.positronicnet.orm._
-import org.positronicnet.content.ContentQuery
 
 // Our domain model classes, such as they are:  Todo Items, Lists, etc.
 // Start by defining the DB schema...
@@ -42,11 +38,10 @@ object TodoDb
   
 }
 
-//================================================================
 // "Todo item" model.
 //
-// See below for the definition of SoftDelete, which is an extension
-// to the ORM...
+// See SoftDelete.scala for the definition of SoftDelete, which
+// is an extension to the ORM...
 
 case class TodoItem( todoListId: Long    = ManagedRecord.unsavedId,
                      description: String = null, 
@@ -62,7 +57,6 @@ case class TodoItem( todoListId: Long    = ManagedRecord.unsavedId,
 object TodoItems extends RecordManager[ TodoItem ]( TodoDb( "todo_items" ))
   with SoftDelete[ TodoItem ]
 
-//================================================================
 // "Todo list" model.  
 
 case class TodoList( name: String = null,
@@ -70,11 +64,11 @@ case class TodoList( name: String = null,
                    )
   extends ManagedRecord( TodoLists )
 {
-  // XXX number deleted.
   // XXX parameterized query support
-  // These may wind up going together...
 
-  lazy val items = TodoItems.whereEq( "todo_list_id" -> this.id )
+  lazy val items = new HasMany( TodoItems, "todo_list_id", id ) 
+                   with SoftDeleteQueries[ TodoItem ]
+
   lazy val doneItems = items.whereEq( "is_done" -> true )
 
   def newItem = TodoItem( this.id )
@@ -83,28 +77,4 @@ case class TodoList( name: String = null,
 
 object TodoLists extends RecordManager[ TodoList ]( TodoDb("todo_lists") )
   with SoftDelete[ TodoList ]
-
-//================================================================
-// We're using a "soft deletion" scheme pretty broadly, which plugs in
-// like so.  (Note that the "is_deleted" column in a soft-delete table
-// doesn't need to be mapped in core, and usually isn't.)
-
-trait SoftDelete[ T <: ManagedRecord ]
-  extends BaseRecordManager[ T ]
-{
-  protected override def queryForAll( qry: ContentQuery[_,_] ) =
-    super.queryForAll( qry ).whereEq( "is_deleted" -> false )
-
-  protected override def deleteAll( qry: ContentQuery[_,_] ): Unit = {
-    super.queryForAll( qry ).whereEq( "is_deleted" -> true ).delete
-    super.queryForAll( qry ).update( "is_deleted" -> true )
-  }
-}
-
-case class Undelete[T <: ManagedRecord : ClassManifest ](dummy: T) 
-  extends ScopedAction[T]
-{
-  def act( qry: ContentQuery[_,_], mgr: BaseRecordManager[T] ): Unit =
-    qry.whereEq( "is_deleted" -> true ).update( "is_deleted" -> false )
-}
 

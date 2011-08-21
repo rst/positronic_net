@@ -195,8 +195,28 @@ class NonSharedValueQuery[Q, R]( facility: AppFacility,
   def currentValue = queryFunc( currentQuery )
 }
 
-abstract class ChangeManager( facility: AppFacility )
+// Interface for managers of multiple notification streams.
+// This exists largely for accountancy purposes.  There are
+// two distinct implementations --- the core one and a pure
+// delegator.  I want to make sure that the delegator 
+// implements the full set of methods that the base does.
+
+trait NotificationManager
+{
+  def onThread( thunk: => Unit ): Unit
+  def doChange( thunk: => Unit ): Unit
+  def noteChange: Unit
+
+  def valueStream[T]( thunk: => T ): CachingNotifier[T]
+  def cursorStream[T]( thunk: => T ): Notifier[T]
+
+  def valueQuery[Q,R]( intialVal: Q )( func: Q => R ): ValueQuery[Q, R]
+  def cursorQuery[Q,R]( initialVal: Q )( func: Q => R ):NonSharedValueQuery[Q,R]
+}
+
+abstract class BaseNotificationManager( facility: AppFacility )
   extends BaseNotifier( facility )
+  with NotificationManager
 {
   private val notifiers = new ArrayBuffer[ Notifier[_] ]
 
@@ -205,9 +225,6 @@ abstract class ChangeManager( facility: AppFacility )
   // done.
 
   def doChange( thunk: => Unit ) = onThread{ thunk; noteChange }
-
-  def addSubNotifier[T]( notifier: Notifier[T] ) = 
-    notifiers += notifier
 
   def noteChange = notifiers.foreach{ _.noteChange }
 

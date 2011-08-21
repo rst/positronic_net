@@ -20,8 +20,8 @@ abstract class ScopedAction[T <: ManagedRecord: ClassManifest]
   def act( qry: ContentQuery[_,_], mgr: BaseRecordManager[T] ): Unit
 }
 
-trait BaseScope[ T <: ManagedRecord ]
-  extends ChangeManager
+trait Scope[ T <: ManagedRecord ]
+  extends NotificationManager
 {
   private [orm] val facility: AppFacility
   private [orm] val mgr: BaseRecordManager[T]
@@ -43,13 +43,13 @@ trait BaseScope[ T <: ManagedRecord ]
   private var subScopes: HashMap[( String, Array[ String ]), Scope[T]] =
     HashMap.empty
 
-  private def subScopeFor( query: ContentQuery[_,_] ) =
+  private def subScopeFor( query: ContentQuery[_,_] ): Scope[T] =
     this.synchronized {
       subScopes.get( query.conditionKey ) match {
         case Some( scope ) => 
           scope
         case None =>
-          val newScope = new Scope( this, query )
+          val newScope = new SubScope( this, query )
           subScopes( query.conditionKey ) = newScope
           newScope
       }
@@ -89,9 +89,11 @@ trait BaseScope[ T <: ManagedRecord ]
   }
 }
 
-class Scope[ T <: ManagedRecord ]( base: BaseScope[T], query: ContentQuery[_,_])
-  extends ChangeManager( base.facility )
-  with BaseScope[T]
+private[orm]
+class SubScope[ T <: ManagedRecord ]( base: Scope[T], 
+                                      query: ContentQuery[_,_])
+  extends BaseNotificationManager( base.facility )
+  with Scope[T]
 {
   private [orm] val facility  = base.facility
   private [orm] val mgr       = base.mgr

@@ -36,8 +36,8 @@ object ManagedRecord {
 // out of persistent storage.
 
 abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
-  extends ChangeManager( repository.facility )
-  with BaseScope[T]
+  extends BaseNotificationManager( repository.facility )
+  with Scope[T]
 {
   // Producing a new object (to be populated with mapped data from a query). 
   // Note that the default implementation requires a niladic constructor 

@@ -4,13 +4,10 @@ import android.util.Log
 import android.content.Intent
 
 import org.positronicnet.db.Database
-import org.positronicnet.db.DbQuery
+import org.positronicnet.util.WorkerThread
 
 import org.positronicnet.orm._
 import org.positronicnet.content.ContentQuery
-
-import org.positronicnet.util.WorkerThread
-import org.positronicnet.util.ChangeManager
 
 // Our domain model classes, such as they are:  Todo Items, Lists, etc.
 // Start by defining the DB schema...

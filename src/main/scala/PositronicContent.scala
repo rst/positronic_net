@@ -156,6 +156,8 @@ abstract class ContentQuery[SourceType,IdType](
     this.withUpdatedWhere( str, vals )( handler )
   }
 
+  def order( s: String ): ContentQuery[SourceType, IdType]
+
   def buildContentValues( assigns: (String, ContentValue)* ):ContentValues = {
     val cv = new ContentValues
     for ( (key, sqlVal) <- assigns ) {
@@ -212,9 +214,11 @@ abstract class ContentQuery[SourceType,IdType](
     }
   }
 
-  def count:Long = {
-    throw new RuntimeException( "Count not supported for " + getClass.getName )
-  }
+  def count:Long
+
+  def limit( s: String ): ContentQuery[ SourceType, IdType ]
+  def limit( l: Int ): ContentQuery[ SourceType, IdType ] = 
+    limit( l.toString )
 
   def delete = {
     log( "delete" )

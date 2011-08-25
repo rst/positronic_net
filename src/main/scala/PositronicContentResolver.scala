@@ -75,6 +75,12 @@ class ContentProviderQuery( source: PositronicContentResolver,
       dinkedCopy( whereString = str, whereValues = arr )}
 
   def facility = source
+
+  def count:Long =
+    throw new RuntimeException( "Count not supported on ContentResolvers" )
+
+  def limit( s: String ) =
+    throw new RuntimeException( "Limit not supported on ContentResolvers" )
 }
 
 

@@ -113,9 +113,8 @@ class DbQuery( source: DbWrapper,
     new DbQuery( source, tableName, orderString, 
                  whereString, whereValues, limitString )
 
-  def order( s: String ) = { dinkedCopy( orderString = s ) }
-  def limit( s: String ) = { dinkedCopy( limitString = s ) }
-  def limit( l: Int )    = { dinkedCopy( limitString = l.toString ) }
+  def order( s: String ) = dinkedCopy( orderString = s )
+  def limit( s: String ) = dinkedCopy( limitString = s )
 
   def where( s: String, arr: Array[ContentValue] = null ):DbQuery =
     withUpdatedWhere( s, arr ){ (str, arr) => 

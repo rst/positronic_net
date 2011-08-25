@@ -2,6 +2,7 @@ package org.positronicnet.test
 
 import org.positronicnet.db._
 import org.positronicnet.orm._
+import org.positronicnet.util._
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
@@ -108,6 +109,44 @@ class SingleThreadOrmSpec
       items.find{ _.description == "train dog" }.map{ 
         _.id should not equal( -1 )
       }
+    }
+  }
+
+  describe( "ORM .order(...) subscopes" ) {
+    it ("should give the right answer") {
+
+      val ascItems = TodoItems.order( "description asc" ).fetchOnThisThread
+      ascItems.map{ _.description }.toList should equal (
+        List("feed dog","walk dog","wash dog"))
+
+      val descItems = TodoItems.order( "description desc" ).fetchOnThisThread
+      descItems.map{ _.description }.toList should equal (
+        List("wash dog","walk dog","feed dog"))
+    }
+    it ("should propagate updates up") {
+      val orderedItems = TodoItems.order( "description asc" )
+      var monitoredCount: Long = -457
+      orderedItems ! AddWatcher(this, items => { monitoredCount = items.size })
+      TodoItems.onThisThread( Save( TodoItem( "crate dog" )))
+      monitoredCount should equal (4)
+      orderedItems ! StopWatching(this)
+    }
+    it ("should propagate updates down") {
+      val orderedItems = TodoItems.order( "description asc" )
+      var monitoredCount: Long = -457
+      TodoItems ! AddWatcher(this, items => { monitoredCount = items.size })
+      TodoItems.onThisThread( Save( TodoItem( "crate dog" )))
+      monitoredCount should equal (4)
+      TodoItems ! StopWatching( this )
+    }
+  }
+
+  describe( "ORM .limit(...) subscopes" ) {
+    it ("should give the right answer") {
+      val ascScope = TodoItems.order( "description asc" ).limit(2)
+      val ascItems = ascScope.fetchOnThisThread
+      ascItems.map{ _.description }.toList should equal (
+        List("feed dog","walk dog"))
     }
   }
 }

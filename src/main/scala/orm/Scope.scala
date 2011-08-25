@@ -57,13 +57,22 @@ trait Scope[ T <: ManagedRecord ]
       }
     }
 
-  // Conditions
+  // Conditions and other derivatives
 
   def where( str: String, arr: Array[ContentValue] = null ): Scope[T] = 
     subScopeFor( baseQuery.where( str, arr ))
 
   def whereEq( pairs: (String, ContentValue)* ): Scope[T] =
     subScopeFor( baseQuery.whereEq( pairs: _* ))
+
+  def order( str: String ): Scope[T] = 
+    new AlternateViewScope( this, baseQuery.order( str ))
+
+  def limit( str: String ): Scope[T] =
+    new AlternateViewScope( this, baseQuery.limit( str ))
+
+  def limit( lim: Int ): Scope[T] =
+    new AlternateViewScope( this, baseQuery.limit( lim ))
 
   // Action interface.
 
@@ -114,21 +123,30 @@ class SubScope[ T <: ManagedRecord ]( base: Scope[T],
   }
 }
 
+private[orm]
+class AlternateViewScope[ T <: ManagedRecord ]( base: Scope[T],
+                                                query: ContentQuery[_,_]
+                                              )
+  extends BaseNotificationDelegator( base )
+  with Scope[ T ]
+{
+  def this( base: Scope[T] ) = this( base, base.baseQuery )
+
+  private [orm] val mgr = delegate.mgr
+
+  val facility  = delegate.facility
+  val baseQuery = query
+
+  protected[orm]
+  override def subScopeFor( subquery: ContentQuery[_,_] ) =
+    delegate.subScopeFor( subquery )
+}
+
 class HasMany[ T <: ManagedRecord ]( base:       Scope[ T ],
                                      foreignKey: String, 
                                      idVal:      ContentValue
                                    )
-  extends BaseNotificationDelegator( base.whereEq( foreignKey -> idVal ))
-  with Scope[T]
+  extends AlternateViewScope( base.whereEq( foreignKey -> idVal ))
 {
-  private [orm] val mgr = delegate.mgr
-
-  val facility  = delegate.facility
-  val baseQuery = delegate.baseQuery
-
   override def toString = "HasMany: " + delegate.toString
-
-  protected[orm]
-  override def subScopeFor( query: ContentQuery[_,_] ) =
-    delegate.subScopeFor( query )
 }

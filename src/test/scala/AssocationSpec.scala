@@ -30,23 +30,23 @@ class AssociationSpec
       assert( dogList.items.fetchOnThisThread.forall { item => 
           item.todoListId == dogList.id })
     }
-  }
 
-  it( "should propagate change notifications across copies" ) {
+    it( "should propagate change notifications across copies" ) {
 
-    // Set up two copies of a TodoList, with two distinct 'items'
-    // association proxies.  Monitor count on one, update the other,
-    // and verify that the change propagates appropriately.
+      // Set up two copies of a TodoList, with two distinct 'items'
+      // association proxies.  Monitor count on one, update the other,
+      // and verify that the change propagates appropriately.
 
-    val dogListCopy = dogList.copy()
-    var monitoredCount: Long = -457     // clearly invalid...
+      val dogListCopy = dogList.copy()
+      var monitoredCount: Long = -457     // clearly invalid...
 
-    dogList.items.count.watch( this ){ count => { monitoredCount = count }}
+      dogList.items.count.watch( this ){ count => { monitoredCount = count }}
+      
+      dogListCopy.items.onThisThread( DeleteAll( TodoItem() ))
 
-    dogListCopy.items.onThisThread( DeleteAll( TodoItem() ))
+      monitoredCount should equal (0)
 
-    monitoredCount should equal (0)
-
-    dogList.items.count.stopNotifier( this )
+      dogList.items.count.stopNotifier( this )
+    }
   }
 }

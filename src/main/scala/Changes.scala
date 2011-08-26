@@ -124,12 +124,12 @@ trait CachingNotifier[T]
 {
   protected var cachedValue: T = currentValue
 
-  def value: T = cachedValue
-
   def noteChange = {
-    cachedValue = currentValue
-    for ((key, handler) <- changeHandlers) {
-      handler( cachedValue )           // one copy for all listeners
+    if (!changeHandlers.isEmpty) {
+      cachedValue = currentValue
+      for ((key, handler) <- changeHandlers) {
+        handler( cachedValue )           // one copy for all listeners
+      }
     }
   }
 }
@@ -195,9 +195,11 @@ class ValueQuery[Q, R]( facility: AppFacility,
   protected def currentValue: R = queryFunc( currentQuery )
 
   def noteChange = {
-    cachedValue = currentValue
-    for ((key, handler) <- changeHandlers) {
-      handler( cachedValue )           // one copy for all listeners
+    if (!changeHandlers.isEmpty) {
+      cachedValue = currentValue
+      for ((key, handler) <- changeHandlers) {
+        handler( cachedValue )           // one copy for all listeners
+      }
     }
   }
 }

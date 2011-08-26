@@ -43,7 +43,7 @@ class SingleThreadOrmSpec
   describe( "Single-thread ORM delete via scope" ) {
     it ("should eliminate selected records") {
       TodoItems.whereEq( "is_done" -> true ).onThisThread( DeleteAll(TodoItem()) )
-      TodoItems.count.value should equal (2)
+      TodoItems.count.fetchOnThisThread should equal (2)
       TodoItems.whereEq( "is_done" -> false ).count.fetchOnThisThread should equal (2)
     }
   }

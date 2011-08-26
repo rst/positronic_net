@@ -70,5 +70,29 @@ object ReflectUtils
     if (klass == classOf[ AnyRef ]) List( klass )
     else klass :: ancestry( klass.getSuperclass )
 
-  
+  // Getting all values of a particular type from a particular object.
+  // Again, technique borrowed from sbt's ReflectUtilities.
+
+  def allVals[T]( obj: AnyRef, klass: Class[T] ): Map[ String, T ] = {
+
+    // Looking for 'lazy val's of the given type.  That's a method and
+    // a val with the same name and the right (return) type, with the
+    // method taking no arguments.
+
+    val fields = declaredFieldsByName( obj.getClass )
+
+    val candidateMethods = 
+      for ( meth <- obj.getClass.getMethods
+              if meth.getParameterTypes.length == 0
+                 && klass.isAssignableFrom( meth.getReturnType );
+
+            field <- fields.get( meth.getName )
+              if field.getType == meth.getReturnType 
+          )
+        yield meth
+
+    Map( candidateMethods.map{ meth => (meth.getName, 
+                                        meth.invoke(obj).asInstanceOf[T]) }:_*)
+
+  }
 }

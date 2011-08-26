@@ -18,6 +18,13 @@ case class ThingWithDefaultingConstructor(
   val y: Int    = 12345
 )
 
+class ThingWithLazyFields {
+  lazy val fortyTwo   = 42
+  val fiftyThree      = 53
+  lazy val dog        = "grommit"
+  val food            = "cheese"
+}
+
 class ReflectUtilsSpec
   extends Spec with ShouldMatchers
 {
@@ -58,6 +65,13 @@ class ReflectUtilsSpec
 
       rec.x should equal ("x")
       rec.y should equal (12345)
+    }
+  }
+
+  describe( "allVals extractor" ) {
+    it ("should find the correctly-typed fields (and only those)") {
+      val vs = ReflectUtils.allVals( new ThingWithLazyFields, classOf[String] )
+      vs should equal (Map( "dog" -> "grommit", "food" -> "cheese" ))
     }
   }
 }

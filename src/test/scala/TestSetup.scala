@@ -94,9 +94,9 @@ case class TodoList( name: String = null,
                      id:   Long   = ManagedRecord.unsavedId )
   extends ManagedRecord( TodoLists )
 {
-  lazy val items = new HasMany( TodoItems, "todo_list_id", id ) 
-
   def name( newName: String ) = copy( name = newName )
+
+  lazy val items = new HasMany( TodoItems )
 }
 
 object TodoLists extends RecordManager[ TodoList ]( TodoDb("todo_lists") )

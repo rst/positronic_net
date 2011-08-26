@@ -68,9 +68,7 @@ case class TodoList( name: String = null,
 
   // XXX parameterized query support
 
-  lazy val items = new HasMany( TodoItems, "todo_list_id", id ) 
-                   with SoftDeleteQueries[ TodoItem ]
-
+  lazy val items = new HasMany( TodoItems ) with SoftDeleteQueries[ TodoItem ]
   lazy val doneItems = items.whereEq( "is_done" -> true )
 }
 

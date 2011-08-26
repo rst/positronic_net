@@ -151,10 +151,10 @@ class AlternateViewScope[ T <: ManagedRecord ]( base: Scope[T],
     delegate.subScopeFor( subquery )
 }
 
-class HasMany[ T <: ManagedRecord ]( base:       Scope[ T ],
-                                     foreignKey: String, 
-                                     idVal:      ContentValue
-                                   )
+class HasManyAssociation[ T <: ManagedRecord ]( base:       Scope[ T ],
+                                                foreignKey: String, 
+                                                idVal:      ContentValue
+                                              )
   extends AlternateViewScope( base.whereEq( foreignKey -> idVal ))
 {
   override def toString = "HasMany: " + delegate.toString

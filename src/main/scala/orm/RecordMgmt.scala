@@ -26,6 +26,13 @@ abstract class ManagedRecord( private[orm] val manager: RecordManager[_] ) {
 
   def isNewRecord = (id == ManagedRecord.unsavedId)
   def isUnsaved   = unsaved
+
+  class HasMany[T <: ManagedRecord]( src: RecordManager[T], foreignKey: String )
+    extends HasManyAssociation( src, foreignKey, this.id )
+  {
+    def this( src: RecordManager[T] ) = 
+      this( src, src.columnNameFor( manager.defaultForeignKeyField ))
+  }
 }
 
 object ManagedRecord {
@@ -69,6 +76,13 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 
   private var primaryKeyField: MappedLongField = null
 
+  protected[orm] def columnNameFor( fieldName: String ) =
+    fields.find{ _.recordFieldName == fieldName } match {
+      case Some( mappedField ) => mappedField.dbColumnName
+      case None =>
+        throw new RuntimeException("Can't find mapping for field " + fieldName)
+    }
+
   def mapField( fieldName: String, 
                 columnName: String, 
                 primaryKey: Boolean = false ): Unit = 
@@ -111,6 +125,11 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   protected [orm] lazy val nonKeyFields = 
     fields.filter{ primaryKeyField == null || 
                    _.dbColumnName != primaryKeyField.dbColumnName }
+
+  protected[orm] lazy val defaultForeignKeyField = {
+    val className = managedKlass.getName.split('.').last
+    className.head.toLower + className.tail + "Id"
+  }
 
   private lazy val fieldNames = fields.map{ _.dbColumnName }
 

@@ -70,8 +70,15 @@ class ReflectUtilsSpec
 
   describe( "allVals extractor" ) {
     it ("should find the correctly-typed fields (and only those)") {
-      val vs = ReflectUtils.allVals( new ThingWithLazyFields, classOf[String] )
+      val getter = ReflectUtils.extractor( classOf[ThingWithLazyFields], 
+                                           classOf[String] )
+      val vs = (getter.get)( new ThingWithLazyFields )
       vs should equal (Map( "dog" -> "grommit", "food" -> "cheese" ))
+    }
+    it ("should find nothing where no fields exist") {
+      val getter = ReflectUtils.extractor( classOf[ThingWithLazyFields],
+                                           classOf[java.io.File] )
+      getter should equal (None)
     }
   }
 }

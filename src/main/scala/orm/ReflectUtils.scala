@@ -70,19 +70,27 @@ object ReflectUtils
     if (klass == classOf[ AnyRef ]) List( klass )
     else klass :: ancestry( klass.getSuperclass )
 
-  // Getting all values of a particular type from a particular object.
+  // Getting a function to get all values of a particular type from
+  // objects of a given class.  (For example, getting all HasManyAssociations
+  // from a ManagedRecord.)
+  //
+  // Returns an Option --- a function to get the values if the target
+  // class has any, otherwise None.
+  //
   // Again, technique borrowed from sbt's ReflectUtilities.
 
-  def allVals[T]( obj: AnyRef, klass: Class[T] ): Map[ String, T ] = {
+  def extractor[R,T]( targetKlass: Class[R], klass: Class[T] ): 
+    Option[ R => Map[ String, T ]] = 
+  {
 
     // Looking for 'lazy val's of the given type.  That's a method and
     // a val with the same name and the right (return) type, with the
     // method taking no arguments.
 
-    val fields = declaredFieldsByName( obj.getClass )
+    val fields = declaredFieldsByName( targetKlass )
 
     val candidateMethods = 
-      for ( meth <- obj.getClass.getMethods
+      for ( meth <- targetKlass.getMethods
               if meth.getParameterTypes.length == 0
                  && klass.isAssignableFrom( meth.getReturnType );
 
@@ -91,8 +99,14 @@ object ReflectUtils
           )
         yield meth
 
-    Map( candidateMethods.map{ meth => (meth.getName, 
-                                        meth.invoke(obj).asInstanceOf[T]) }:_*)
+    if (candidateMethods.size == 0)
+      return None
+    else
+      return Some( 
+        x =>
+          Map(candidateMethods.map{ meth => (meth.getName, 
+                                             meth.invoke(x).asInstanceOf[T])}:_*
+             ))
 
   }
 }

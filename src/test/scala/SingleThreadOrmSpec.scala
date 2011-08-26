@@ -149,4 +149,42 @@ class SingleThreadOrmSpec
         List("feed dog","walk dog"))
     }
   }
+
+  describe( "record query support" ) {
+    it ("should be set right initially") {
+      val qry = TodoItems.recordsQuery( "w%" ){ (s, q) => 
+        q.where( "description like ?", Array(s) ) }
+      val records: Seq[ TodoItem ] = qry.fetchOnThisThread
+      val descs = records.map{_.description}.toList.sorted
+      descs should equal( List( "walk dog", "wash dog" ))
+    }
+    it ("should be reset on requery") {
+      val qry = TodoItems.recordsQuery( "w%" ){ (s, q) => 
+        q.where( "description like ?", Array(s) ) }
+      var records = qry.fetchOnThisThread
+      qry.watch( this ){ records = _ }
+      qry.onThisThread( Requery( "% dog" ))
+      val descs = records.map{_.description}.toList.sorted
+      descs should equal( List( "feed dog", "walk dog", "wash dog" ))
+      qry.stopNotifier( this )
+    }
+  }
+
+  describe( "count query support" ) {
+    it ("should be set right initially") {
+
+      val qry = TodoItems.countQuery( "w%" ){ (s, q) => 
+        q.where( "description like ?", Array(s) ) }
+
+      qry.fetchOnThisThread should equal (2)
+    }
+    it ("should be reset on requery") {
+
+      val qry = TodoItems.countQuery( "w%" ){ (s, q) => 
+        q.where( "description like ?", Array(s) ) }
+
+      qry.onThisThread( Requery( "% dog" ))
+      qry.fetchOnThisThread should equal (3)
+    }
+  }
 }

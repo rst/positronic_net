@@ -137,10 +137,19 @@ trait CachingNotifier[T]
 // Machinery for change listeners which also depend on query
 // parameters from the UI...
 
+case class Requery[Q, R]( newQuery: Q ) 
+  extends NotifierAction[R]
+
 trait NotifierWithQuery[ Q, R ]
   extends Notifier[ R ]
 {
   protected var currentQuery: Q
+
+  override def onThisThread( action: Action[R] ): Unit =
+    action match {
+      case r: Requery[Q,R] => requery( r.newQuery )
+      case _ => super.onThisThread( action )
+    }
 
   def requery( q: Q ) = {
     currentQuery = q; noteChange
@@ -165,24 +174,32 @@ class ValueStream[T]( facility: AppFacility, generator: () => T )
   extends BaseNotifier( facility )
   with CachingNotifier[T]
 {
-  def currentValue = generator()
+  protected def currentValue = generator()
 }
 
 class NonSharedValueStream[T]( facility: AppFacility, generator: () => T )
   extends BaseNotifier( facility )
   with NonSharedNotifier[T]
 {
-  def currentValue = generator()
+  protected def currentValue = generator()
 }
 
 class ValueQuery[Q, R]( facility: AppFacility, 
                         initialQuery: Q, queryFunc: Q => R )
   extends BaseNotifier( facility )
   with NotifierWithQuery[ Q, R ]
-  with CachingNotifier[ R ]
 {
   protected var currentQuery: Q = initialQuery
-  def currentValue = queryFunc( currentQuery )
+  protected var cachedValue: R = currentValue
+
+  protected def currentValue: R = queryFunc( currentQuery )
+
+  def noteChange = {
+    cachedValue = currentValue
+    for ((key, handler) <- changeHandlers) {
+      handler( cachedValue )           // one copy for all listeners
+    }
+  }
 }
 
 class NonSharedValueQuery[Q, R]( facility: AppFacility,
@@ -192,7 +209,7 @@ class NonSharedValueQuery[Q, R]( facility: AppFacility,
   with NonSharedNotifier[ R ]
 {
   protected var currentQuery: Q = initialQuery
-  def currentValue = queryFunc( currentQuery )
+  protected def currentValue = queryFunc( currentQuery )
 }
 
 // Interface for managers of multiple notification streams.

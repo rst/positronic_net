@@ -34,6 +34,15 @@ trait Scope[ T <: ManagedRecord ]
 
   lazy val count = valueStream{ fullQuery.count }
 
+  def recordsQuery[ Q ]( initial: Q ) 
+                       ( fn: (Q, ContentQuery[_,_]) => ContentQuery[_,_] ) = 
+    valueQuery( initial ){ q => 
+      mgr.fetchRecords( mgr.queryForAll( fn ( q, baseQuery ))) }
+
+  def countQuery[ Q ]( initial: Q ) 
+                     ( fn: (Q, ContentQuery[_,_]) => ContentQuery[_,_] ) = 
+    valueQuery( initial ){ q => mgr.queryForAll( fn ( q, baseQuery )).count }
+
   // Want to be sure we have only *one* sub-scope for any set of
   // conditions, so notifications get properly shared.  Thus the
   // following.  (NB that subScopes is a potential storage leak;

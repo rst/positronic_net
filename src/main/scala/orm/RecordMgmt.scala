@@ -67,7 +67,9 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   // constructor.  The mapping is frozen at first use when the
   // lazy val 'fields' is computed below...
 
-  protected[orm] val managedKlass = classManifest[T].erasure
+  protected[orm] val managedKlass: Class[T] = 
+    classManifest[T].erasure.asInstanceOf[ Class[T] ]
+
   protected[orm] val javaFields = 
     ReflectUtils.declaredFieldsByName( managedKlass )
 
@@ -119,7 +121,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   val facility = repository.facility
   val baseQuery = repository
 
-  // Dealing with the data... internals
+  // Dealing with the mappings... internals
 
   protected [orm] lazy val fields = fieldsSeq
   protected [orm] lazy val nonKeyFields = 
@@ -149,6 +151,33 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
             throw new RuntimeException( "No field " + s + " for " + 
                                         managedKlass.getName )
         }
+    }
+  }
+
+  // Dealing with the data... internals
+
+  private
+  lazy val dependencyGetterOption = 
+    ReflectUtils.extractor( managedKlass,
+                            classOf[ HasManyAssociation[_] ])
+
+  protected
+  def killDependentRecords( qry: ContentQuery[_,_] ) = {
+
+    // It would be a lot more efficient to do this in the DB,
+    // if we're talking to a DB, for large numbers of joins.
+    // But that strategy has... certain problems when dealing
+    // with a ContentProvider, unless we're privileged to know
+    // a *lot* about its internals.  For small record sets,
+    // which we're targeting initially, the following is
+    // merely very bad and not horrid...
+
+    dependencyGetterOption.map { getDeps =>
+      for (rec <- fetchRecords( qry )) {
+        for ((name, dep) <- getDeps( rec )) {
+          dep.handleVanishingParent
+        }
+      }
     }
   }
 
@@ -196,7 +225,12 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   def delete( rec: T ): Unit = deleteAll( queryForRecord( rec ))
 
   protected
-  def deleteAll( qry: ContentQuery[_,_] ): Unit = queryForAll( qry ).delete
+  def deleteAll( qry: ContentQuery[_,_] ): Unit = {
+    killDependentRecords( queryForAll( qry ))
+    queryForAll( qry ).delete
+  }
+
+  def handleVanishingParent( qry: ContentQuery[_,_] ) :Unit = qry.delete
 
   protected
   def updateAll( qry: ContentQuery[_,_], vals: Seq[(String,ContentValue)]):Unit=

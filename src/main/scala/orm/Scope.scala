@@ -166,4 +166,9 @@ class HasManyAssociation[ T <: ManagedRecord ]( base:       Scope[ T ],
     foreignKeyField.setValue( target, idVal )
     target
   }
+
+  def handleVanishingParent: Unit = {
+    mgr.handleVanishingParent( baseQuery )
+    noteChange
+  }
 }

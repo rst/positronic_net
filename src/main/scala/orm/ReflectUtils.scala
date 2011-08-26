@@ -82,7 +82,6 @@ object ReflectUtils
   def extractor[R,T]( targetKlass: Class[R], klass: Class[T] ): 
     Option[ R => Map[ String, T ]] = 
   {
-
     // Looking for 'lazy val's of the given type.  That's a method and
     // a val with the same name and the right (return) type, with the
     // method taking no arguments.

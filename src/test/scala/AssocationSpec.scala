@@ -52,5 +52,32 @@ class AssociationSpec
     it ( "should have a working create()" ) {
       dogList.items.create should equal ( TodoItem( todoListId = dogList.id ))
     }
+
+    it ( "should delete dependent records" ) {
+
+      val dogListId = dogList.id
+      val catListId = catList.id
+
+      def itemCount( listId: Long ) = 
+        TodoDb("todo_items").whereEq( "todo_list_id" -> listId ).count
+
+      itemCount( dogListId ) should equal (3)
+      itemCount( catListId ) should equal (1)
+
+      TodoLists.onThisThread( Delete( dogList ))
+      itemCount( dogListId ) should equal (0)
+      itemCount( catListId ) should equal (1)
+    }
+
+    it ( "should note change when deleting dependent records" ) {
+
+      var monitoredCount: Long = -472
+      dogList.items.count.watch( this ){ count => { monitoredCount = count }}
+
+      TodoLists.onThisThread( Delete( dogList ))
+      monitoredCount should equal (0)
+
+      dogList.items.count.stopNotifier( this )
+    }
   }
 }

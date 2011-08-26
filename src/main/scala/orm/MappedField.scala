@@ -72,6 +72,8 @@ abstract class MappedField( colName: String,
   
   def getValue( o: AnyRef ): ContentValue
 
+  def setValue( o: AnyRef, cv: ContentValue ): Unit
+
   def valPair( o: AnyRef ) = ( colName, getValue( o ))
 }
 
@@ -85,6 +87,9 @@ class MappedIntField( colName: String,
   
   def getValue( o: AnyRef ): ContentValue = 
     new CvInt( rfield.getInt( o ))
+
+  def setValue( o: AnyRef, l: ContentValue ): Unit = 
+    rfield.setInt( o, l.asInstanceOf[ CvInt ].value )
 }
 
 class MappedLongField( colName: String, 
@@ -97,6 +102,9 @@ class MappedLongField( colName: String,
   
   def getValue( o: AnyRef ): ContentValue = 
     new CvLong( rfield.getLong( o ))
+
+  def setValue( o: AnyRef, l: ContentValue ): Unit = 
+    rfield.setLong( o, l.asInstanceOf[ CvLong ].value )
 }
 
 class MappedFloatField( colName: String, 
@@ -109,6 +117,9 @@ class MappedFloatField( colName: String,
   
   def getValue( o: AnyRef ): ContentValue = 
     new CvFloat( rfield.getFloat( o ))
+
+  def setValue( o: AnyRef, l: ContentValue ): Unit = 
+    rfield.setFloat( o, l.asInstanceOf[ CvFloat ].value )
 }
 
 class MappedDoubleField( colName: String, 
@@ -121,6 +132,9 @@ class MappedDoubleField( colName: String,
   
   def getValue( o: AnyRef ): ContentValue = 
     new CvDouble( rfield.getDouble( o ))
+
+  def setValue( o: AnyRef, l: ContentValue ): Unit = 
+    rfield.setDouble( o, l.asInstanceOf[ CvDouble ].value )
 }
 
 class MappedStringField( colName: String, 
@@ -133,6 +147,9 @@ class MappedStringField( colName: String,
   
   def getValue( o: AnyRef ): ContentValue = 
     new CvString( rfield.get( o ).asInstanceOf[ String ] )
+
+  def setValue( o: AnyRef, l: ContentValue ): Unit = 
+    rfield.set( o, l.asInstanceOf[ CvString ].value )
 }
 
 class MappedBooleanField( colName: String, 
@@ -145,4 +162,7 @@ class MappedBooleanField( colName: String,
   
   def getValue( o: AnyRef ): ContentValue = 
     new CvBoolean( rfield.getBoolean( o ))
+
+  def setValue( o: AnyRef, l: ContentValue ): Unit = 
+    rfield.setBoolean( o, l.asInstanceOf[ CvBoolean ].value )
 }

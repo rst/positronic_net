@@ -48,5 +48,9 @@ class AssociationSpec
 
       dogList.items.count.stopNotifier( this )
     }
+
+    it ( "should have a working create()" ) {
+      dogList.items.create should equal ( TodoItem( todoListId = dogList.id ))
+    }
   }
 }

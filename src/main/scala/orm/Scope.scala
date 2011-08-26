@@ -149,4 +149,12 @@ class HasMany[ T <: ManagedRecord ]( base:       Scope[ T ],
   extends AlternateViewScope( base.whereEq( foreignKey -> idVal ))
 {
   override def toString = "HasMany: " + delegate.toString
+
+  lazy val foreignKeyField = mgr.fieldByDbName( foreignKey )
+
+  def create: T = {
+    val target = mgr.newRecord
+    foreignKeyField.setValue( target, idVal )
+    target
+  }
 }

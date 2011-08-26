@@ -240,7 +240,7 @@ class TodoActivity
   def doAdd = {
     val str = newItemText.getText.toString
     if ( str != "" ) {
-      theList.items ! Save( theList.newItem.setDescription( str ))
+      theList.items ! Save( theList.items.create.setDescription( str ))
       newItemText.setText("")
     }
   }

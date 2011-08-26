@@ -114,6 +114,25 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 
   private lazy val fieldNames = fields.map{ _.dbColumnName }
 
+  private var fieldsByName: immutable.HashMap[ String, MappedField ] =
+    immutable.HashMap.empty
+
+  private [orm]
+  def fieldByDbName( s: String ) = {
+    fieldsByName.get( s ) match {
+      case Some( field ) => field
+      case None =>
+        fields.find { _.dbColumnName == s } match {
+          case Some( field ) =>
+            fieldsByName += (( s, field ))
+            field
+          case None =>
+            throw new RuntimeException( "No field " + s + " for " + 
+                                        managedKlass.getName )
+        }
+    }
+  }
+
   private [orm]
   def fetchRecords( qry: ContentQuery[_,_] ): IndexedSeq[ T ] = {
     qry.select( fieldNames: _* ).map{ c => instantiateFrom( c ) }

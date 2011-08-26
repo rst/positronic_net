@@ -64,15 +64,14 @@ case class TodoList( name: String = null,
                    )
   extends ManagedRecord( TodoLists )
 {
+  def setName( s: String ) = copy( name = s )
+
   // XXX parameterized query support
 
   lazy val items = new HasMany( TodoItems, "todo_list_id", id ) 
                    with SoftDeleteQueries[ TodoItem ]
 
   lazy val doneItems = items.whereEq( "is_done" -> true )
-
-  def newItem = TodoItem( this.id )
-  def setName( s: String ) = copy( name = s )
 }
 
 object TodoLists extends RecordManager[ TodoList ]( TodoDb("todo_lists") )

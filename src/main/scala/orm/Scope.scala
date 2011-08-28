@@ -17,7 +17,7 @@ case class UpdateAll[T]( vals: (String, ContentValue)* )
 abstract class ScopedAction[T <: ManagedRecord: ClassManifest] 
   extends ScopeAction[T]
 {
-  def act( qry: ContentQuery[_,_], mgr: BaseRecordManager[T] ): Unit
+  def act( scope: Scope[T], mgr: BaseRecordManager[T] ): Unit
 }
 
 trait Scope[ T <: ManagedRecord ]
@@ -96,12 +96,12 @@ trait Scope[ T <: ManagedRecord ]
 
     case a: NotifierAction[ IndexedSeq [T] ] => records.onThisThread( a )
 
-    case Save( record )     => mgr.save( record );                 noteChange
-    case Delete( record )   => mgr.delete( record );               noteChange
-    case DeleteAll( dummy ) => mgr.deleteAll( baseQuery );         noteChange
-    case u: UpdateAll[ T ]  => mgr.updateAll( baseQuery, u.vals ); noteChange
+    case Save( record )     => mgr.save( record, this );      noteChange
+    case Delete( record )   => mgr.delete( record, this );    noteChange
+    case DeleteAll( dummy ) => mgr.deleteAll( this );         noteChange
+    case u: UpdateAll[ T ]  => mgr.updateAll( this, u.vals ); noteChange
 
-    case a: ScopedAction[T] => a.act( baseQuery, mgr );            noteChange
+    case a: ScopedAction[T] => a.act( this, mgr );            noteChange
 
     case _ => 
       throw new IllegalArgumentException( "Unrecognized action: " + 
@@ -145,10 +145,6 @@ class AlternateViewScope[ T <: ManagedRecord ]( base: Scope[T],
 
   val facility  = delegate.facility
   val baseQuery = query
-
-  protected[orm]
-  override def subScopeFor( subquery: ContentQuery[_,_] ) =
-    delegate.subScopeFor( subquery )
 }
 
 class HasManyAssociation[ T <: ManagedRecord ]( base:       Scope[ T ],

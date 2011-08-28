@@ -19,7 +19,7 @@ trait SoftDelete[ T <: ManagedRecord ]
   protected override def queryForAll( qry: ContentQuery[_,_] ) =
     super.queryForAll( qry ).whereEq( "is_deleted" -> false )
 
-  protected override def deleteAll( qry: ContentQuery[_,_] ): Unit = {
+  protected override def deleteAll( qry: ContentQuery[_,_], scope: Scope[T] ): Unit = {
     super.queryForAll( qry ).whereEq( "is_deleted" -> true ).delete
     super.queryForAll( qry ).update( "is_deleted" -> true )
   }
@@ -28,7 +28,7 @@ trait SoftDelete[ T <: ManagedRecord ]
 case class Undelete[T <: ManagedRecord : ClassManifest ](dummy: T) 
   extends ScopedAction[T]
 {
-  def act( qry: ContentQuery[_,_], mgr: BaseRecordManager[T] ): Unit =
-    qry.whereEq( "is_deleted" -> true ).update( "is_deleted" -> false )
+  def act( scope: Scope[T], mgr: BaseRecordManager[T] ): Unit =
+    scope.baseQuery.whereEq("is_deleted" -> true).update("is_deleted" -> false)
 }
 

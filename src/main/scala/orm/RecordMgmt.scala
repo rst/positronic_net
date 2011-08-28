@@ -194,15 +194,6 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     return result
   }
 
-  private [orm]
-  def save( rec: T ) = {
-    val data = nonKeyFields.map{ f => f.valPair( rec ) }
-    if (rec.isNewRecord) 
-      insert( data )
-    else
-      update( rec, data )
-  }
-
   // The following are here to be overridden in classes that want to
   // implement soft deletion policies, versioning, audit trails, or
   // whatever.
@@ -214,27 +205,40 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   protected
   def queryForAll( qry: ContentQuery[_,_] ) = qry
 
-  protected
+  private
   def insert( vals: Seq[(String, ContentValue)] ) = repository.insert( vals:_* )
 
-  protected
+  private
   def update( rec: T, vals: Seq[(String, ContentValue)] ) =
     queryForRecord( rec ).update( vals:_* )
 
   protected
-  def delete( rec: T ): Unit = deleteAll( queryForRecord( rec ))
-
-  protected
-  def deleteAll( qry: ContentQuery[_,_] ): Unit = {
+  def deleteAll( qry: ContentQuery[_,_], scope: Scope[T] ): Unit = {
     killDependentRecords( queryForAll( qry ))
     queryForAll( qry ).delete
   }
 
+  protected
+  def deleteAll( scope: Scope[T] ): Unit = deleteAll( scope.baseQuery, scope )
+
+  protected
+  def save( rec: T, scope: Scope[T] ) = {
+    val data = nonKeyFields.map{ f => f.valPair( rec ) }
+    if (rec.isNewRecord) 
+      insert( data )
+    else
+      update( rec, data )
+  }
+
+  protected
+  def delete( rec: T, scope: Scope[T] ):Unit = 
+    deleteAll( queryForRecord( rec ), scope )
+
   def handleVanishingParent( qry: ContentQuery[_,_] ) :Unit = qry.delete
 
   protected
-  def updateAll( qry: ContentQuery[_,_], vals: Seq[(String,ContentValue)]):Unit=
-    queryForAll( qry ).update( vals: _* )
+  def updateAll( scope: Scope[T], vals: Seq[(String,ContentValue)]):Unit=
+    queryForAll( scope.baseQuery ).update( vals: _* )
 }
 
 abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )

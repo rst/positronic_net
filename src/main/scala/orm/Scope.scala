@@ -109,16 +109,23 @@ trait Scope[ T <: ManagedRecord ]
   }
 }
 
+trait DerivedScope[ T <: ManagedRecord ] 
+  extends Scope[ T ]
+{
+  val baseScope: Scope[T]
+}
+
 private[orm]
 class SubScope[ T <: ManagedRecord ]( base: Scope[T], 
                                       query: ContentQuery[_,_])
   extends BaseNotificationManager( base.facility )
-  with Scope[T]
+  with DerivedScope[T]
 {
   private [orm] val mgr       = base.mgr
 
   val facility  = base.facility
   val baseQuery = query
+  val baseScope = base
 
   override def toString = {
     val (str, vals) = query.conditionKey
@@ -137,7 +144,7 @@ class AlternateViewScope[ T <: ManagedRecord ]( base: Scope[T],
                                                 query: ContentQuery[_,_]
                                               )
   extends BaseNotificationDelegator( base )
-  with Scope[ T ]
+  with DerivedScope[ T ]
 {
   def this( base: Scope[T] ) = this( base, base.baseQuery )
 
@@ -145,6 +152,7 @@ class AlternateViewScope[ T <: ManagedRecord ]( base: Scope[T],
 
   val facility  = delegate.facility
   val baseQuery = query
+  val baseScope = base
 }
 
 class HasManyAssociation[ T <: ManagedRecord ]( base:       Scope[ T ],

@@ -77,7 +77,7 @@ case class TodoListSD( name: String = null,
   def name( newName: String ) = copy( name = newName )
 
   lazy val items = new HasMany( TodoItemsSD, "todo_list_id" )
-                   with SoftDeleteQueries[ TodoItemSD ]
+                   with SoftDeleteScope[ TodoItemSD ]
 }
 
 object TodoListsSD
@@ -163,6 +163,56 @@ class SoftDeleteSpec
       catList.items.onThisThread( Undelete( TodoItemSD() ))
       catList.items.hasDeleted.fetchOnThisThread should equal (false)
     }
+  }
+
+  describe( "soft deletion in scoped collections" ) {
+
+    // Variant setup... dogList is *not* deleted, but it has deleted items
+    // on it...
+
+    var dogList: TodoListSD = null
+
+    def itemsQuery( l: TodoListSD ) = 
+      db( "todo_items" ).whereEq( "todo_list_id" -> l.id )
+
+    def setupForCrossDeletionTests = {
+
+      TodoListsSD.onThisThread( Undelete( TodoListSD() ))
+      dogList = TodoListsSD.whereEq("name"->"dog list").fetchOnThisThread(0)
+
+      dogList.items.whereEq("description"->"wash dog").onThisThread( DeleteAll( TodoItemSD() ))
+
+      itemsQuery( catList ).whereEq("is_deleted" -> true).count should equal (2)
+      itemsQuery( dogList ).whereEq("is_deleted" -> true).count should equal (1)
+      itemsQuery( dogList ).count should equal (3)
+    }
+
+    def assertDoglistExpungeOk( dogItemDels: Int, dogItemUndels: Int ) = {
+      itemsQuery( catList ).whereEq("is_deleted" -> true).count should equal (2)
+      itemsQuery( dogList ).whereEq("is_deleted" -> true).count should equal (dogItemDels)
+      itemsQuery( dogList ).count should equal (dogItemDels + dogItemUndels)
+    }
+
+    it( "should expunge only within a given scope for deleteAll" ) {
+      setupForCrossDeletionTests
+      dogList.items.onThisThread( DeleteAll( TodoItemSD() ))
+      assertDoglistExpungeOk( 2, 0 )
+    }
+
+    it( "should expunge only within a given scope for record delete" ) {
+      setupForCrossDeletionTests
+      val items = dogList.items.whereEq("description" -> "feed dog").fetchOnThisThread
+      dogList.items.onThisThread( Delete( items(0) ))
+      assertDoglistExpungeOk( 1, 1 )
+    }
+    
+    it( "should expunge only within a given scope for subscoped delete" ) {
+      setupForCrossDeletionTests
+      val items = dogList.items.whereEq("description" -> "feed dog").fetchOnThisThread
+      dogList.items.whereEq( "_id" -> items(0).id ).onThisThread( DeleteAll( TodoItemSD() ))
+      assertDoglistExpungeOk( 1, 1 )
+    }
+    
   }
 
   lazy val db = {

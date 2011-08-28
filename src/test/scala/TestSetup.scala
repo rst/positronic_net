@@ -6,10 +6,13 @@ import org.positronicnet.orm._
 import com.xtremelabs.robolectric.Robolectric
 import org.scalatest._
 
-// A simple test database...
+// A simple test database... with details split out into a class
+// so we can share the setup code with variants.
 
-object TodoDb 
-  extends Database( filename = "todos.sqlite3", logTag = "todo" ) 
+object TodoDb extends TodoDatabase( "todos.sqlite3" )
+
+class TodoDatabase( filename: String )
+  extends Database( filename = filename, logTag = "todo" ) 
 {
   // Note that this schema definition is for H2, the Robolectric DB engine,
   // which speaks a different dialect from SQLite.
@@ -43,36 +46,37 @@ object TodoDb
   // Code to reset DB to a known, interesting state.
 
   def setupFixturesForSimpleTest = {
-    TodoDb( "todo_lists" ).delete
-    TodoDb( "todo_items" ).delete
+    this( "todo_lists" ).delete
+    this( "todo_items" ).delete
     setupDogItems( -1 )
   }
 
-  def setupFixturesForAssociationTest = {
+  def setupFixturesForAssociationTest:( Long, Long ) = {
 
-    TodoDb( "todo_lists" ).delete
-    TodoDb( "todo_items" ).delete
+    this( "todo_lists" ).delete
+    this( "todo_items" ).delete
 
-    val listId = TodoDb( "todo_lists" ).insert( "name" -> "dog list" )
+    val listId = this( "todo_lists" ).insert( "name" -> "dog list" )
     setupDogItems( listId )
 
-    val otherListId = TodoDb( "todo_lists" ).insert( "name" -> "cat list" )
-    TodoDb( "todo_items" ).insert( "description"  -> "feed cat",
-                                   "todo_list_id" -> otherListId,
-                                   "is_done"      -> false )
+    val otherListId = this( "todo_lists" ).insert( "name" -> "cat list" )
+    this( "todo_items" ).insert( "description"  -> "feed cat",
+                                 "todo_list_id" -> otherListId,
+                                 "is_done"      -> false )
 
+    return ( listId, otherListId )
   }
 
   private def setupDogItems( listId: Long ) = {
-    TodoDb( "todo_items" ).insert( "description"  -> "wash dog",
-                                   "todo_list_id" -> listId,
-                                   "is_done"      -> false )
-    TodoDb( "todo_items" ).insert( "description"  -> "feed dog",
-                                   "todo_list_id" -> listId,
-                                   "is_done"      -> false )
-    TodoDb( "todo_items" ).insert( "description"  -> "walk dog",
-                                   "todo_list_id" -> listId,
-                                   "is_done"      -> true )
+    this( "todo_items" ).insert( "description"  -> "wash dog",
+                                 "todo_list_id" -> listId,
+                                 "is_done"      -> false )
+    this( "todo_items" ).insert( "description"  -> "feed dog",
+                                 "todo_list_id" -> listId,
+                                 "is_done"      -> false )
+    this( "todo_items" ).insert( "description"  -> "walk dog",
+                                 "todo_list_id" -> listId,
+                                 "is_done"      -> true )
   }
 }
 
@@ -107,9 +111,20 @@ object TodoLists extends RecordManager[ TodoList ]( TodoDb("todo_lists") )
 // BeforeAndAfterEach, or the "beforeEach" setup code runs without
 // Robolectric's bytecode swizzling, and dies on a "Stub!" exception.)
 
+trait CommonDbTestHelpers 
+{
+  // Only useful for ORM tests, but harmless elsewhere...
+
+  def haveItem[T<:Seq[TodoItem]]( description: String, 
+                                  isDone: Boolean, 
+                                  items: T ) =
+    items.exists{ it => it.description == description && it.isDone == isDone }
+}
+
 trait DbTestFixtures 
   extends BeforeAndAfterEach
   with RobolectricTests
+  with CommonDbTestHelpers
 {
   lazy val db = {
     TodoDb.openInContext( Robolectric.application )
@@ -117,11 +132,4 @@ trait DbTestFixtures
   }
 
   override def beforeEach = db.setupFixturesForSimpleTest
-
-  // Only useful for ORM tests, but harmless elsewhere...
-
-  def haveItem[T<:Seq[TodoItem]]( description: String, 
-                                  isDone: Boolean, 
-                                  items: T ) =
-    items.exists{ it => it.description == description && it.isDone == isDone }
 }

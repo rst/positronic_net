@@ -40,8 +40,11 @@ object TodoDb
 
 // "Todo item" model.
 //
-// See SoftDelete.scala for the definition of SoftDelete, which
-// is an extension to the ORM...
+// SoftDelete support, requiring the "is_deleted" column, is part
+// of the library, but deals with the rest of it only through public
+// interfaces; the intent is that similar things (multiple version
+// hacks, to support more general undo, and so forth) be doable as
+// extensions.
 
 case class TodoItem( todoListId: Long    = ManagedRecord.unsavedId,
                      description: String = null, 

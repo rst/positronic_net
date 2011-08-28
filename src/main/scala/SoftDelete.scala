@@ -1,6 +1,5 @@
-package org.positronicnet.sample.todo
+package org.positronicnet.orm
 
-import org.positronicnet.orm._
 import org.positronicnet.content.ContentQuery
 
 // We're using a "soft deletion" scheme pretty broadly, which plugs in

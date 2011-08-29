@@ -7,6 +7,7 @@ import org.positronicnet.ui.IndexedSeqSourceAdapter
 
 import org.positronicnet.util._
 import org.positronicnet.orm._
+import org.positronicnet.orm.Actions._
 
 import android.app.Activity
 import android.os.Bundle
@@ -257,7 +258,7 @@ class TodoActivity
     theList.doneItems.count ! Fetch { 
       numDone =>
         if (numDone > 0)
-          theList.doneItems ! DeleteAll( TodoItem() )
+          theList.doneItems ! DeleteAll
         else
           toast( R.string.no_tasks_done )
     }

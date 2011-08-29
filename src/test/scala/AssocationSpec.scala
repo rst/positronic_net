@@ -2,6 +2,7 @@ package org.positronicnet.test
 
 import org.positronicnet.db._
 import org.positronicnet.orm._
+import org.positronicnet.orm.Actions._
 import org.positronicnet.util.AddWatcherAndFetch
 
 import org.scalatest._
@@ -42,7 +43,7 @@ class AssociationSpec
 
       dogList.items.count.watch( this ){ count => { monitoredCount = count }}
       
-      dogListCopy.items.onThisThread( DeleteAll( TodoItem() ))
+      dogListCopy.items.onThisThread( DeleteAll )
 
       monitoredCount should equal (0)
 

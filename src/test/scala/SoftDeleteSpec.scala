@@ -2,6 +2,7 @@ package org.positronicnet.test
 
 import org.positronicnet.db._
 import org.positronicnet.orm._
+import org.positronicnet.orm.Actions._
 import org.positronicnet.content.ContentQuery
 
 import org.scalatest._
@@ -120,17 +121,17 @@ class SoftDeleteSpec
 
       catItemsRaw.count should equal (3)
 
-      catList.items.onThisThread( DeleteAll( TodoItemSD() ))
+      catList.items.onThisThread( DeleteAll )
       catItemsRaw.count should equal (1)
     }
 
     it ("should make deleted items invisible") {
-      catList.items.onThisThread( DeleteAll( TodoItemSD() ))
+      catList.items.onThisThread( DeleteAll )
       catList.items.count.fetchOnThisThread should equal (0)
     }
 
     it ("should mark visible items is_deleted") {
-      catList.items.onThisThread( DeleteAll( TodoItemSD() ))
+      catList.items.onThisThread( DeleteAll )
       catItemsRaw.whereEq( "is_deleted" -> true ).count should equal (1)
       catItemRawDescs.toSeq should equal (Seq("feed cat"))
     }
@@ -180,7 +181,7 @@ class SoftDeleteSpec
       TodoListsSD.onThisThread( Undelete( TodoListSD() ))
       dogList = TodoListsSD.whereEq("name"->"dog list").fetchOnThisThread(0)
 
-      dogList.items.whereEq("description"->"wash dog").onThisThread( DeleteAll( TodoItemSD() ))
+      dogList.items.whereEq("description"->"wash dog").onThisThread( DeleteAll )
 
       itemsQuery( catList ).whereEq("is_deleted" -> true).count should equal (2)
       itemsQuery( dogList ).whereEq("is_deleted" -> true).count should equal (1)
@@ -195,7 +196,7 @@ class SoftDeleteSpec
 
     it( "should expunge only within a given scope for deleteAll" ) {
       setupForCrossDeletionTests
-      dogList.items.onThisThread( DeleteAll( TodoItemSD() ))
+      dogList.items.onThisThread( DeleteAll )
       assertDoglistExpungeOk( 2, 0 )
     }
 
@@ -209,7 +210,7 @@ class SoftDeleteSpec
     it( "should expunge only within a given scope for subscoped delete" ) {
       setupForCrossDeletionTests
       val items = dogList.items.whereEq("description" -> "feed dog").fetchOnThisThread
-      dogList.items.whereEq( "_id" -> items(0).id ).onThisThread( DeleteAll( TodoItemSD() ))
+      dogList.items.whereEq( "_id" -> items(0).id ).onThisThread( DeleteAll )
       assertDoglistExpungeOk( 1, 1 )
     }
     

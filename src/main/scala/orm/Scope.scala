@@ -10,9 +10,17 @@ abstract class ScopeAction[T] extends Action[IndexedSeq[T]]
 
 case class Save[T]( record: T ) extends ScopeAction[T]
 case class Delete[T]( record: T ) extends ScopeAction[T]
-case class DeleteAll[T]( dummy: T ) extends ScopeAction[T]
+case class DeleteAllAction[T]( dummy: Long = 0 ) extends ScopeAction[T]
 case class UpdateAll[T]( vals: (String, ContentValue)* )
   extends ScopeAction[T]
+
+object Actions {
+
+  // At least in Scala 2.8.1, case objects can't take type parameters.
+  // So, we have this disreputable-looking hack...
+
+  def DeleteAll[T] = DeleteAllAction[T](0)
+}
 
 abstract class ScopedAction[T <: ManagedRecord: ClassManifest] 
   extends ScopeAction[T]
@@ -96,10 +104,10 @@ trait Scope[ T <: ManagedRecord ]
 
     case a: NotifierAction[ IndexedSeq [T] ] => records.onThisThread( a )
 
-    case Save( record )     => mgr.save( record, this );      noteChange
-    case Delete( record )   => mgr.delete( record, this );    noteChange
-    case DeleteAll( dummy ) => mgr.deleteAll( this );         noteChange
-    case u: UpdateAll[ T ]  => mgr.updateAll( this, u.vals ); noteChange
+    case Save( record )       => mgr.save( record, this );      noteChange
+    case Delete( record )     => mgr.delete( record, this );    noteChange
+    case DeleteAllAction( x ) => mgr.deleteAll( this );         noteChange
+    case u: UpdateAll[ T ]    => mgr.updateAll( this, u.vals ); noteChange
 
     case a: ScopedAction[T] => a.act( this, mgr );            noteChange
 

@@ -156,7 +156,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 
   // Dealing with the data... internals
 
-  private
+  protected
   lazy val dependencyGetterOption = 
     ReflectUtils.extractor( managedKlass,
                             classOf[ HasManyAssociation[_] ])
@@ -181,7 +181,6 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     }
   }
 
-  private [orm]
   def fetchRecords( qry: ContentQuery[_,_] ): IndexedSeq[ T ] = {
     qry.select( fieldNames: _* ).map{ c => instantiateFrom( c ) }
   }

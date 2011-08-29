@@ -1,6 +1,7 @@
-package org.positronicnet.test
+package org.positronicnet.orm.test
 
 import org.positronicnet.db._
+import org.positronicnet.test._
 import org.positronicnet.orm._
 import org.positronicnet.orm.Actions._
 import org.positronicnet.content.ContentQuery
@@ -70,6 +71,23 @@ case class TodoItemSD( description: String  = null,
 object TodoItemsSD 
   extends RecordManager[ TodoItemSD ]( TodoDbSD("todo_items") )
   with SoftDelete[ TodoItemSD ]
+  with ParentSoftDeleteListener[ TodoListSD ]
+{
+  // Various setup for parent listener stuff
+
+  var lastParentOp: String            = null
+  var lastParents:  Seq[ TodoListSD ] = null
+
+  def onParentSoftDelete(qry: ContentQuery[_,_], scp: Scope[TodoListSD]):Unit={
+    lastParentOp = "delete"
+    lastParents = TodoListsSD.fetchRecords( qry )
+  }
+
+  def onParentUndelete(qry: ContentQuery[_,_], scope: Scope[TodoListSD]):Unit={
+    lastParentOp = "undelete"
+    lastParents = TodoListsSD.fetchRecords( qry )
+  }
+}
 
 case class TodoListSD( name: String = null,
                        id:   Long   = ManagedRecord.unsavedId )
@@ -214,6 +232,25 @@ class SoftDeleteSpec
       assertDoglistExpungeOk( 1, 1 )
     }
     
+    describe( "soft-delete-on-parent listener" ) {
+
+      it ("should do nothing when nobody's listening") {
+        TodoItemsSD.parentSoftDeleteListenerOption should equal (None)
+      }
+
+      it ("should notify on soft delete") {
+        TodoListsSD.onThisThread( Delete( catList ))
+        TodoItemsSD.lastParentOp should equal ("delete")
+        TodoItemsSD.lastParents.map{ _.name } should equal (Seq("cat list"))
+      }
+
+      it ("should notify on undelete") {
+        TodoListsSD.onThisThread( Undelete( TodoListSD() ) )
+        TodoItemsSD.lastParentOp should equal ("undelete")
+        TodoItemsSD.lastParents.map{ _.name } should equal (Seq("dog list"))
+      }
+    }
+
   }
 
   lazy val db = {

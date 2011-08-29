@@ -33,6 +33,16 @@ abstract class ManagedRecord( private[orm] val manager: RecordManager[_] ) {
     def this( src: RecordManager[T] ) = 
       this( src, src.columnNameFor( manager.defaultForeignKeyField ))
   }
+
+  class BelongsTo[T <: ManagedRecord](src: RecordManager[T], foreignKey: Long)
+    extends BaseNotifier( src.baseQuery.facility )
+    with CachingNotifier[ T ]
+  {
+    protected def currentValue = {
+      val scope = src.whereEq( src.primaryKeyField.dbColumnName -> foreignKey )
+      (scope.records.fetchOnThisThread)(0)
+    }
+  }
 }
 
 object ManagedRecord {
@@ -76,7 +86,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   protected[orm] val fieldsBuffer = new mutable.ArrayBuffer[ MappedField ]
   protected[orm] def fieldsSeq: Seq[ MappedField ] = fieldsBuffer
 
-  private var primaryKeyField: MappedLongField = null
+  protected[orm] var primaryKeyField: MappedLongField = null
 
   protected[orm] def columnNameFor( fieldName: String ) =
     fields.find{ _.recordFieldName == fieldName } match {

@@ -23,6 +23,17 @@ class AssociationSpec
     catList = lseq.find{ _.name == "cat list" }.get
   }
 
+  describe( "belongs to association" ) {
+    it( "should fetch correct values" ) {
+
+      for( item <- dogList.items.fetchOnThisThread ) 
+        item.list.fetchOnThisThread should equal (dogList)
+
+      for( item <- catList.items.fetchOnThisThread ) 
+        item.list.fetchOnThisThread should equal (catList)
+    }
+  }
+
   describe( "has many association" ) {
 
     it( "should find only relevant records" ) {

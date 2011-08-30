@@ -91,7 +91,7 @@ case class TodoItem( description: String  = null,
 {
   def isDone( newVal: Boolean ) = copy( isDone = newVal )
 
-  lazy val list = new BelongsTo( TodoLists, todoListId )
+  lazy val list = new BelongsTo( TodoLists )
 }
 
 object TodoItems extends RecordManager[ TodoItem ]( TodoDb("todo_items") )

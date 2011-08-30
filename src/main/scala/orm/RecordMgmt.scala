@@ -34,12 +34,27 @@ abstract class ManagedRecord( private[orm] val manager: RecordManager[_] ) {
       this( src, src.columnNameFor( manager.defaultForeignKeyField ))
   }
 
-  class BelongsTo[T <: ManagedRecord](src: RecordManager[T], foreignKey: Long)
+  class BelongsTo[T <: ManagedRecord]( src: RecordManager[T],
+                                       foreignKeyField: MappedField )
+    extends BelongsToImpl( src, foreignKeyField, this )
+  {
+    def this( src: RecordManager[T] ) =
+      this( src, manager.columnFor( src.defaultForeignKeyField ))
+
+    def this( src: RecordManager[T], foreignKey: String ) =
+      this( src, manager.columnFor( foreignKey ))
+  }
+
+  class BelongsToImpl[T <: ManagedRecord]( src: RecordManager[T],
+                                           foreignKeyField: MappedField,
+                                           parent: ManagedRecord
+                                         )
     extends BaseNotifier( src.baseQuery.facility )
     with CachingNotifier[ T ]
   {
     protected def currentValue = {
-      val scope = src.whereEq( src.primaryKeyField.dbColumnName -> foreignKey )
+      val scope = src.whereEq( src.primaryKeyField.dbColumnName -> 
+                               foreignKeyField.getValue( parent ))
       (scope.records.fetchOnThisThread)(0)
     }
   }
@@ -89,8 +104,11 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   protected[orm] var primaryKeyField: MappedLongField = null
 
   protected[orm] def columnNameFor( fieldName: String ) =
+    columnFor( fieldName ).dbColumnName
+
+  protected[orm] def columnFor( fieldName: String ) =
     fields.find{ _.recordFieldName == fieldName } match {
-      case Some( mappedField ) => mappedField.dbColumnName
+      case Some( mappedField ) => mappedField
       case None =>
         throw new RuntimeException("Can't find mapping for field " + fieldName)
     }

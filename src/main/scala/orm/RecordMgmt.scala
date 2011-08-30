@@ -240,6 +240,10 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   }
 
   protected
+  def find( id: Long, qry: ContentQuery[_,_] ) =
+    fetchRecords( qry.whereEq( primaryKeyField.dbColumnName -> id ))(0)
+
+  protected
   def delete( rec: T, scope: Scope[T] ):Unit = 
     deleteAll( queryForRecord( rec ), scope )
 

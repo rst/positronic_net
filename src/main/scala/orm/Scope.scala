@@ -8,19 +8,22 @@ import scala.collection.mutable.HashMap
 
 abstract class ScopeAction[T] extends Action[IndexedSeq[T]]
 
-case class Save[T]( record: T ) extends ScopeAction[T]
-case class Delete[T]( record: T ) extends ScopeAction[T]
-case class DeleteAllAction[T]( dummy: Long = 0 ) extends ScopeAction[T]
-case class UpdateAll[T]( vals: (String, ContentValue)* )
-  extends ScopeAction[T]
-
 object Actions {
 
+  case class Find[T]( id: Long, handler: T => Unit ) extends ScopeAction[T]
+  case class Save[T]( record: T ) extends ScopeAction[T]
+  case class Delete[T]( record: T ) extends ScopeAction[T]
+  case class DeleteAllAction[T]( dummy: Long = 0 ) extends ScopeAction[T]
+  case class UpdateAll[T]( vals: (String, ContentValue)* )
+    extends ScopeAction[T]
+
   // At least in Scala 2.8.1, case objects can't take type parameters.
-  // So, we have this disreputable-looking hack...
+  // So, for DeleteAll we have this disreputable-looking hack...
 
   def DeleteAll[T] = DeleteAllAction[T](0)
 }
+
+import Actions._
 
 abstract class ScopedAction[T <: ManagedRecord: ClassManifest] 
   extends ScopeAction[T]
@@ -94,22 +97,30 @@ trait Scope[ T <: ManagedRecord ]
   // Action interface.
 
   def !( action: Action[ IndexedSeq[T]] ): Unit = action match {
-    case a: NotifierAction[ IndexedSeq [T] ] => records ! a
-    case _ => onThread{ onThisThread( action ) }
+    case a: NotifierAction[ IndexedSeq [T] ] => 
+      records ! a
+    case Find( id, handler ) => 
+      val wrapped = CallbackManager.wrapHandler( handler )
+      onThread{ wrapped( mgr.find( id, baseQuery )) }
+    case _ => 
+      onThread{ onThisThread( action ) }
   }
 
   def fetchOnThisThread = records.fetchOnThisThread
+
+  def findOnThisThread( id: Long ) = mgr.find( id, baseQuery )
 
   def onThisThread( action: Action[ IndexedSeq [T]] ): Unit = action match {
 
     case a: NotifierAction[ IndexedSeq [T] ] => records.onThisThread( a )
 
+    case Find( id, handler )  => handler( mgr.find( id, baseQuery ))
     case Save( record )       => mgr.save( record, this );      noteChange
     case Delete( record )     => mgr.delete( record, this );    noteChange
     case DeleteAllAction( x ) => mgr.deleteAll( this );         noteChange
     case u: UpdateAll[ T ]    => mgr.updateAll( this, u.vals ); noteChange
 
-    case a: ScopedAction[T] => a.act( this, mgr );            noteChange
+    case a: ScopedAction[T] => a.act( this, mgr );              noteChange
 
     case _ => 
       throw new IllegalArgumentException( "Unrecognized action: " + 

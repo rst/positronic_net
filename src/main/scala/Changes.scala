@@ -12,14 +12,8 @@ trait Notifier[T] {
   def onThread( thunk: => Unit ): Unit
   def fetchOnThisThread = currentValue
 
-  private def wrapHandler( handler: T => Unit ): T => Unit = {
-    val cbManager = CallbackManager.forThisThread
-    (( v: T ) => {
-      cbManager.post( new Runnable{ 
-        override def run = { handler( v ) }
-      })
-    })
-  }
+  private def wrapHandler( handler: T => Unit ): T => Unit = 
+    CallbackManager.wrapHandler( handler )
 
   def !( action: Action[T] ): Unit = 
     action match {
@@ -89,6 +83,15 @@ case class AddWatcherAndFetch[T]( key: AnyRef, handler: T => Unit )
 protected[positronicnet] object CallbackManager
   extends ThreadLocal[ android.os.Handler ]
 {
+  def wrapHandler[T]( handler: T => Unit ): T => Unit = {
+    val cbManager = CallbackManager.forThisThread
+    (( v: T ) => {
+      cbManager.post( new Runnable{ 
+        override def run = { handler( v ) }
+      })
+    })
+  }
+
   def forThisThread: android.os.Handler = {
     var valueNow = this.get
     if (valueNow == null) {

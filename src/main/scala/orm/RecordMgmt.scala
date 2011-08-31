@@ -249,12 +249,14 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   def deleteAll( scope: Scope[T] ): Unit = deleteAll( scope.baseQuery, scope )
 
   protected
-  def save( rec: T, scope: Scope[T] ) = {
+  def save( rec: T, scope: Scope[T] ): Long = {
     val data = nonKeyFields.map{ f => f.valPair( rec ) }
     if (rec.isNewRecord) 
-      insert( data )
-    else
+      return insert( data ).asInstanceOf[Long]
+    else {
       update( rec, data )
+      return rec.id.asInstanceOf[Long]
+    }
   }
 
   protected

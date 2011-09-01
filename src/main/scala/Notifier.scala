@@ -188,14 +188,14 @@ class BaseNotifier( facility: AppFacility )
   }
 }
 
-class ValueStream[T]( facility: AppFacility, generator: () => T )
+class ValueNotifier[T]( facility: AppFacility, generator: () => T )
   extends BaseNotifier( facility )
   with CachingNotifier[T]
 {
   protected def currentValue = generator()
 }
 
-class NonSharedValueStream[T]( facility: AppFacility, generator: () => T )
+class NonSharedValueNotifier[T]( facility: AppFacility, generator: () => T )
   extends BaseNotifier( facility )
   with NonSharedNotifier[T]
 {
@@ -244,8 +244,8 @@ trait NotificationManager
   def doChange( thunk: => Unit ): Unit
   def noteChange: Unit
 
-  def valueStream[T]( thunk: => T ): CachingNotifier[T]
-  def cursorStream[T]( thunk: => T ): Notifier[T]
+  def valueNotifier[T]( thunk: => T ): CachingNotifier[T]
+  def cursorNotifier[T]( thunk: => T ): Notifier[T]
 
   def valueQuery[Q,R]( initialVal: Q )( func: Q => R ): ValueQuery[Q, R]
   def cursorQuery[Q,R]( initialVal: Q )( func: Q => R ):NonSharedValueQuery[Q,R]
@@ -265,14 +265,14 @@ abstract class BaseNotificationManager( facility: AppFacility )
 
   def noteChange = notifiers.foreach{ _.noteChange }
 
-  def valueStream[T](thunk: => T): CachingNotifier[T] = {
-    val it = new ValueStream( facility, () => thunk )
+  def valueNotifier[T](thunk: => T): CachingNotifier[T] = {
+    val it = new ValueNotifier( facility, () => thunk )
     notifiers += it
     return it
   }
 
-  def cursorStream[T](thunk: => T): Notifier[T] = {
-    val it = new NonSharedValueStream( facility, () => thunk )
+  def cursorNotifier[T](thunk: => T): Notifier[T] = {
+    val it = new NonSharedValueNotifier( facility, () => thunk )
     notifiers += it
     return it
   }
@@ -298,8 +298,8 @@ abstract class BaseNotificationDelegator[ T <: NotificationManager ]( d: T )
   def doChange( thunk: => Unit ) = d.doChange( thunk )
   def noteChange = d.noteChange
 
-  def valueStream[T]( thunk: => T )  = d.valueStream( thunk )
-  def cursorStream[T]( thunk: => T ) = d.cursorStream( thunk )
+  def valueNotifier[T]( thunk: => T )  = d.valueNotifier( thunk )
+  def cursorNotifier[T]( thunk: => T ) = d.cursorNotifier( thunk )
 
   def valueQuery[Q,R]( initialVal: Q )( func: Q => R ) = 
     d.valueQuery( initialVal )( func )

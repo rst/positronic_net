@@ -31,8 +31,8 @@ trait ParentSoftDeleteListener[T <: ManagedRecord] {
 
 trait SoftDeleteQueries[ T <: ManagedRecord ] extends Scope[ T ]
 {
-  def numDeleted = valueStream{ baseQuery.whereEq("is_deleted"->true).count }
-  def hasDeleted = valueStream{ baseQuery.whereEq("is_deleted"->true).count > 0}
+  def numDeleted = valueNotifier{ baseQuery.whereEq("is_deleted"->true).count }
+  def hasDeleted = valueNotifier{ baseQuery.whereEq("is_deleted"->true).count>0}
 }
 
 trait SoftDeleteScope[ T <: ManagedRecord ] extends SoftDeleteQueries[ T ]

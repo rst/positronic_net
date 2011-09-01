@@ -41,9 +41,9 @@ trait Scope[ T <: ManagedRecord ]
 
   lazy val fullQuery = mgr.queryForAll( baseQuery )
 
-  lazy val records = valueStream{ mgr.fetchRecords( fullQuery )}
+  lazy val records = valueNotifier{ mgr.fetchRecords( fullQuery )}
 
-  lazy val count = valueStream{ fullQuery.count }
+  lazy val count = valueNotifier{ fullQuery.count }
 
   def recordsQuery[ Q ]( initial: Q ) 
                        ( fn: (Q, ContentQuery[_,_]) => ContentQuery[_,_] ) = 

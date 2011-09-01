@@ -1,7 +1,39 @@
-package org.positronicnet.util
+package org.positronicnet.notifications
 
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer
+
+import org.positronicnet.util._
+
+// Requests to a notifier, to be delivered actor-style.
+
+abstract class Action[T]
+abstract class NotifierAction[T] extends Action[T]
+
+object Actions {
+  def AddWatcher[T]( key: AnyRef )( handler: T => Unit ) =
+    AddWatcherAction( key, handler )
+  def AddWatcherAndFetch[T]( key: AnyRef )( handler: T => Unit ) =
+    AddWatcherAndFetchAction( key, handler )
+
+  case class Fetch[T]( handler: T => Unit ) 
+    extends NotifierAction[T]
+  case class StopWatcher[T]( key: AnyRef ) 
+    extends NotifierAction[T]
+
+  case class AddWatcherAction[T]( key: AnyRef, handler: T => Unit ) 
+    extends NotifierAction[T]
+  case class AddWatcherAndFetchAction[T]( key: AnyRef, handler: T => Unit ) 
+    extends NotifierAction[T]
+
+  // Action on "NotifierWithQuery" objects, for which the client
+  // is able to say "now I'm watching this other thing..."
+
+  case class Requery[Q, R]( newQuery: Q ) 
+    extends NotifierAction[R]
+}
+
+import Actions._
 
 // Basic definition of something that can notify watchers about
 // an object of type T.
@@ -21,14 +53,14 @@ trait Notifier[T] {
         val wrapped = wrapHandler( handler )
         onThread{ wrapped( currentValue ) }
       }
-      case AddWatcher( key, handler ) => {
+      case AddWatcherAction( key, handler ) => {
         watch( key )( wrapHandler( handler ))
       }
-      case AddWatcherAndFetch( key, handler ) => {
+      case AddWatcherAndFetchAction( key, handler ) => {
         this ! Fetch( handler )
-        this ! AddWatcher( key, handler )
+        this ! AddWatcherAction( key, handler )
       }
-      case StopWatching( key ) => stopNotifier( key )
+      case StopWatcher( key ) => stopNotifier( key )
       case _ => onThread{ onThisThread( action ) }
     }
 
@@ -62,20 +94,6 @@ trait Notifier[T] {
   def noteChange: Unit
   protected def currentValue: T
 }
-
-// Requests a notifier, to be delivered actor-style.
-
-abstract class Action[T]
-abstract class NotifierAction[T] extends Action[T]
-
-case class Fetch[T]( handler: T => Unit ) 
-  extends NotifierAction[T]
-case class AddWatcher[T]( key: AnyRef, handler: T => Unit ) 
-  extends NotifierAction[T]
-case class StopWatching[T]( key: AnyRef ) 
-  extends NotifierAction[T]
-case class AddWatcherAndFetch[T]( key: AnyRef, handler: T => Unit ) 
-  extends NotifierAction[T]
 
 // Dealing with Android's "Handler" machinery for arranging
 // callbacks on application main threads
@@ -139,9 +157,6 @@ trait CachingNotifier[T]
 
 // Machinery for change listeners which also depend on query
 // parameters from the UI...
-
-case class Requery[Q, R]( newQuery: Q ) 
-  extends NotifierAction[R]
 
 trait NotifierWithQuery[ Q, R ]
   extends Notifier[ R ]

@@ -8,6 +8,10 @@ import org.positronicnet.ui.IndexedSeqSourceAdapter
 import org.positronicnet.util._
 import org.positronicnet.orm._
 import org.positronicnet.orm.Actions._
+import org.positronicnet.orm.SoftDeleteActions._
+
+import org.positronicnet.notifications.Notifier
+import org.positronicnet.notifications.Actions._
 
 import android.app.Activity
 import android.os.Bundle
@@ -104,7 +108,7 @@ class TodosActivity
   def doUndelete = { 
     TodoLists.hasDeleted ! Fetch{ hasDeleted => {
       if ( hasDeleted ) 
-        TodoLists ! Undelete( TodoList() )
+        TodoLists ! Undelete
       else 
         toast( R.string.undeletes_exhausted )
     }}
@@ -267,7 +271,7 @@ class TodoActivity
   def undelete = {
     theList.items.hasDeleted ! Fetch{ hasDeleted => {
       if ( hasDeleted )
-        theList.items ! Undelete( TodoItem() )
+        theList.items ! Undelete
       else
         toast( R.string.undeletes_exhausted )
     }}

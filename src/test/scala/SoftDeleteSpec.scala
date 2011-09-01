@@ -4,6 +4,8 @@ import org.positronicnet.db._
 import org.positronicnet.test._
 import org.positronicnet.orm._
 import org.positronicnet.orm.Actions._
+import org.positronicnet.orm.SoftDeleteActions._
+import org.positronicnet.notifications.Actions._
 import org.positronicnet.content.ContentQuery
 
 import org.scalatest._
@@ -158,12 +160,12 @@ class SoftDeleteSpec
   describe( "undeletion" ) {
 
     it ("should update counts") {
-      catList.items.onThisThread( Undelete( TodoItemSD() ))
+      catList.items.onThisThread( Undelete )
       catList.items.count.fetchOnThisThread should equal (3)
     }
 
     it ("should make deleted items visible") {
-      catList.items.onThisThread( Undelete( TodoItemSD() ))
+      catList.items.onThisThread( Undelete )
       val descs = catList.items.fetchOnThisThread.map{ _.description }.sorted
       descs should equal (Seq("feed cat", "hide catnip", "take cat to vet"))
     }
@@ -173,13 +175,13 @@ class SoftDeleteSpec
     it ("should yield proper counts") {
       catList.items.numDeleted.fetchOnThisThread should equal (2)
       TodoListsSD.numDeleted.fetchOnThisThread should equal (1)
-      catList.items.onThisThread( Undelete( TodoItemSD() ))
+      catList.items.onThisThread( Undelete )
     }
     it ("should yield correct booleans") {
       catList.items.hasDeleted.fetchOnThisThread should equal (true)
       TodoListsSD.hasDeleted.fetchOnThisThread should equal (true)
 
-      catList.items.onThisThread( Undelete( TodoItemSD() ))
+      catList.items.onThisThread( Undelete )
       catList.items.hasDeleted.fetchOnThisThread should equal (false)
     }
   }
@@ -196,7 +198,7 @@ class SoftDeleteSpec
 
     def setupForCrossDeletionTests = {
 
-      TodoListsSD.onThisThread( Undelete( TodoListSD() ))
+      TodoListsSD.onThisThread( Undelete )
       dogList = TodoListsSD.whereEq("name"->"dog list").fetchOnThisThread(0)
 
       dogList.items.whereEq("description"->"wash dog").onThisThread( DeleteAll )
@@ -245,7 +247,7 @@ class SoftDeleteSpec
       }
 
       it ("should notify on undelete") {
-        TodoListsSD.onThisThread( Undelete( TodoListSD() ) )
+        TodoListsSD.onThisThread( Undelete )
         TodoItemsSD.lastParentOp should equal ("undelete")
         TodoItemsSD.lastParents.map{ _.name } should equal (Seq("dog list"))
       }

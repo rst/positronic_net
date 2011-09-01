@@ -72,7 +72,11 @@ trait SoftDelete[ T <: ManagedRecord ]
     }
 }
 
-case class Undelete[T <: ManagedRecord : ClassManifest ](dummy: T) 
+object SoftDeleteActions {
+  def Undelete[T <: ManagedRecord : ClassManifest ] = UndeleteAction[T](0)
+}
+
+case class UndeleteAction[T <: ManagedRecord : ClassManifest ](dummy: Int) 
   extends ScopedAction[T]
 {
   def act( scope: Scope[T], mgr: BaseRecordManager[T] ): Unit = {

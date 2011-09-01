@@ -3,7 +3,7 @@ package org.positronicnet.test
 import org.positronicnet.db._
 import org.positronicnet.orm._
 import org.positronicnet.orm.Actions._
-import org.positronicnet.util._
+import org.positronicnet.notifications.Actions._
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
@@ -136,18 +136,18 @@ class SingleThreadOrmSpec
     it ("should propagate updates up") {
       val orderedItems = TodoItems.order( "description asc" )
       var monitoredCount: Long = -457
-      orderedItems ! AddWatcher(this, items => { monitoredCount = items.size })
+      orderedItems ! AddWatcher(this){ items => { monitoredCount = items.size }}
       TodoItems.onThisThread( Save( TodoItem( "crate dog" )))
       monitoredCount should equal (4)
-      orderedItems ! StopWatching(this)
+      orderedItems ! StopWatcher(this)
     }
     it ("should propagate updates down") {
       val orderedItems = TodoItems.order( "description asc" )
       var monitoredCount: Long = -457
-      TodoItems ! AddWatcher(this, items => { monitoredCount = items.size })
+      TodoItems ! AddWatcher(this){ items => { monitoredCount = items.size }}
       TodoItems.onThisThread( Save( TodoItem( "crate dog" )))
       monitoredCount should equal (4)
-      TodoItems ! StopWatching( this )
+      TodoItems ! StopWatcher( this )
     }
   }
 

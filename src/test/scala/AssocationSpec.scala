@@ -3,7 +3,7 @@ package org.positronicnet.test
 import org.positronicnet.db._
 import org.positronicnet.orm._
 import org.positronicnet.orm.Actions._
-import org.positronicnet.util.AddWatcherAndFetch
+import org.positronicnet.notifications.Actions._
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers

@@ -1,7 +1,7 @@
 package org.positronicnet.orm
 
 import org.positronicnet.content._
-import org.positronicnet.util._
+import org.positronicnet.notifications._
 
 import android.database.Cursor
 

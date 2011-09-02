@@ -35,7 +35,7 @@ class SingleThreadOrmSpec
     it ("should find the right records") {
       for (item <- TodoItems.fetchOnThisThread) {
         TodoItems.findOnThisThread( item.id ) should equal (item)
-        TodoItems.onThisThread( Find( item.id, it => it should equal (item)))
+        TodoItems.onThisThread( Find( item.id ){ _ should equal (item)} )
       }
     }
   }

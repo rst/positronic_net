@@ -10,7 +10,7 @@ abstract class ScopeAction[T] extends Action[IndexedSeq[T]]
 
 object Actions {
 
-  case class Find[T]( id: Long, handler: T => Unit ) extends ScopeAction[T]
+  case class FindAction[T]( id: Long, handler: T => Unit) extends ScopeAction[T]
   case class Save[T]( record: T ) extends ScopeAction[T]
   case class Delete[T]( record: T ) extends ScopeAction[T]
   case class DeleteAllAction[T]( dummy: Long = 0 ) extends ScopeAction[T]
@@ -21,6 +21,8 @@ object Actions {
   // So, for DeleteAll we have this disreputable-looking hack...
 
   def DeleteAll[T] = DeleteAllAction[T](0)
+  def Find[T]( id: Long )( handler: T => Unit ) =
+    FindAction( id, handler )
 }
 
 import Actions._
@@ -99,7 +101,7 @@ trait Scope[ T <: ManagedRecord ]
   def !( action: Action[ IndexedSeq[T]] ): Unit = action match {
     case a: NotifierAction[ IndexedSeq [T] ] => 
       records ! a
-    case Find( id, handler ) => 
+    case FindAction( id, handler ) => 
       val wrapped = CallbackManager.wrapHandler( handler )
       onThread{ wrapped( mgr.find( id, baseQuery )) }
     case _ => 
@@ -114,13 +116,13 @@ trait Scope[ T <: ManagedRecord ]
 
     case a: NotifierAction[ IndexedSeq [T] ] => records.onThisThread( a )
 
-    case Find( id, handler )  => handler( mgr.find( id, baseQuery ))
-    case Save( record )       => mgr.save( record, this );      noteChange
-    case Delete( record )     => mgr.delete( record, this );    noteChange
-    case DeleteAllAction( x ) => mgr.deleteAll( this );         noteChange
-    case u: UpdateAll[ T ]    => mgr.updateAll( this, u.vals ); noteChange
+    case FindAction( id, handler ) => handler( mgr.find( id, baseQuery ))
+    case Save( record )            => mgr.save( record, this );      noteChange
+    case Delete( record )          => mgr.delete( record, this );    noteChange
+    case DeleteAllAction( x )      => mgr.deleteAll( this );         noteChange
+    case u: UpdateAll[ T ]         => mgr.updateAll( this, u.vals ); noteChange
 
-    case a: ScopedAction[T] => a.act( this, mgr );              noteChange
+    case a: ScopedAction[T]        => a.act( this, mgr );            noteChange
 
     case _ => 
       throw new IllegalArgumentException( "Unrecognized action: " + 

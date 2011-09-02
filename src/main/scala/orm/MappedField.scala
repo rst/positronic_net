@@ -45,14 +45,14 @@ object MappedField {
   def create( colName: String, colNumber: Int, rfield: java.lang.reflect.Field )
     : MappedField =
   {
-    val mapBuilder = declaredMappers( rfield.getType )
-    if (mapBuilder == null) {
-      throw new IllegalArgumentException( "Don't know how to map " 
-                                          + rfield.getName
-                                          + " of type " 
-                                          + rfield.getType.toString )
+    declaredMappers.get( rfield.getType ) match {
+      case Some( mapBuilder ) => mapBuilder( colName, colNumber, rfield )
+      case None =>
+        throw new IllegalArgumentException( "Don't know how to map " 
+                                           + rfield.getName
+                                           + " of type " 
+                                           + rfield.getType.toString )
     }
-    return mapBuilder( colName, colNumber, rfield )
   }
 }
 

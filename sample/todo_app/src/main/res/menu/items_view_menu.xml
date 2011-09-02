@@ -2,10 +2,6 @@
   android:name="Todo-list item operations">
   <item android:id="@+id/delete_where_done"
         android:title="Delete completed tasks"/>
-  <item android:id="@+id/hide_done"
-        android:title="Hide completed tasks"/>
-  <item android:id="@+id/show_done"
-        android:title="Show completed tasks"/>
   <item android:id="@+id/undelete"
         android:title="Undelete"/>
 </menu>

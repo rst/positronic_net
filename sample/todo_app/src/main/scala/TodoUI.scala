@@ -152,10 +152,8 @@ class TodoActivity
   with ViewFinder 
 {
   var theList: TodoList = null
-  // var showingDoneItems = true
 
   lazy val newItemText = findView( TR.newItemText )
-  // lazy val listItemsQuery = theList.itemsQuery( showingDoneItems )
   lazy val listItemsView = findView( TR.listItemsView )
   lazy val editDialog = new EditStringDialog( this )
 
@@ -191,8 +189,6 @@ class TodoActivity
 
     onOptionsItemSelected( R.id.delete_where_done ) { deleteWhereDone }
     onOptionsItemSelected( R.id.undelete ) { undelete }
-    onOptionsItemSelected( R.id.hide_done ) { setShowingDoneItems( false ) }
-    onOptionsItemSelected( R.id.show_done ) { setShowingDoneItems( true ) }
 
     registerForContextMenu( listItemsView )
 
@@ -202,34 +198,6 @@ class TodoActivity
     onContextItemSelected( R.id.toggledone ){ 
       (menuInfo, view) => toggleDone( getContextItem( menuInfo, view ))
     }
-  }
-
-  // UI instance state, less the "super.foo()" noise.
-  // recreateInstanceState runs onCreate, *before* the onCreate handlers.
-
-  // override def saveInstanceState( b: Bundle ) = 
-  //  b.putBoolean( "showing_done_items", showingDoneItems )
-
-  // override def restoreInstanceState( b: Bundle ) = 
-  //  setShowingDoneItems( b.getBoolean( "showing_done_items" ) )
-
-  // override def recreateInstanceState( b: Bundle ) = 
-  //  setShowingDoneItems( b.getBoolean( "showing_done_items" ) )
-
-  // Dealing with mode switching
-
-  def setShowingDoneItems( newValue: Boolean ) = {
-    toastLong( "This menu item is in the repair shop" )
-    // showingDoneItems = newValue
-    // listItemsQuery.requery( showingDoneItems )
-  }
-
-  onPrepareOptionsMenu { menu =>
-    // Hide mode-switch item which switches to the current mode...
-    // menu.findItem( R.id.hide_done ).setVisible(  showingDoneItems )
-    // menu.findItem( R.id.show_done ).setVisible( !showingDoneItems )
-    menu.findItem( R.id.hide_done ).setVisible( false )
-    menu.findItem( R.id.show_done ).setVisible( false )
   }
 
   // Finding target items for listItemsView taps (including the ContextMenu)

@@ -66,8 +66,6 @@ case class TodoList( name: String = null,
 {
   def setName( s: String ) = copy( name = s )
 
-  // XXX parameterized query support
-
   lazy val items = new HasMany( TodoItems ) with SoftDeleteScope[ TodoItem ]
   lazy val doneItems = items.whereEq( "is_done" -> true )
 }

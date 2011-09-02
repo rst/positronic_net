@@ -151,7 +151,7 @@ have to worry about it.
 
 If you're doing something idiosyncratic, the underlying machinery
 is also available to be used directly, e.g. by `AddWatcher` and
-`StopWatcher` requests 
+`StopWatcher` requests.
 
 ###One-to-many associations
 
@@ -175,6 +175,10 @@ query for the set of `TodoItems` whose `todo_list_id` in the database
 matches the `id` of the list itself.  There's also a `BelongsTo` class
 which offers limited support for the one-to-many side of the association
 (at least enough to be able to `Fetch` the list associated with an item!)
+
+Full examples of this can be seen by viewing the todo-list sample app
+in the `sample` directory; the above has been (slightly) simplified
+excerpts.
 
 ##Miscellaneous shorthands
 

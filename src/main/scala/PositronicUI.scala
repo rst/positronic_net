@@ -13,7 +13,7 @@ import _root_.android.widget.AdapterView
 import _root_.android.widget.Toast
 import _root_.android.util.Log
 
-import org.positronicnet.util.AppFacility
+import org.positronicnet.facility.AppFacility
 import org.positronicnet.notifications.Notifier
 
 import org.positronicnet.content.PositronicCursor // for CursorSourceAdapter

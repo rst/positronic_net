@@ -1,16 +1,13 @@
 package org.positronicnet.sample.todo
 
 import org.positronicnet.db.Database
-import org.positronicnet.util.WorkerThread
 
 import org.positronicnet.orm._
 
 // Our domain model classes, such as they are:  Todo Items, Lists, etc.
 // Start by defining the DB schema...
 
-object TodoDb 
- extends Database( filename = "todos.sqlite3", logTag = "todo" ) 
- with WorkerThread
+object TodoDb extends Database( filename = "todos.sqlite3", logTag = "todo" ) 
 {
   // This gets fed to a SQLiteOpenHelper, which implements the following
   // default behavior (unless overridden, of course):

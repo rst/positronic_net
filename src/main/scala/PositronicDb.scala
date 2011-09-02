@@ -1,7 +1,7 @@
 package org.positronicnet.db
 
 import org.positronicnet.content._
-import org.positronicnet.util.AppFacility
+import org.positronicnet.facility._
 
 import _root_.android.database.sqlite._
 import _root_.android.content.Context
@@ -10,7 +10,11 @@ import _root_.android.content.ContentValues
 // Class for database singletons.  Manages a SQLiteOpenHelper (details
 // below), with some mutual delegation.
 
-abstract class Database( filename: String, logTag: String = null ) 
+abstract class Database( filename: String, logTag: String = null )
+  extends ThreadlessDatabase( filename, logTag )
+  with WorkerThread
+
+abstract class ThreadlessDatabase( filename: String, logTag: String = null ) 
   extends AppFacility( logTag )
 {
   var dbWrapper: DbWrapper = null
@@ -59,7 +63,7 @@ abstract class Database( filename: String, logTag: String = null )
 // Functions as a ContentRepository; SourceType is String (table name),
 // IdType is Long (row id).
 
-class DbWrapper( ctx: Context, mydb: Database ) 
+class DbWrapper( ctx: Context, mydb: ThreadlessDatabase ) 
   extends SQLiteOpenHelper( ctx, mydb.getFilename, null, mydb.version )
   with ContentRepository[ String, Long ]
 {

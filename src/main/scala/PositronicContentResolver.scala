@@ -5,8 +5,8 @@ import _root_.android.content.ContentValues
 import _root_.android.content.ContentUris
 import _root_.android.net.Uri
 
-import org.positronicnet.util.AppFacility
-import org.positronicnet.util.WorkerThread
+import org.positronicnet.facility.AppFacility
+import org.positronicnet.facility.WorkerThread
 
 // Basic machinery for wrapping ContentResolver and friends.
 // SourceType and IdType are both android.net.Uri.

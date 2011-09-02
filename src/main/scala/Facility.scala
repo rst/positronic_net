@@ -1,4 +1,4 @@
-package org.positronicnet.util
+package org.positronicnet.facility
 
 import _root_.android.util.Log
 import _root_.android.content.Context

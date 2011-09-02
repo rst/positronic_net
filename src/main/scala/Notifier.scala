@@ -3,7 +3,7 @@ package org.positronicnet.notifications
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer
 
-import org.positronicnet.util._
+import org.positronicnet.facility._
 
 // Requests to a notifier, to be delivered actor-style.
 

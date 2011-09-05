@@ -5,7 +5,7 @@
   xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-sdk android:minSdkVersion="7"></uses-sdk>
-    <application android:icon="@drawable/android:star_big_on" android:label="Positronic Call Log Viewer">
+    <application android:label="Positronic Call Log Viewer">
         <activity android:label="Positronic Call Log Viewer" android:name=".CallLogActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"></action>

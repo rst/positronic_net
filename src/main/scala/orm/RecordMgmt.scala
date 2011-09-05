@@ -16,7 +16,7 @@ import scala.collection._
 // Note that the manager MUST be a RecordManager[ thisclass ], but it's
 // awfully awkward to write that constraint...
 
-abstract class ManagedRecord( private[orm] val manager: RecordManager[_] ) {
+abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
 
   // Bookkeeping
 

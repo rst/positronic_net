@@ -97,8 +97,8 @@ class ContentProviderQuery[IdType]( source: BaseContentResolverRepo[IdType],
 
   def order( s: String ) = dinkedCopy( orderString = s )
 
-  def where( s: String, arr: Array[ContentValue] = null ) =
-    withUpdatedWhere( s, arr ){ (str, arr) => 
+  def where( s: String, vals: ContentValue* ) =
+    withUpdatedWhere( s, vals.toArray ){ (str, arr) => 
       dinkedCopy( whereString = str, whereValues = arr )}
 
   def whereEq( pairs: (String, ContentValue)* ) =

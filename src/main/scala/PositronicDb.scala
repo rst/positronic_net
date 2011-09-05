@@ -120,8 +120,8 @@ class DbQuery( source: DbWrapper,
   def order( s: String ) = dinkedCopy( orderString = s )
   def limit( s: String ) = dinkedCopy( limitString = s )
 
-  def where( s: String, arr: Array[ContentValue] = null ):DbQuery =
-    withUpdatedWhere( s, arr ){ (str, arr) => 
+  def where( s: String, vals: ContentValue* ):DbQuery =
+    withUpdatedWhere( s, vals.toArray ){ (str, arr) => 
       dinkedCopy( whereString = str, whereValues = arr )}
 
   def whereEq( pairs: (String, ContentValue)* ):DbQuery =

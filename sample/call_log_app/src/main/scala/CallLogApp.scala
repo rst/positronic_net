@@ -52,7 +52,7 @@ object CallLogEntries
 
   lazy val callsWithinLimit = recordsQuery( defaultDays ){ (numDays, q) => {
     q.where( Calls.DATE + "> ?", 
-             Array( CvLong( System.currentTimeMillis - numDays * millisPerDay)))
+             System.currentTimeMillis - numDays * millisPerDay)
   }}
 }
 

@@ -81,8 +81,8 @@ trait Scope[ T <: ManagedRecord ]
 
   // Conditions and other derivatives
 
-  def where( str: String, arr: Array[ContentValue] = null ): Scope[T] = 
-    subScopeFor( baseQuery.where( str, arr ))
+  def where( str: String, vals: ContentValue* ): Scope[T] = 
+    subScopeFor( baseQuery.where( str, vals: _* ))
 
   def whereEq( pairs: (String, ContentValue)* ): Scope[T] =
     subScopeFor( baseQuery.whereEq( pairs: _* ))

@@ -4,11 +4,13 @@ import org.positronicnet.content._
 import org.positronicnet.orm._
 import org.positronicnet.ui._
 import org.positronicnet.notifications._
+import org.positronicnet.notifications.Actions._
 
 import android.app.ListActivity
 import android.provider.CallLog.Calls
 import android.util.Log
 import android.view.View
+import android.view.KeyEvent
 import android.widget.TextView
 
 import java.text.SimpleDateFormat
@@ -43,8 +45,15 @@ object CallLogEntries
   mapField( "cachedName", Calls.CACHED_NAME )
   mapField( "whenRaw",    Calls.DATE )
 
-  def since( when: Long ) = 
-    this.where( Calls.DATE + "> ?", Array( CvLong( when )))
+  // Start with last ten days worth of calls.  (Roughly.)
+
+  val defaultDays:Long = 10
+  val millisPerDay = 24*60*60*1000
+
+  lazy val callsWithinLimit = recordsQuery( defaultDays ){ (numDays, q) => {
+    q.where( Calls.DATE + "> ?", 
+             Array( CvLong( System.currentTimeMillis - numDays * millisPerDay)))
+  }}
 }
 
 class CallLogsAdapter( activity: PositronicActivityHelpers,
@@ -66,14 +75,36 @@ class CallLogsAdapter( activity: PositronicActivityHelpers,
 
 class CallLogActivity extends ListActivity with PositronicActivityHelpers
 {
+  lazy val daysDialog = new GetDaysDialog( this )
+
   onCreate {
     useAppFacility( Resolver )
     setContentView( R.layout.call_log_entries )
+    setListAdapter( new CallLogsAdapter( this, CallLogEntries.callsWithinLimit))
 
-    // Get last ten days worth of calls.  (Roughly.)
+    useOptionsMenuResource( R.menu.options_menu )
+    onOptionsItemSelected( R.id.set_num_days ) { daysDialog.show }
+  }
+}
 
-    val limit = System.currentTimeMillis - 10*24*60*60*1000
-    setListAdapter( new CallLogsAdapter( this, 
-                                         CallLogEntries.since( limit ).records))
+class GetDaysDialog( base: ListActivity )
+  extends PositronicDialog( base, layoutResourceId = R.layout.days_dialog ) 
+{
+  def findView[T](tr: TypedResource[T]) = findViewById( tr.id ).asInstanceOf[T]
+
+  val editTxt = findView( TR.dialogEditText )
+
+  editTxt.onKey( KeyEvent.KEYCODE_ENTER ){ doSave; dismiss }
+  findView( TR.cancelButton ).onClick { dismiss }
+  findView( TR.saveButton ).onClick { doSave; dismiss }
+  
+  def doSave = {
+    val newValue = java.lang.Long.parseLong( editTxt.getText().toString )
+    CallLogEntries.callsWithinLimit ! Requery( newValue )
+  }
+
+  override def show = { 
+    editTxt.setText( CallLogEntries.callsWithinLimit.currentParams.toString )
+    super.show
   }
 }

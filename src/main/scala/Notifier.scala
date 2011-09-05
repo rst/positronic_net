@@ -163,6 +163,8 @@ trait NotifierWithQuery[ Q, R ]
 {
   protected var currentQuery: Q
 
+  def currentParams: Q = currentQuery
+
   override def onThisThread( action: Action[R] ): Unit =
     action match {
       case r: Requery[Q,R] => requery( r.newQuery )

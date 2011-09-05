@@ -63,7 +63,7 @@ class SingleThreadOrmSpec
       val doneItems = TodoItems.whereEq( "is_done" -> true ).fetchOnThisThread
       doneItems should have size (1)
 
-      doneItems.foreach{ TodoItems ! Delete( _ ) }
+      doneItems.foreach{ it => TodoItems.onThisThread( Delete( it )) }
 
       TodoItems.count.fetchOnThisThread should equal (2)
       TodoItems.whereEq( "is_done" -> false ).count.fetchOnThisThread should equal (2)

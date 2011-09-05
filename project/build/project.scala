@@ -16,8 +16,8 @@ class Parent(info: ProjectInfo) extends ParentProject(info) {
   class LibProject(info: ProjectInfo) 
    extends AndroidProject(info) with Defaults with MarketPublish with TypedResources {
      val keyalias    = "change-me"
-     val scalatest   = "org.scalatest"   % "scalatest"   % "1.3"     % "test"
-     val robolectric = "com.pivotallabs" % "robolectric" % "1.0-RC1" % "test"
+     val scalatest   = "org.scalatest"   %% "scalatest"   % "1.6.1"   % "test"
+     val robolectric = "com.pivotallabs" %  "robolectric" % "1.0-RC1" % "test"
 
      // Tell Robolectric where to find manifest and Android resources
 

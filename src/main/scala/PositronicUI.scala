@@ -331,7 +331,6 @@ trait PositronicActivityHelpers
     }
     this.rememberViewForContextMenu( view )
     getMenuInflater.inflate( contextMenuResourceId, menu )
-    return true
   }
 
   val optionsItemMap = new HashMap[ Int, (() => Unit) ]

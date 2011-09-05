@@ -41,7 +41,7 @@ trait SoftDelete[ T <: ManagedRecord ]
   extends BaseRecordManager[ T ]
   with SoftDeleteScope[ T ]
 {
-  protected override def queryForAll( qry: ContentQuery[_,_] ) =
+  protected[orm] override def queryForAll( qry: ContentQuery[_,_] ) =
     super.queryForAll( qry ).whereEq( "is_deleted" -> false )
 
   private[orm] lazy val parentSoftDeleteListenerOption =
@@ -49,7 +49,7 @@ trait SoftDelete[ T <: ManagedRecord ]
       getDeps( newRecord ).values.map{ _.mgr }.filter{ mgr => 
         mgr.isInstanceOf[ ParentSoftDeleteListener[T] ] }}
 
-  protected override def deleteAll( qry: ContentQuery[_,_], scope: Scope[T] ): Unit = {
+  protected[orm] override def deleteAll( qry: ContentQuery[_,_], scope: Scope[T] ): Unit = {
     val enclosingScope = findSoftDeleteScope( scope )
     val enclosingScopeQry = super.queryForAll( enclosingScope.baseQuery )
     enclosingScopeQry.whereEq( "is_deleted" -> true ).delete
@@ -61,7 +61,7 @@ trait SoftDelete[ T <: ManagedRecord ]
     super.queryForAll( qry ).update( "is_deleted" -> true )
   }
 
-  def findSoftDeleteScope( scope: Scope[T] ): SoftDeleteScope[T] =
+  private def findSoftDeleteScope( scope: Scope[T] ): SoftDeleteScope[T] =
     scope match {
       case gotIt: SoftDeleteScope[T] => gotIt
       case derived: DerivedScope[T]  => findSoftDeleteScope( derived.baseScope )

@@ -225,11 +225,11 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   // implement soft deletion policies, versioning, audit trails, or
   // whatever.
 
-  protected 
+  protected [orm]
   def queryForRecord( rec: T ) =
     repository.whereEq( primaryKeyField.valPair ( rec ))
 
-  protected
+  protected [orm]
   def queryForAll( qry: ContentQuery[_,_] ) = qry
 
   private
@@ -239,16 +239,16 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   def update( rec: T, vals: Seq[(String, ContentValue)] ) =
     queryForRecord( rec ).update( vals:_* )
 
-  protected
+  protected [orm]
   def deleteAll( qry: ContentQuery[_,_], scope: Scope[T] ): Unit = {
     killDependentRecords( queryForAll( qry ))
     queryForAll( qry ).delete
   }
 
-  protected
+  protected [orm]
   def deleteAll( scope: Scope[T] ): Unit = deleteAll( scope.baseQuery, scope )
 
-  protected
+  protected [orm]
   def save( rec: T, scope: Scope[T] ): Long = {
     val data = nonKeyFields.map{ f => f.valPair( rec ) }
     if (rec.isNewRecord) 
@@ -259,17 +259,17 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     }
   }
 
-  protected
+  protected [orm]
   def find( id: Long, qry: ContentQuery[_,_] ) =
     fetchRecords( qry.whereEq( primaryKeyField.dbColumnName -> id ))(0)
 
-  protected
+  protected [orm]
   def delete( rec: T, scope: Scope[T] ):Unit = 
     deleteAll( queryForRecord( rec ), scope )
 
   def handleVanishingParent( qry: ContentQuery[_,_] ) :Unit = qry.delete
 
-  protected
+  protected [orm]
   def updateAll( scope: Scope[T], vals: Seq[(String,ContentValue)]):Unit=
     queryForAll( scope.baseQuery ).update( vals: _* )
 }

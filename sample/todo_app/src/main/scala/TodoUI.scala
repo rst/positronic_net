@@ -5,7 +5,6 @@ import org.positronicnet.ui.PositronicDialog
 import org.positronicnet.ui.PositronicActivity
 import org.positronicnet.ui.IndexedSeqSourceAdapter
 
-import org.positronicnet.util._
 import org.positronicnet.orm._
 import org.positronicnet.orm.Actions._
 import org.positronicnet.orm.SoftDeleteActions._

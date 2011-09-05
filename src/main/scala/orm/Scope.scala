@@ -47,14 +47,12 @@ trait Scope[ T <: ManagedRecord ]
 
   lazy val count = valueNotifier{ fullQuery.count }
 
-  def recordsQuery[ Q ]( initial: Q ) 
-                       ( fn: (Q, ContentQuery[_,_]) => ContentQuery[_,_] ) = 
+  def recordsQuery[ Q ]( initial: Q )( fn: Q => Scope[T] ) = 
     valueQuery( initial ){ q => 
-      mgr.fetchRecords( mgr.queryForAll( fn ( q, baseQuery ))) }
+      mgr.fetchRecords( mgr.queryForAll( fn(q).baseQuery )) }
 
-  def countQuery[ Q ]( initial: Q ) 
-                     ( fn: (Q, ContentQuery[_,_]) => ContentQuery[_,_] ) = 
-    valueQuery( initial ){ q => mgr.queryForAll( fn ( q, baseQuery )).count }
+  def countQuery[ Q ]( initial: Q )( fn: Q => Scope[T] ) = 
+    valueQuery( initial ){ q => mgr.queryForAll( fn(q).baseQuery ).count }
 
   // Want to be sure we have only *one* sub-scope for any set of
   // conditions, so notifications get properly shared.  Thus the

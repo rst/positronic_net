@@ -50,9 +50,9 @@ object CallLogEntries
   val defaultDays:Long = 10
   val millisPerDay = 24*60*60*1000
 
-  lazy val callsWithinLimit = recordsQuery( defaultDays ){ (numDays, q) => {
-    q.where( Calls.DATE + "> ?", 
-             System.currentTimeMillis - numDays * millisPerDay)
+  lazy val callsWithinLimit = recordsQuery( defaultDays ){ (numDays) => {
+    CallLogEntries.where( Calls.DATE + "> ?", 
+                          System.currentTimeMillis - numDays * millisPerDay)
   }}
 }
 

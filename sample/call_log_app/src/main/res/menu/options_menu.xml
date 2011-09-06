@@ -1,0 +1,5 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+  android:name="Call log options menu">
+  <item android:id="@+id/set_num_days"
+        android:title="Change log time limit"/>
+</menu>

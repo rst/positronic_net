@@ -7,7 +7,7 @@ in Scala, and uses Scala features (traits, a/k/a mixins, and "lambdas"
 or functional arguments) to let programmers say what they mean without
 so much chatter about components of the framework itself.
 
-It builds using `sbt` version 0.7.7 and the [sbt-android-plugin](https://github.com/jberkel/android-plugin).
+It builds using `sbt` version 0.10.0 and the [sbt-android-plugin](https://github.com/jberkel/android-plugin).
 
 The project source includes the library itself (in `src`) and a simple
 sample app (as an sbt subproject); reading the sample app code might

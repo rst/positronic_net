@@ -39,7 +39,7 @@ object AndroidBuild extends Build {
         Tests.Argument("-DandroidResPath=src/main/res"),
         Tests.Argument("-DandroidManifestPath=src/main/AndroidManifest.xml"))
     )
-  ) dependsOn ( roboScalaTest % "test->compile" )
+  ) dependsOn ( roboScalaTest % "test" )
 
   // Separate packaging for the glue code to get Robolectric support
   // in a ScalaTest suite.  This shows up as a trait named RobolectricTests
@@ -56,8 +56,10 @@ object AndroidBuild extends Build {
         "com.pivotallabs"%"robolectric"%"1.0-RC1"
       )))
 
+  // Bundled sample projects
+
   def sampleProject( name: String, dir: String ) =
-    Project( name, file( "sample/"+dir ), 
+    Project( name, file("sample")/dir, 
              settings = General.fullAndroidSettings 
            ) dependsOn (libproj % "compile")
 

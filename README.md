@@ -14,6 +14,9 @@ sample app (as an sbt subproject); reading the sample app code might
 be the best way to get a feel for what the library is trying to
 accomplish.
 
+A tutorial on basic concepts and usage is under development
+[here](http://rst.github.com/tutorial.html).
+
 #Features
 
 What's in the package right now includes the following:

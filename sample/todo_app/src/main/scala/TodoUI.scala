@@ -34,7 +34,7 @@ import android.graphics.Canvas
 
 class TodosAdapter( activity: PositronicActivity )
  extends IndexedSeqSourceAdapter( activity, 
-                                  source = TodoLists.records,
+                                  source = TodoLists,
                                   itemViewResourceId = R.layout.todos_row )
 {
   override def bindView( view: View, list: TodoList ) =
@@ -173,8 +173,7 @@ class TodoActivity
       lists => {
         theList = lists(0)
         setTitle( "Todo for: " + theList.name )
-        listItemsView.setAdapter( new TodoItemsAdapter( this, 
-                                                        theList.items.records ))
+        listItemsView.setAdapter( new TodoItemsAdapter( this, theList.items ))
       }
     }
 

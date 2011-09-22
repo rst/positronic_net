@@ -35,6 +35,7 @@ abstract class ScopedAction[T <: ManagedRecord: ClassManifest]
 
 trait Scope[ T <: ManagedRecord ]
   extends NotificationManager
+  with NotifierDelegator[ IndexedSeq[ T ]]
 {
   private [orm] val mgr: BaseRecordManager[T]
 
@@ -44,6 +45,7 @@ trait Scope[ T <: ManagedRecord ]
   lazy val fullQuery = mgr.queryForAll( baseQuery )
 
   lazy val records = valueNotifier{ mgr.fetchRecords( fullQuery )}
+  def notifierDelegate = records        // for NotifierDelegator
 
   lazy val count = valueNotifier{ fullQuery.count }
 
@@ -94,9 +96,13 @@ trait Scope[ T <: ManagedRecord ]
   def limit( lim: Int ): Scope[T] =
     new AlternateViewScope( this, baseQuery.limit( lim ))
 
+  // 'find' support...
+
+  def findOnThisThread( id: Long ) = mgr.find( id, baseQuery )
+
   // Action interface.
 
-  def !( action: Action[ IndexedSeq[T]] ): Unit = action match {
+  override def !( action: Action[ IndexedSeq[T]] ): Unit = action match {
     case a: NotifierAction[ IndexedSeq [T] ] => 
       records ! a
     case FindAction( id, handler ) => 
@@ -106,11 +112,7 @@ trait Scope[ T <: ManagedRecord ]
       onThread{ onThisThread( action ) }
   }
 
-  def fetchOnThisThread = records.fetchOnThisThread
-
-  def findOnThisThread( id: Long ) = mgr.find( id, baseQuery )
-
-  def onThisThread( action: Action[ IndexedSeq [T]] ): Unit = action match {
+  override def onThisThread( action: Action[ IndexedSeq [T]] ) = action match {
 
     case a: NotifierAction[ IndexedSeq [T] ] => records.onThisThread( a )
 
@@ -167,9 +169,9 @@ class AlternateViewScope[ T <: ManagedRecord ]( base: Scope[T],
 {
   def this( base: Scope[T] ) = this( base, base.baseQuery )
 
-  private [orm] val mgr = delegate.mgr
+  private [orm] val mgr = notificationManagerDelegate.mgr
 
-  val facility  = delegate.facility
+  val facility  = notificationManagerDelegate.facility
   val baseQuery = query
   val baseScope = base
 }
@@ -180,7 +182,7 @@ class HasManyAssociation[ T <: ManagedRecord ]( base:       Scope[ T ],
                                               )
   extends AlternateViewScope( base.whereEq( foreignKey -> idVal ))
 {
-  override def toString = "HasMany: " + delegate.toString
+  override def toString = "HasMany: " + notificationManagerDelegate.toString
 
   lazy val foreignKeyField = mgr.fieldByDbName( foreignKey )
 

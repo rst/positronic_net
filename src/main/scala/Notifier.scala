@@ -39,6 +39,59 @@ import Actions._
 // an object of type T.
 
 trait Notifier[T] {
+
+  // "Action" interface
+
+  def fetchOnThisThread: T
+  def !( action: Action[T] ): Unit
+  def onThisThread( action: Action[T] ): Unit
+
+  // Older interface, still used by the UI code...
+
+  def watch( key: AnyRef )( handler: T => Unit ): Unit
+  def fetch( handler: T => Unit ): Unit
+  def fetchAndWatch( key: AnyRef )( handler: T => Unit ): Unit
+  def onChange( key: AnyRef )( handler: T => Unit ): Unit
+  def stopNotifier( key: AnyRef ): Unit
+}
+
+// Notifiers that just delegate to other notifiers...
+
+trait NotifierDelegator[T] extends Notifier[T] {
+
+  def notifierDelegate: Notifier[T]
+
+  def fetchOnThisThread = notifierDelegate.fetchOnThisThread
+
+  def !( action: Action[T] ) = notifierDelegate ! action
+
+  def onThisThread( action: Action[T] ) = 
+    notifierDelegate.onThisThread( action )
+
+  def watch( key: AnyRef )( handler: T => Unit ) = 
+    notifierDelegate.watch( key )( handler )
+
+  def fetch( handler: T => Unit ) = notifierDelegate.fetch( handler )
+
+  def fetchAndWatch( key: AnyRef )( handler: T => Unit ) = 
+    notifierDelegate.fetchAndWatch( key )( handler )
+
+  def onChange( key: AnyRef )( handler: T => Unit ) = 
+    notifierDelegate.onChange( key )( handler )
+
+  def stopNotifier( key: AnyRef ) = notifierDelegate.stopNotifier( key )
+}
+
+// Basic implementation
+
+trait NotifierImpl[T] extends Notifier[T] {
+
+  // Interface used internally to trigger notifications.
+
+  def noteChange: Unit
+}
+
+trait BaseNotifierImpl[T] extends NotifierImpl[T] {
   protected val changeHandlers = new HashMap[ AnyRef, T => Unit ]
 
   def onThread( thunk: => Unit ): Unit
@@ -126,7 +179,7 @@ protected[positronicnet] object CallbackManager
 // each other.
 
 trait NonSharedNotifier[T]
-  extends Notifier[T]
+  extends BaseNotifierImpl[T]
 {
   def noteChange = {
     for ((key, handler) <- changeHandlers) {
@@ -141,7 +194,7 @@ trait NonSharedNotifier[T]
 // interrogated on the fly):
 
 trait CachingNotifier[T]
-  extends Notifier[T]
+  extends BaseNotifierImpl[T]
 {
   protected var cachedValue: T = currentValue
 
@@ -159,7 +212,7 @@ trait CachingNotifier[T]
 // parameters from the UI...
 
 trait NotifierWithQuery[ Q, R ]
-  extends Notifier[ R ]
+  extends BaseNotifierImpl[ R ]
 {
   protected var currentQuery: Q
 
@@ -257,7 +310,7 @@ abstract class BaseNotificationManager( facility: AppFacility )
   extends BaseNotifier( facility )
   with NotificationManager
 {
-  private val notifiers = new ArrayBuffer[ Notifier[_] ]
+  private val notifiers = new ArrayBuffer[ NotifierImpl[_] ]
 
   // Wrapper for domain operations:  we run on the facility's
   // worker thread if there is one, and notify the listeners when
@@ -294,7 +347,7 @@ abstract class BaseNotificationManager( facility: AppFacility )
 
 abstract class BaseNotificationDelegator[ T <: NotificationManager ]( d: T )
 {
-  protected val delegate: T = d
+  protected val notificationManagerDelegate: T = d
 
   def onThread( thunk: => Unit ) = d.onThread( thunk )
   def doChange( thunk: => Unit ) = d.doChange( thunk )

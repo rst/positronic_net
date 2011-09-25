@@ -12,6 +12,8 @@ import _root_.android.os.Bundle
 import _root_.android.widget.AdapterView
 import _root_.android.widget.Toast
 import _root_.android.util.Log
+import _root_.android.view.KeyEvent
+import _root_.android.view.View.OnKeyListener
 
 import org.positronicnet.facility.AppFacility
 import org.positronicnet.notifications.Notifier
@@ -41,31 +43,48 @@ trait PositronicHandlers extends PositronicViewOps {
     })
   }
 
-  def setOnKeyListener( dummy: View.OnKeyListener ): Unit
+  def setOnKeyListener( dummy: OnKeyListener ): Unit
 
-  def onKey(func: ( Int, android.view.KeyEvent ) => Boolean) = {
-    setOnKeyListener( new View.OnKeyListener {
-      def onKey( dummy: View, 
-                 keyCode: Int, event: android.view.KeyEvent ):Boolean = {
-        return func( keyCode, event )
-      }
-    })
+  private var genericOnKeyHandler: ((Int, KeyEvent) => Boolean) = null
+  private var keyCodeHandlers: Map[ (Int,Int), (()=>Unit) ] = Map.empty
+  private var haveInstalledKeyListener = false
+
+  def installOnKeyListener = {
+    if (!haveInstalledKeyListener) {
+      val target = this
+      setOnKeyListener( new OnKeyListener {
+        def onKey( v: View, code: Int, ev: KeyEvent ) = 
+          target.positronicKeyDispatch( code, ev.getMetaState, ev.getAction, ev)
+      })
+      haveInstalledKeyListener = true
+    }
   }
 
-  // Handler for a *specific* key.  Arguable bug:  can only declare one!
-  // Not hard to fix, but not needed for now.  Mark XXX TODO.
+  // Our dispatch logic, exposed here for the sake of tests.
+  // (At time of writing, key dispatch stuff is awkward with Robolectric.)
 
-  def onKey(keyCode: Int, metaState: Int = 0)( func: => Unit ) = {
-    setOnKeyListener( new View.OnKeyListener {
-      def onKey( dummy: View, 
-                 eventKeyCode: Int, event: android.view.KeyEvent ):Boolean = {
-        if (eventKeyCode == keyCode && event.getMetaState == metaState) {
-          func; return true
-        } else {
-          return false
-        }
+  def positronicKeyDispatch( keyCode: Int, metaState: Int, 
+                             action: Int, ev: KeyEvent ): Boolean = {
+    if (action == KeyEvent.ACTION_DOWN) {
+      for (handler <- keyCodeHandlers.get((keyCode, metaState))) {
+        handler()
+        return true
       }
-    })
+    }
+    if (genericOnKeyHandler != null) {
+      return genericOnKeyHandler( keyCode, ev )
+    }
+    return false
+  }
+
+  def onKey(func: ( Int, android.view.KeyEvent ) => Boolean):Unit = {
+    installOnKeyListener
+    genericOnKeyHandler = func
+  }
+
+  def onKey(keyCode: Int, metaState: Int = 0)( func: => Unit ):Unit = {
+    installOnKeyListener
+    keyCodeHandlers += ((keyCode, metaState) -> (() => func))
   }
 
 }

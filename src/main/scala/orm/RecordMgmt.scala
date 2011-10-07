@@ -163,21 +163,40 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 
   private lazy val fieldNames = fields.map{ _.dbColumnName }
 
-  private var fieldsByName: immutable.HashMap[ String, MappedField ] =
+  private var fieldsByDbName: immutable.HashMap[ String, MappedField ] =
     immutable.HashMap.empty
 
   private [orm]
   def fieldByDbName( s: String ) = {
-    fieldsByName.get( s ) match {
+    fieldsByDbName.get( s ) match {
       case Some( field ) => field
       case None =>
         fields.find { _.dbColumnName == s } match {
           case Some( field ) =>
-            fieldsByName += (( s, field ))
+            fieldsByDbName += (( s, field ))
             field
           case None =>
             throw new RuntimeException( "No field " + s + " for " + 
                                         managedKlass.getName )
+        }
+    }
+  }
+
+  private var toDbFieldMemoized: immutable.HashMap[ String, String ] =
+    immutable.HashMap.empty
+
+  private [orm]
+  def toDbFieldName( s: String ) = {
+    toDbFieldMemoized.get( s ) match {
+      case Some( name ) => name
+      case None =>
+        fields.find { _.recordFieldName == s } match {
+          case Some( field ) =>
+            toDbFieldMemoized += (( s, field.dbColumnName ))
+            field.dbColumnName
+          case None =>
+            toDbFieldMemoized += (( s, s ))
+            s
         }
     }
   }

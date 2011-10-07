@@ -84,8 +84,11 @@ trait Scope[ T <: ManagedRecord ]
   def where( str: String, vals: ContentValue* ): Scope[T] = 
     subScopeFor( baseQuery.where( str, vals: _* ))
 
-  def whereEq( pairs: (String, ContentValue)* ): Scope[T] =
-    subScopeFor( baseQuery.whereEq( pairs: _* ))
+  def whereEq( pairs: (String, ContentValue)* ): Scope[T] = {
+    val ppairs = pairs.map{ (pair) =>
+      ( mgr.toDbFieldName( pair._1 ), pair._2 ) }
+    subScopeFor( baseQuery.whereEq( ppairs: _* ))
+  }
 
   def order( str: String ): Scope[T] = 
     new AlternateViewScope( this, baseQuery.order( str ))

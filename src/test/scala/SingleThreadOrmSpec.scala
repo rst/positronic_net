@@ -1,9 +1,11 @@
-package org.positronicnet.test
+package org.positronicnet.orm.test
 
 import org.positronicnet.db._
 import org.positronicnet.orm._
 import org.positronicnet.orm.Actions._
 import org.positronicnet.notifications.Actions._
+
+import org.positronicnet.test._
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
@@ -14,6 +16,13 @@ class SingleThreadOrmSpec
   with DbTestFixtures
 {
   describe( "Single-thread ORM queries" ){
+
+    def assertIsUndoneItems( items: Seq[TodoItem] ) = {
+      items should have size (2)
+      assert( haveItem( "wash dog" , false, items ))
+      assert( haveItem( "feed dog" , false, items ))
+    }
+
     it ("should find all the records") {
       val results = TodoItems.fetchOnThisThread
       results should have size (3)
@@ -24,10 +33,15 @@ class SingleThreadOrmSpec
     }
     it ("should retrieve only matching records with conds"){
       val undoneItems = TodoItems.whereEq( "is_done" -> false).fetchOnThisThread
-
-      undoneItems should have size (2)
-      assert( haveItem( "wash dog" , false, undoneItems ))
-      assert( haveItem( "feed dog" , false, undoneItems ))
+      assertIsUndoneItems( undoneItems )
+    }
+    it ("should also handle conds using java field names"){
+      val undoneItems = TodoItems.whereEq( "isDone" -> false ).fetchOnThisThread
+      assertIsUndoneItems( undoneItems )
+    }
+    it ("should support full-sql matching syntax"){
+      val undoneItems = TodoItems.where( "is_done=?", false ).fetchOnThisThread
+      assertIsUndoneItems( undoneItems )
     }
   }
 
@@ -195,6 +209,22 @@ class SingleThreadOrmSpec
 
       qry.onThisThread( Requery( "% dog" ))
       qry.fetchOnThisThread should equal (3)
+    }
+  }
+
+  // Have access to internals, since the test is in a subpackage
+  // of 'orm'...
+
+  describe( "internal --- toDbFieldMemoized" ) {
+    it ("should map java field names") {
+      // check twice to make sure memoization doesn't screw things up.
+      TodoItems.toDbFieldName( "isDone" ) should equal ("is_done")
+      TodoItems.toDbFieldName( "isDone" ) should equal ("is_done")
+    }
+    it ("should leave db field names unchanged") {
+      // check twice to make sure memoization doesn't screw things up.
+      TodoItems.toDbFieldName( "is_done" ) should equal ("is_done")
+      TodoItems.toDbFieldName( "is_done" ) should equal ("is_done")
     }
   }
 }

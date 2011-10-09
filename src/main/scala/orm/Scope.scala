@@ -10,10 +10,13 @@ abstract class ScopeAction[T] extends Action[IndexedSeq[T]]
 
 object Actions {
 
-  case class FindAction[T]( id: Long, handler: T => Unit) extends ScopeAction[T]
+  private [orm] case class FindAction[T]( id: Long, handler: T => Unit) 
+                     extends ScopeAction[T]
+  private [orm] case class DeleteAllAction[T]( dummy: Long = 0 ) 
+                     extends ScopeAction[T]
+
   case class Save[T]( record: T ) extends ScopeAction[T]
   case class Delete[T]( record: T ) extends ScopeAction[T]
-  case class DeleteAllAction[T]( dummy: Long = 0 ) extends ScopeAction[T]
   case class UpdateAll[T]( vals: (String, ContentValue)* )
     extends ScopeAction[T]
 

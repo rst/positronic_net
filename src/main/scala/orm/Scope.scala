@@ -8,6 +8,20 @@ import scala.collection.mutable.HashMap
 
 abstract class ScopeAction[T] extends Action[IndexedSeq[T]]
 
+/** Actions that can be sent to [[org.positronicnet.orm.RecordManager]]s
+  * and other [[org.positronicnet.orm.Scope]]s.
+  * 
+  * Typical syntax is `scope ! action` (to have the action performed
+  * on a background thread) or `scope.onThisThread(action)` (to have
+  * the action performed on the current thread).
+  *
+  * Note that any Scope (including a RecordManager) will also act as
+  * a `Notifier[IndexedSeq[T]]` (where `T` is the record type), and
+  * as such, can receive [[org.positronicnet.notification.Actions]]
+  * as well; this is where you can find `Fetch`, `AddWatcher` and
+  * friends (as in `RecordManager!Fetch{...}`).
+  */
+
 object Actions {
 
   private [orm] case class FindAction[T]( id: Long, handler: T => Unit) 

@@ -10,24 +10,71 @@ import org.positronicnet.facility._
 abstract class Action[T]
 abstract class NotifierAction[T] extends Action[T]
 
+/** Actions that can be sent to [[org.positronicnet.notifications.Notifer]]s.
+  *
+  * Typical syntax is `notifier ! action` (to have the action performed
+  * on a background thread) or `notifier.onThisThread(action)` (to have
+  * the action performed on the current thread).
+  *
+  * Many actions include a `handler` argument, which is a function
+  * that takes a notifier update as an argument.  If the action is
+  * invoked as `notifier ! action`, it's assumed that the caller is
+  * on an Android `HandlerThread`; execution of the `handler` will
+  * be posted back to the `HandlerThread`.  (This means that, in
+  * particular, if the caller is an application's main UI thread,
+  * it is safe to manipulate `View`s from within the `handler`.) 
+  */
+
 object Actions {
+
+  /** Action to add a watcher that gets notified when
+    * the state controlled by the notifier changes.
+    * The `handler` is called on changes.
+    *
+    * If `AddWatcher` is sent as `notifier ! AddWatcher...`,
+    * the assumption is that the message is being sent from
+    * an Android `HandlerThread` (typically, an application's
+    * main "UI thread"), and invocations of the `handler` are
+    * posted back to that thread, which makes it safe for a
+    * `handler` to manipulate `View` objects, and so forth.
+    *
+    * The `key` is anything that can be used as a hash key;
+    * it is used in a subsequent `StopWatcher` call, to
+    * cease notifications.
+    */
+
   def AddWatcher[T]( key: AnyRef )( handler: T => Unit ) =
     AddWatcherAction( key, handler )
+
+  /** A combination of `AddWatcher` and `Fetch`, with the same `handler`
+    * used for both.
+    */
+
   def AddWatcherAndFetch[T]( key: AnyRef )( handler: T => Unit ) =
     AddWatcherAndFetchAction( key, handler )
 
+  /** Give a current snapshot of the notifier's state to the `handler` */
+
   case class Fetch[T]( handler: T => Unit ) 
     extends NotifierAction[T]
+
+  /** Cease notifications to a watcher added by `AddWatcher` */
+
   case class StopWatcher[T]( key: AnyRef ) 
     extends NotifierAction[T]
 
+  private [notifications]
   case class AddWatcherAction[T]( key: AnyRef, handler: T => Unit ) 
     extends NotifierAction[T]
+
+  private [notifications]
   case class AddWatcherAndFetchAction[T]( key: AnyRef, handler: T => Unit ) 
     extends NotifierAction[T]
 
-  // Action on "NotifierWithQuery" objects, for which the client
-  // is able to say "now I'm watching this other thing..."
+  /** Change the query for a [[org.positronicnet.notifications.NotifierWithQuery]].
+    *
+    * This is a change which will cause any watchers to get an update.
+    */
 
   case class Requery[Q, R]( newQuery: Q ) 
     extends NotifierAction[R]
@@ -35,23 +82,81 @@ object Actions {
 
 import Actions._
 
-// Basic definition of something that can notify watchers about
-// an object of type T.
+/** Basic trait for actor-like objects which manage state of type `T`.
+  * Actors ordinarily operate on a thread associated with the state
+  * they manage (e.g., the worker thread associated with a
+  * [[org.positronicnet.db.Database]]).  Code running on other threads
+  * usually communicates with them by sending `action`s using an
+  * actor-like `notifier ! action` style.  
+  *
+  * The base `Notifier` trait specifies a set of actions for querying
+  * the state, and requesting updates when it changes.  Subclasses
+  * (e.g., [[org.positronicnet.orm.RecordManager]]) typically support
+  * other actions which request changes to happen (which may, in turn,
+  * cause watchers to be notified).
+  *
+  * The primary reason for doing things in an actor-style syntax in
+  * Android is to deal with the fairly stringent best-practice requirements
+  * for Android "user interface threads" --- specifically, the requirement
+  * that they shouldn't be waiting for anything else, even local disk I/O
+  * (let alone, say, a network operation).  So, all that stuff needs to
+  * happen on background threads; we use actor style to help keep the
+  * concurrency manageable.
+  *
+  * However, there are also circumstances where concurrency is a nuisance.
+  * For instance, an Android `Service` or `BroadcastReceiver` may want to
+  * be sure that an operation has completed before signalling that it has
+  * finished itself.
+  *
+  * For these situations, you can also request that an action be performed
+  * `onThisThread`, as in
+  *
+  *   `notifier.onThisThread( Fetch{ value => ... } )`
+  *
+  * which performs the `Fetch` and runs the body on the current thread,
+  * forgoing all concurrency.  (Though for this particular case, there's
+  * a special-case `fetchOnThisThread` method which simply fetches the
+  * monitored state and returns it as the value.)
+  *
+  * See [[org.positronicnet.notifications.Actions]] for definitions of the
+  * common action types.
+  */
 
 trait Notifier[T] {
 
   // "Action" interface
 
-  def fetchOnThisThread: T
+  /** Perform the `action`, usually on a worker thread associated with this
+    * notifier.  Results may be posted back to the calling thread, viz.
+    * the conventions documented in [[org.positronicnet.notifications.Actions]].
+    */
+
   def !( action: Action[T] ): Unit
+
+  /** Perform the `action`, synchronously on the calling thread. 
+    */
+
   def onThisThread( action: Action[T] ): Unit
+
+  /** Synchronously fetch the value being monitored by this `Notifier`. */
+
+  def fetchOnThisThread: T
 
   // Older interface, still used by the UI code...
 
+  private[positronicnet]
   def watch( key: AnyRef )( handler: T => Unit ): Unit
+
+  private[positronicnet]
   def fetch( handler: T => Unit ): Unit
+
+  private[positronicnet]
   def fetchAndWatch( key: AnyRef )( handler: T => Unit ): Unit
+
+  private[positronicnet]
   def onChange( key: AnyRef )( handler: T => Unit ): Unit
+
+  private[positronicnet]
   def stopNotifier( key: AnyRef ): Unit
 }
 
@@ -68,17 +173,22 @@ trait NotifierDelegator[T] extends Notifier[T] {
   def onThisThread( action: Action[T] ) = 
     notifierDelegate.onThisThread( action )
 
+  private[positronicnet]
   def watch( key: AnyRef )( handler: T => Unit ) = 
     notifierDelegate.watch( key )( handler )
 
+  private[positronicnet]
   def fetch( handler: T => Unit ) = notifierDelegate.fetch( handler )
 
+  private[positronicnet]
   def fetchAndWatch( key: AnyRef )( handler: T => Unit ) = 
     notifierDelegate.fetchAndWatch( key )( handler )
 
+  private[positronicnet]
   def onChange( key: AnyRef )( handler: T => Unit ) = 
     notifierDelegate.onChange( key )( handler )
 
+  private[positronicnet]
   def stopNotifier( key: AnyRef ) = notifierDelegate.stopNotifier( key )
 }
 
@@ -125,22 +235,27 @@ trait BaseNotifierImpl[T] extends NotifierImpl[T] {
                                             action.toString )
     }
 
+  private[positronicnet]
   def watch( key: AnyRef )( handler: T => Unit ): Unit = {
     changeHandlers( key ) = handler
   }
 
+  private[positronicnet]
   def fetch( handler: T => Unit ): Unit = {
     onThread{ handler( currentValue ) }
   }
 
+  private[positronicnet]
   def fetchAndWatch( key: AnyRef )( handler: T => Unit ) = {
     fetch( handler )
     watch( key )( handler )
   }
 
+  private[positronicnet]
   def onChange( key: AnyRef )( handler: T => Unit ):Unit = {
     fetchAndWatch( key )( handler )
   }
+  private[positronicnet]
   def stopNotifier( key: AnyRef ):Unit = {
     changeHandlers.remove( key )
   }
@@ -210,6 +325,17 @@ trait CachingNotifier[T]
 
 // Machinery for change listeners which also depend on query
 // parameters from the UI...
+
+/** Subclass of [[org.positronicnet.notifications.Notifier]] which
+  * typically represents a query on some underlying resource.
+  *
+  * The query has a query type, `Q`, and a result type, `R`.
+  * Constructors typically take an initial query (of type `Q`) as
+  * an argument.  The `Requery` action can be used to change the
+  * query; this is a change that causes all currently registered
+  * watchers (viz. `AddWatcher` in [[org.positronicnet.notifications.Actions]])
+  * to get notified of the new results.
+  */
 
 trait NotifierWithQuery[ Q, R ]
   extends BaseNotifierImpl[ R ]

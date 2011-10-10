@@ -8,6 +8,11 @@ import org.positronicnet.facility._
 // Requests to a notifier, to be delivered actor-style.
 
 abstract class Action[T]
+
+/** Base class for all notifier actions.  Not much use directly;
+  * see subclasses.
+  */
+
 abstract class NotifierAction[T] extends Action[T]
 
 /** Actions that can be sent to [[org.positronicnet.notifications.Notifer]]s.
@@ -160,9 +165,11 @@ trait Notifier[T] {
   def stopNotifier( key: AnyRef ): Unit
 }
 
-// Notifiers that just delegate to other notifiers...
+/** Machinery for Notifiers which just delegate to some other Notifier. */
 
 trait NotifierDelegator[T] extends Notifier[T] {
+
+  /** The Notifier to which the delegator forwards, well... everything here. */
 
   def notifierDelegate: Notifier[T]
 
@@ -192,7 +199,7 @@ trait NotifierDelegator[T] extends Notifier[T] {
   def stopNotifier( key: AnyRef ) = notifierDelegate.stopNotifier( key )
 }
 
-// Basic implementation
+/** Base class for all library Notifiers. */
 
 trait NotifierImpl[T] extends Notifier[T] {
 
@@ -200,6 +207,10 @@ trait NotifierImpl[T] extends Notifier[T] {
 
   def noteChange: Unit
 }
+
+/** Trait providing common machinery for all library
+  * [[org.positronicnet.notifications.Notifier]] classes.
+  */
 
 trait BaseNotifierImpl[T] extends NotifierImpl[T] {
   protected val changeHandlers = new HashMap[ AnyRef, T => Unit ]
@@ -288,10 +299,14 @@ protected[positronicnet] object CallbackManager
   }
 }
 
-// Form of change notification in which each listener gets its
-// own private status update --- as when it's a cursor, which
-// different listeners *can't* share without stomping all over
-// each other.
+/** Notifier machinery which sends a separate copy of its state to each watcher.
+  *
+  * Appropriate when the state is mutable (such as a Cursor), and watchers
+  * who were all trying to use it (e.g., Fragments presenting different
+  * visualizations of the same query result) could interfere with each
+  * other if they tried to share state (e.g., by one changing a Cursor's
+  * current row behind the other's back).
+  */
 
 trait NonSharedNotifier[T]
   extends BaseNotifierImpl[T]
@@ -304,9 +319,11 @@ trait NonSharedNotifier[T]
   protected def currentValue: T
 }
 
-// Form of change notification in which the notifier computes
-// one new value, which all listeners share (and which can be
-// interrogated on the fly):
+/** Notifier machinery which sends the same copy of its state to all watchers.
+  *
+  * Appropriate when the state is immutable, and all watchers can share it
+  * without stepping on each others' toes.
+  */
 
 trait CachingNotifier[T]
   extends BaseNotifierImpl[T]
@@ -355,9 +372,9 @@ trait NotifierWithQuery[ Q, R ]
   } 
 }
 
-// Useful common machinery for classes managing changes to some
-// resource (e.g., a database) which might maintain multiple
-// change listeners.
+/** Base class providing useful common machinery for all stock
+  * [[org.positronicnet.notifications.Notifier]] classes
+  */
 
 class BaseNotifier( facility: AppFacility )
 {
@@ -369,6 +386,12 @@ class BaseNotifier( facility: AppFacility )
   }
 }
 
+/** Notifier class which sends the same copy of its state to all watchers.
+  *
+  * Appropriate when the state is immutable, and all watchers can share it
+  * without stepping on each others' toes.
+  */
+
 class ValueNotifier[T]( facility: AppFacility, generator: () => T )
   extends BaseNotifier( facility )
   with CachingNotifier[T]
@@ -376,12 +399,28 @@ class ValueNotifier[T]( facility: AppFacility, generator: () => T )
   protected def currentValue = generator()
 }
 
+/** Notifier class which sends a separate copy of its state to each watcher.
+  *
+  * Appropriate when the state is mutable (such as a Cursor), and watchers
+  * who were all trying to use it (e.g., Fragments presenting different
+  * visualizations of the same query result) could interfere with each
+  * other if they tried to share state (e.g., by one changing a Cursor's
+  * current row behind the other's back).
+  */
+
 class NonSharedValueNotifier[T]( facility: AppFacility, generator: () => T )
   extends BaseNotifier( facility )
   with NonSharedNotifier[T]
 {
   protected def currentValue = generator()
 }
+
+/** "Query" class which sends the same copy of its state to all watchers.
+  * See [[org.positronicnet.notifications.NotifierWithQuery]].
+  *
+  * Appropriate when the state is immutable, and all watchers can share it
+  * without stepping on each others' toes.
+  */
 
 class ValueQuery[Q, R]( facility: AppFacility, 
                         initialQuery: Q, queryFunc: Q => R )
@@ -403,6 +442,16 @@ class ValueQuery[Q, R]( facility: AppFacility,
   }
 }
 
+/** "Query" class which sends a separate copy of its state to each watcher.
+  * See [[org.positronicnet.notifications.NotifierWithQuery]].
+  *
+  * Appropriate when the state is mutable (such as a Cursor), and watchers
+  * who were all trying to use it (e.g., Fragments presenting different
+  * visualizations of the same query result) could interfere with each
+  * other if they tried to share state (e.g., by one changing a Cursor's
+  * current row behind the other's back).
+  */
+
 class NonSharedValueQuery[Q, R]( facility: AppFacility,
                                  initialQuery: Q, queryFunc: Q => R )
   extends BaseNotifier( facility )
@@ -413,11 +462,11 @@ class NonSharedValueQuery[Q, R]( facility: AppFacility,
   protected def currentValue = queryFunc( currentQuery )
 }
 
-// Interface for managers of multiple notification streams.
-// This exists largely for accountancy purposes.  There are
-// two distinct implementations --- the core one and a pure
-// delegator.  I want to make sure that the delegator 
-// implements the full set of methods that the base does.
+/** Interface for an object which manages multiple notifiers.
+  *
+  * It's common to have a set of [[org.positronicnet.notifications.Notifier]]s
+  * for different aspects of a single underlying state.
+  */
 
 trait NotificationManager
 {
@@ -431,6 +480,10 @@ trait NotificationManager
   def valueQuery[Q,R]( initialVal: Q )( func: Q => R ): ValueQuery[Q, R]
   def cursorQuery[Q,R]( initialVal: Q )( func: Q => R ):NonSharedValueQuery[Q,R]
 }
+
+/** Basic machinery for all library
+  * [[org.positronicnet.notifications.NotificationManager]]s
+  */
 
 abstract class BaseNotificationManager( facility: AppFacility )
   extends BaseNotifier( facility )
@@ -470,6 +523,10 @@ abstract class BaseNotificationManager( facility: AppFacility )
     return it
   }
 }
+
+/** Support for [[org.positronicnet.notifcations.NotificationManager]]s
+  * which delegate their work to another, pre-existing one.
+  */
 
 abstract class BaseNotificationDelegator[ T <: NotificationManager ]( d: T )
 {

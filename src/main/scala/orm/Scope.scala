@@ -29,26 +29,84 @@ object Actions {
   private [orm] case class DeleteAllAction[T]( dummy: Long = 0 ) 
                      extends ScopeAction[T]
 
+  /** Request to save an existing record (an update), or a new
+    * one (an insert).
+    */
+
   case class Save[T]( record: T ) extends ScopeAction[T]
+
+  /** Request to delete an existing record. */
+
   case class Delete[T]( record: T ) extends ScopeAction[T]
+
+  /** Request to update all the records matching this scope.
+    * The argument is a set of
+    * `(String,[[org.positronicnet.content.ContentValue]])` pairs,
+    * often entered using `->` notation, like so:
+    * {{{
+    *     joesBugs ! UpdateAll( "status"->"done", "updated_at"->now )
+    * }}}
+    * The strings are currently the names of columns in the underlying
+    * resource, and not the names of fields they get mapped to.
+    * (XXX This should be fixed.)
+    */
+
   case class UpdateAll[T]( vals: (String, ContentValue)* )
     extends ScopeAction[T]
 
   // At least in Scala 2.8.1, case objects can't take type parameters.
   // So, for DeleteAll we have this disreputable-looking hack...
 
+  /** Request to delete all of the records matching this scope. */
+
   def DeleteAll[T] = DeleteAllAction[T](0)
+
+  /** Find the record with the given `id`, if it exists.
+    * XXX should only find it if it matches conditions of the
+    * scope, as per Rails.
+    */
+
   def Find[T]( id: Long )( handler: T => Unit ) =
     FindAction( id, handler )
 }
 
 import Actions._
 
+/** Utility class for declare new Scope-specific actions, to do whatever
+  * is defined in the corresponding `act` method.
+  * 
+  * Useful mainly if you're defining one of your own (e.g., to
+  * support an ORM extension like [[org.positronicnet.orm.SoftDelete]]).
+  */
+
 abstract class ScopedAction[T <: ManagedRecord: ClassManifest] 
   extends ScopeAction[T]
 {
+  /** The method that actually does the work of handling the
+    * action, whatever that entails.  Arguments are the
+    * [[org.positronicnet.orm.Scope]] that receieved the action,
+    * and, for convenience, its associated
+    * [[org.positronicnet.orm.RecordManager]].
+    *
+    * The method is invoked on the `RecordManager`'s associated
+    * worker thread if the action was sent as `scope!action`,
+    * and on the calling thread if it was sent instead as
+    * `scope.onThisThread(action)`.
+    */
+
   def act( scope: Scope[T], mgr: BaseRecordManager[T] ): Unit
 }
+
+/** A [[org.positronicnet.orm.Scope]] represents a subset of the
+  * [[org.positronicnet.orm.ManagedRecord]]s managed by some
+  * [[org.positronicnet.orm.RecordManager]], which may be used
+  * to query and update them.
+  *
+  * (These are the same methods available by using the
+  * [[org.positronicnet.orm.RecordManager]] directly, which is
+  * no coincidence --- [[org.positronicnet.orm.RecordManager]]
+  * extends [[org.positronicnet.orm.Scope]].
+  */
 
 trait Scope[ T <: ManagedRecord ]
   extends NotificationManager
@@ -56,19 +114,82 @@ trait Scope[ T <: ManagedRecord ]
 {
   private [orm] val mgr: BaseRecordManager[T]
 
+  /** [[org.positronicnet.facility.AppFacility]] associated with the
+    * content source.
+    */
+
   val facility: AppFacility
+
+  /** [[org.positronicnet.content.ContentQuery]] whose conditions
+    * match those declared for the [[org.positronicnet.orm.Scope]].
+    */
+
   val baseQuery: ContentQuery[_,_]
 
+  /** [[org.positronicnet.content.ContentQuery]] whose conditions
+    * match those for the records in scope.  Ordinarily the same
+    * as `baseQuery`, but some [[org.positronicnet.orm.RecordManager]]s
+    * may add extra conditions to, e.g., make soft-deleted records
+    * invisible from an ordinary fetch.
+    */
+
   lazy val fullQuery = mgr.queryForAll( baseQuery )
+
+  // XXX these should be library-private:
 
   lazy val records = valueNotifier{ mgr.fetchRecords( fullQuery )}
   def notifierDelegate = records        // for NotifierDelegator
 
+  /** [[org.positronicnet.notifications.Notifier]] which can be used
+    * to fetch, or to receive updates on, the number of records matching
+    * the scope's conditions.  One usage pattern:
+    * {{{
+    *     Bugs.count ! AddWatcher( this ) { bugCount =>
+    *       if (bugCount == 0) {
+    *         startActivity( new Intent( this, classOf[ CelebrationActivity ])
+    *         Bugs ! StopWatcher( this )
+    *         finish
+    *       }
+    *     }
+    * }}}
+    * The `onChangeTo` method in
+    * [[org.positronicnet.ui.PositronicActivityHelpers]] can simplify this
+    * a bit... but I digress.
+    */
+
   lazy val count = valueNotifier{ fullQuery.count }
+
+  /** Returns a notifier for a subset of the records covered by this
+    * scope, matching extra conditions, which can be changed later by sending
+    * a `Requery` message.
+    *
+    * This can be used, for example, as the source for an
+    * [[org.positronicnet.ui.IndexedSeqSourceAdapter]], which displays
+    * the rows matching the user's "current search condition", whatever
+    * it may be, and changes when the condition changes, but ''without''
+    * having to rewire the [[org.positronicnet.ui.IndexedSeqSourceAdapter]],
+    * perhaps something like so:
+    * {{{
+    *     val matchingBugs =
+    *       Bugs.recordsQuery( "" ){ pattern =>
+    *         Bugs.where( "tag_line like ?", pattern )
+    *       }
+    *
+    *      // ... later ...
+    *
+    *     matchingBugs ! Requery( "newpattern" )
+    * }}}
+    * The `Requery` will cause any declared watchers of `matchingBugs`
+    * to be notified of the new query result.
+    */
 
   def recordsQuery[ Q ]( initial: Q )( fn: Q => Scope[T] ) = 
     valueQuery( initial ){ q => 
       mgr.fetchRecords( mgr.queryForAll( fn(q).baseQuery )) }
+
+  /** As for `recordsQuery`, but returns a notifier of the count of
+    * records matching the extra conditions.
+    */
 
   def countQuery[ Q ]( initial: Q )( fn: Q => Scope[T] ) = 
     valueQuery( initial ){ q => mgr.queryForAll( fn(q).baseQuery ).count }
@@ -98,8 +219,41 @@ trait Scope[ T <: ManagedRecord ]
 
   // Conditions and other derivatives
 
+  /** Produce a restricted subscope containing only records
+    * matching an extra SQL condition, possibly including
+    * `?` placeholders which can get filled in by the supplied
+    * [[org.positronicnet.content.ContentValue]] arguments, if
+    * any.  Example:
+    * {{{
+    *     val recentBugs =
+    *       Bugs.where( "state != ? and create_date > ?",
+    *                   "closed",
+    *                   System.currentTimeMillis - 3*86400*1000 )
+    * }}}
+    * Note that the columns are named using internal SQL column
+    * names, not the Java mapped versions.
+    *
+    * (Note ''for the future'':  we could consider changing this by
+    * allowing syntax like `"{createDate}>?"`, where the string
+    * in curly-braces would be a Java field name to be mapped to
+    * the SQL equivalent.  But that's not there yet.)
+    */
+
   def where( str: String, vals: ContentValue* ): Scope[T] = 
     subScopeFor( baseQuery.where( str, vals: _* ))
+
+  /** Produce a restricted subscope containing only records
+    * where particular fields have particular values.
+    * The argument is a set of
+    * `(String,[[org.positronicnet.content.ContentValue]])` pairs,
+    * often entered using `->` notation, like so:
+    * {{{
+    *     Bugs.whereEq( "status"->"done", "ownerId"->joe.id )
+    * }}}
+    * Note that columns can be designated by either the names
+    * of the columns in the underlying tables, or the names of the
+    * Scala `val`s in the classes that they get mapped to.
+    */
 
   def whereEq( pairs: (String, ContentValue)* ): Scope[T] = {
     val ppairs = pairs.map{ (pair) =>
@@ -107,16 +261,37 @@ trait Scope[ T <: ManagedRecord ]
     subScopeFor( baseQuery.whereEq( ppairs: _* ))
   }
 
+  /** Produce a modified subscope which supplies records in a particular
+    * order.  The string supplied is used directly in a SQL `order`
+    * clause (or passed to the underlying `ContentProvider`, if
+    * appropriate).
+    */
+
   def order( str: String ): Scope[T] = 
     new AlternateViewScope( this, baseQuery.order( str ))
+
+  /** Produce a modified subscope which supplies at most a given
+    * number of records.  The string supplied is used directly in a SQL `limit`
+    * clause.  (This isn't supported for `ContentProvider`s.)
+    */
 
   def limit( str: String ): Scope[T] =
     new AlternateViewScope( this, baseQuery.limit( str ))
 
+  /** Produce a modified subscope which supplies at most a given
+    * number of records.  The string supplied is used directly in a SQL `limit`
+    * clause.  (This isn't supported for `ContentProvider`s.)
+    */
+
   def limit( lim: Int ): Scope[T] =
     new AlternateViewScope( this, baseQuery.limit( lim ))
 
-  // 'find' support...
+  /** Find the record with the given `id`, if it exists, running the
+    * query on the current thread, and returning it as the value.
+    * 
+    * XXX should only find it if it matches conditions of the
+    * scope, as per Rails.
+    */
 
   def findOnThisThread( id: Long ) = mgr.find( id, baseQuery )
 

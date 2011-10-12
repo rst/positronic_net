@@ -24,16 +24,11 @@ import _root_.android.database.Cursor
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer
 
-trait PositronicViewOps {
-  // This would be the place to put findView, if we knew where
-  // to find TypedResource.
-}
-
 // "JQuery-style" event listener declarations.  Fortunately, these
 // don't conflict with the native API because they're alternate
 // overloadings.
 
-trait PositronicHandlers extends PositronicViewOps {
+trait PositronicHandlers {
 
   def setOnClickListener( dummy: View.OnClickListener ): Unit
 
@@ -63,6 +58,7 @@ trait PositronicHandlers extends PositronicViewOps {
   // Our dispatch logic, exposed here for the sake of tests.
   // (At time of writing, key dispatch stuff is awkward with Robolectric.)
 
+  private [positronicnet]
   def positronicKeyDispatch( keyCode: Int, metaState: Int, 
                              action: Int, ev: KeyEvent ): Boolean = {
     if (action == KeyEvent.ACTION_DOWN) {
@@ -144,9 +140,9 @@ trait PositronicItemHandlers {
   // we've got two distinct event handlers bundled up in one listener
   // class...
 
-  var haveOnItemSelectedListener = false
-  var itemSelectedHandler:    (( View, Int, Long ) => Unit) = null
-  var nothingSelectedHandler: (View => Unit)                = null
+  private var haveOnItemSelectedListener = false
+  private var itemSelectedHandler:    (( View, Int, Long ) => Unit) = null
+  private var nothingSelectedHandler: (View => Unit)                = null
 
   private def installOnItemSelectedListener = {
     if (!haveOnItemSelectedListener) {
@@ -181,7 +177,7 @@ trait PositronicItemHandlers {
   def handleItemSelected( view: View, posn: Int, id: Long ) =
     if (itemSelectedHandler != null) itemSelectedHandler( view, posn, id )
 
-  def handleNothingSelected =
+  private def handleNothingSelected =
     if (nothingSelectedHandler != null) nothingSelectedHandler
 
   def selectedContextMenuItem( info: ContextMenu.ContextMenuInfo ):Object = {
@@ -240,13 +236,13 @@ trait PositronicActivityHelpers
     def runAll = for (handler <- this) { handler() }
   }
 
-  var onCreateNotifier  = new Handlers
-  var onRestartNotifier = new Handlers
-  var onStartNotifier   = new Handlers
-  var onResumeNotifier  = new Handlers
-  var onPauseNotifier   = new Handlers
-  var onStopNotifier    = new Handlers
-  var onDestroyNotifier = new Handlers
+  private var onCreateNotifier  = new Handlers
+  private var onRestartNotifier = new Handlers
+  private var onStartNotifier   = new Handlers
+  private var onResumeNotifier  = new Handlers
+  private var onPauseNotifier   = new Handlers
+  private var onStopNotifier    = new Handlers
+  private var onDestroyNotifier = new Handlers
 
   override def onCreate( b: Bundle ) {
     onCreate( b, 0 )
@@ -352,7 +348,7 @@ trait PositronicActivityHelpers
     getMenuInflater.inflate( contextMenuResourceId, menu )
   }
 
-  val optionsItemMap = new HashMap[ Int, (() => Unit) ]
+  private val optionsItemMap = new HashMap[ Int, (() => Unit) ]
 
   def onOptionsItemSelected( id: Int )( thunk: => Unit ) = {
     optionsItemMap( id ) = (() => thunk)
@@ -369,12 +365,13 @@ trait PositronicActivityHelpers
     }
   }
 
-  type ContextItemHandler = (( ContextMenu.ContextMenuInfo, View ) => Unit )
+  private type ContextItemHandler = 
+    (( ContextMenu.ContextMenuInfo, View ) => Unit )
 
-  val contextItemMap = new HashMap[ Int, ContextItemHandler ]
-  var contextMenuView: View = null
+  private val contextItemMap = new HashMap[ Int, ContextItemHandler ]
+  private var contextMenuView: View = null
 
-  def rememberViewForContextMenu( v: View ) = { contextMenuView = v }
+  private def rememberViewForContextMenu( v: View ) = { contextMenuView = v }
 
   def onContextItemSelected( id: Int )( handler: ContextItemHandler ) = {
     contextItemMap( id ) = handler
@@ -391,7 +388,7 @@ trait PositronicActivityHelpers
     }
   }
 
-  var onPrepareOptionsMenuHandlers = new ArrayBuffer[ Menu => Unit ]
+  private var onPrepareOptionsMenuHandlers = new ArrayBuffer[ Menu => Unit ]
 
   override def onPrepareOptionsMenu( m: Menu ):Boolean = { 
     super.onPrepareOptionsMenu( m ); 
@@ -472,7 +469,6 @@ class PositronicDialog( context: Context,
                         theme: Int = 0, 
                         layoutResourceId: Int = 0 )
  extends android.app.Dialog( context, theme ) 
- with PositronicViewOps 
 {
   if ( layoutResourceId != 0 )
     setContentView( layoutResourceId )

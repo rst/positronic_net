@@ -146,8 +146,8 @@ package org.positronicnet
   * able to instantiate new instances of its
   * [[org.positronicnet.orm.ManagedRecord]] class.  The conventional approach is
   * for the [[org.positronicnet.orm.ManagedRecord]] class to have a niladic
-  * (no arguments) constructor --- or, at the very least, a constructor in
-  * which all arguments have defaults.  (If, for some reason, this doesn't
+  * (no arguments) constructor --- or, at the very least, a single constructor
+  * for which all arguments have defaults.  (If, for some reason, this doesn't
   * work for you, you can override `newRecord` in the
   * [[org.positronicnet.orm.RecordManager]] to do something else instead.
   * But the common pattern just works.)

@@ -7,14 +7,50 @@ import android.database.Cursor
 
 import scala.collection._
 
-// Trait for objects that will be persisted by this ORM into some
-// ContentRepository (be it a SQLiteDatabase, a ContentProvider, or whatever).
-//
-// Most of the heavy lifting is delegated to a RecordManager singleton,
-// for which see below.
-//
-// Note that the manager MUST be a RecordManager[ thisclass ], but it's
-// awfully awkward to write that constraint...
+/**
+  * Abstract base class for objects that will be persisted by this ORM into some
+  * [[org.positronicnet.content.ContentRepository]] (be it a
+  * [[org.positronicnet.db.Database]], a `ContentProvider`, or whatever).
+  *
+  * As you can see, the infrastructure present in class instances is
+  * deliberately kept very minimal.  (The usual convention is to use
+  * immutable classes for these; that means that copying has to be
+  * fast, and copies very lightweight.)  The main machinery here is
+  * to implement certain conventions regarding `id` fields, and to
+  * allow associations to be declared.  (It is ''strongly'' recommended
+  * that they be declared as `lazy val`s, again to avoid overhead on
+  * construction or copying unless and until the association object
+  * will actually be used.)
+  *
+  * Most of the heavy lifting is delegated to a
+  * [[org.positronicnet.orm.RecordManager]].  As discussed in the
+  * [[org.positronicnet.orm]] overview, the usual pattern is to have
+  * [[org.positronicnet.orm.ManagedRecord]] subclasses pass a suitable
+  * [[org.positronicnet.orm.RecordManager]] singleton into the
+  * [[org.positronicnet.orm.ManagedRecord]] superclass constructor,
+  * like so:
+  * 
+  * {{{
+  *     case class TodoItem( description: String = null, 
+  *                          isDone: Boolean     = false,
+  *                          id: Long            = ManagedRecord.unsavedId 
+  *                        )
+  *       extends ManagedRecord( TodoItem )
+  *
+  *     object TodoItems extends RecordManager[TodoItem]( TodoDb("todo_items"))
+  * }}}
+  *
+  * It's also possible to use a [[org.positronicnet.orm.BaseRecordManager]];
+  * the difference between this and the more ordinary kind of
+  * [[org.positronicnet.orm.RecordManager]] is that a
+  * [[org.positronicnet.orm.RecordManager]] will
+  * automatically map fields based on certain naming conventions, while a
+  * [[org.positonicnet.orm.BaseRecordManager]] must be configured explicitly.
+  *
+  * Note also that the manager MUST be a `RecordManager[ thisclass ]`, (or
+  * `BaseRecordManager[ thisclass ]`, but it's
+  * awfully awkward to write that constraint...
+  */
 
 abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
 
@@ -22,10 +58,30 @@ abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
 
   private [orm] var unsaved = true
 
+  /** Persistent ID of this record.  Must default to
+    * `ManagedRecord.unsavedId` in unsaved instances constructed
+    * by the no-arguments (or all-defaulted-arguments constructor)
+    * of an [[org.positronicnet.orm.ManagedRecord]] subclass,
+    * or in the objects constructed by the `newRecord` method
+    * of the [[org.positronicnet.orm.RecordManager]], if that is
+    * overridden.
+    */
+
   val id: Long
 
+  /** True if this is a new record (i.e., not a query result). */
+
   def isNewRecord = (id == ManagedRecord.unsavedId)
+
+  /** True if this record is unsaved (i.e., a new record or
+    * modified query result).
+    */
+
   def isUnsaved   = unsaved
+
+  /** One-to-many association.  See discussion in the
+    * [[org.positronicnet.orm]] overview.
+    */
 
   class HasMany[T <: ManagedRecord]( src: RecordManager[T], foreignKey: String )
     extends HasManyAssociation( src, foreignKey, this.id )
@@ -33,6 +89,10 @@ abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
     def this( src: RecordManager[T] ) = 
       this( src, src.columnNameFor( manager.defaultForeignKeyField ))
   }
+
+  /** Many-to-one.  See discussion in the
+    * [[org.positronicnet.orm]] overview.
+    */
 
   class BelongsTo[T <: ManagedRecord]( src: RecordManager[T],
                                        foreignKeyField: MappedField )
@@ -45,6 +105,7 @@ abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
       this( src, manager.columnFor( foreignKey ))
   }
 
+  private [orm]
   class BelongsToImpl[T <: ManagedRecord]( src: RecordManager[T],
                                            foreignKeyField: MappedField,
                                            parent: ManagedRecord
@@ -60,28 +121,36 @@ abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
   }
 }
 
+/** Companion object for the [[org.positronicnet.orm.ManagedRecord]] class. */
+
 object ManagedRecord {
+
+  /** ID of all unsaved [[org.positronicnet.orm.ManagedRecord]]s */
+
   val unsavedId = -1
 }
 
-// Base class for management of shuffling in-core records into and
-// out of persistent storage.
+/** Base class for mapping of [[org.positronicnet.orm.ManagedRecord]]s
+  * to and from persistent storage.  It is conventional to use the
+  * [[org.positronicnet.orm.RecordManager]] subclass, which provides
+  * additional convenience features, but the base class is available
+  * for the inevitable times when the convenience features become
+  * inconvenient.
+  */
 
 abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
   extends BaseNotificationManager( repository.facility )
   with Scope[T]
 {
-  // Producing a new object (to be populated with mapped data from a query). 
-  // Note that the default implementation requires a niladic constructor 
-  // to exist in bytecode, which will *not* be the case if there's a
-  // with-args constructor that supplies defaults for all args (viz.
-  // case classes).  
-  //
-  // Default is to use a niladic constructor if one exists.  Failing that,
-  // if there is *one* constructor, and defaults for all its arguments,
-  // we'll use that.  (See ReflectUtils.getObjectBuilder for details.)
-  //
-  // In other cases, RecordManagers can override.
+  /**
+    * Produce a new object (to be populated with mapped data from a query). 
+    *
+    * Default is to use a niladic constructor if one exists.  Failing that,
+    * if there is one constructor, and defaults for all its arguments,
+    * we'll use that.  
+    *
+    * In other cases, RecordManagers can override.
+    */
 
   def newRecord = builder()
   private lazy val builder = ReflectUtils.getObjectBuilder[ T ] 
@@ -112,6 +181,29 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
       case None =>
         throw new RuntimeException("Can't find mapping for field " + fieldName)
     }
+
+  /** Declare that the field named `fieldName` in our
+    * [[org.positronic.orm.ManagedRecord]] subclass `T`
+    * is to be mapped to the persistent storage `columnName`.
+    * If the `primaryKey` argument is set true, this field and
+    * column will be treated as the record's primary key; this
+    * currently must be a `Long`.
+    *
+    * For [[org.positronicnet.db.Database]] mapping, when using a
+    * [[org.positronicnet.orm.RecordManager]], it is rarely
+    * necessary to call this explicitly; so long as you're following
+    * the usual naming conventions, the ORM will figure out what's
+    * going on without being told.  Those conventions are:
+    *
+    *  - A column named `_id` will be mapped to a field named `id`,
+    *    and will be treated as the primary key.
+    *  - A column with a name `like_this` will be mapped to a
+    *    camel-cased field `likeThis`.
+    *
+    * However, a [[org.positronicnet.orm.BaseRecordManager]] will
+    * not map any columns by default, and requires you to map
+    * everything explicitly.
+    */
 
   def mapField( fieldName: String, 
                 columnName: String, 
@@ -228,6 +320,16 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     }
   }
 
+  /** Fetch and construct the records from a
+    * [[org.positronicnet.content.ContentQuery]] on this
+    * record manager's [[org.positronicnet.content.ContentRepository]].
+    *
+    * This is largely an internal method.  It's made available mostly
+    * for the sake of ORM extensions, to be implemented as traits
+    * mixed into [[org.positronicnet.orm.RecordManager]] subclasses,
+    * on the model of [[org.positronicnet.orm.SoftDelete]].
+    */
+
   def fetchRecords( qry: ContentQuery[_,_] ): IndexedSeq[ T ] = {
     qry.select( fieldNames: _* ).map{ c => instantiateFrom( c ) }
   }
@@ -286,6 +388,15 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   def delete( rec: T, scope: Scope[T] ):Unit = 
     deleteAll( queryForRecord( rec ), scope )
 
+  /** Support for "cascading deletes", when the parent record
+    * in a many-to-one association is gone.
+    *
+    * This is largely an internal method.  It's made available mostly
+    * for the sake of ORM extensions, to be implemented as traits
+    * mixed into [[org.positronicnet.orm.RecordManager]] subclasses,
+    * on the model of [[org.positronicnet.orm.SoftDelete]].
+    */
+
   def handleVanishingParent( qry: ContentQuery[_,_] ) :Unit = qry.delete
 
   protected [orm]
@@ -293,6 +404,16 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     queryForAll( scope.baseQuery ).update( vals: _* )
 }
 
+/** Class for mapping of [[org.positronicnet.orm.ManagedRecord]]s
+  * to and from persistent storage.  Extends
+  * [[org.positronicnet.orm.BaseRecordManager]] by providing
+  * additional convenience features; most notably, it will automatically
+  * map field names to corresponding columns based on naming conventions
+  * without needing explicit configuration.
+  *
+  * See `mapField` below or the discussion of field mapping in the
+  * [[org.positronicnet.orm]] overview.
+  */
 abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
   extends BaseRecordManager[ T ]( repository )
 {
@@ -346,5 +467,6 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
     return super.fieldsSeq
   }
 
+  private
   def camelize( str: String ) = str.split("_").reduceLeft{ _ + _.capitalize }
 }

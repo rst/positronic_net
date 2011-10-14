@@ -325,6 +325,7 @@ trait Scope[ T <: ManagedRecord ]
   }
 }
 
+private[orm]
 trait DerivedScope[ T <: ManagedRecord ] 
   extends Scope[ T ]
 {

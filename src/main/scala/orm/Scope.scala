@@ -105,7 +105,7 @@ abstract class ScopedAction[T <: ManagedRecord: ClassManifest]
   * (These are the same methods available by using the
   * [[org.positronicnet.orm.RecordManager]] directly, which is
   * no coincidence --- [[org.positronicnet.orm.RecordManager]]
-  * extends [[org.positronicnet.orm.Scope]].
+  * extends [[org.positronicnet.orm.Scope]].)
   */
 
 trait Scope[ T <: ManagedRecord ]
@@ -383,11 +383,18 @@ class HasManyAssociation[ T <: ManagedRecord ]( base:       Scope[ T ],
 
   lazy val foreignKeyField = mgr.fieldByDbName( foreignKey )
 
+  /** Create a new child record, with the foreign key field pre-populated.
+    */
+
   def create: T = {
     val target = mgr.newRecord
     foreignKeyField.setValue( target, idVal )
     target
   }
+
+  /** The code invoked when the "parent" in a `HasMany` vanishes, to
+    * mop up child records.
+    */
 
   def handleVanishingParent: Unit = {
     mgr.handleVanishingParent( baseQuery )

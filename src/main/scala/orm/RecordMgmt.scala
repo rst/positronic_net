@@ -48,7 +48,7 @@ import scala.collection._
   * [[org.positonicnet.orm.BaseRecordManager]] must be configured explicitly.
   *
   * Note also that the manager MUST be a `RecordManager[ thisclass ]`, (or
-  * `BaseRecordManager[ thisclass ]`, but it's
+  * `BaseRecordManager[ thisclass ]`), but it's
   * awfully awkward to write that constraint...
   */
 
@@ -80,7 +80,17 @@ abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
   def isUnsaved   = unsaved
 
   /** One-to-many association.  See discussion in the
-    * [[org.positronicnet.orm]] overview.
+    * [[org.positronicnet.orm]] overview.  Note that the name of the
+    * `foreignKey` need not be supplied if it follows common conventions.
+    * (If the class that owns the `HasMany` is named `ParentClass`, the
+    * conventional foreign key field is the one whose Scala name is
+    * `parentClassId`, in the "child" class.  That is, if a `TodoList`
+    * has many `TodoItem`s, the convention is for `TodoItem` to have
+    * a `todoListId`, and that's what we use.)
+    *
+    * Otherwise it must be the column name for the
+    * [[org.positronicnet.orm.ContentRepository]], not the name of the
+    * corresponding Scala record field.
     */
 
   class HasMany[T <: ManagedRecord]( src: RecordManager[T], foreignKey: String )
@@ -90,8 +100,18 @@ abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
       this( src, src.columnNameFor( manager.defaultForeignKeyField ))
   }
 
-  /** Many-to-one.  See discussion in the
-    * [[org.positronicnet.orm]] overview.
+  /** Many-to-one association.  See discussion in the
+    * [[org.positronicnet.orm]] overview.  Note that the
+    * `foreignKey` need not be supplied if it follows common conventions.
+    * (If the class the `BelongsTo` refers to is named `ParentClass`, the
+    * conventional foreign key field is the one whose Scala name is
+    * `parentClassId`, in the "child" class.  That is, if a `TodoItem`
+    * belongs to a `TodoList`, the convention is for `TodoItem` to have
+    * a `todoListId`, and that's what we use.)
+    *
+    * Otherwise it must be the column name for the
+    * [[org.positronicnet.orm.ContentRepository]], not the name of the
+    * corresponding Scala record field.
     */
 
   class BelongsTo[T <: ManagedRecord]( src: RecordManager[T],

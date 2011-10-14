@@ -266,6 +266,112 @@ package org.positronicnet
   * use it when the underlying [[org.positronicnet.content.ContentRepository]]
   * is an Android `ContentProvider`, and the actual column names aren't
   * under your control to begin with.
-  */
-
+  *
+  * ==One-to-many and many-to-one associations==
+  *
+  * The Positronic Net ORM has some support for one-to-many and many-to-one
+  * associations.  (Many-to-many associations would require bypassing a lot
+  * of the usual Android helpers, and isn't likely to be possible for
+  * `ContentProvider`s, where the API simply doesn't support the required
+  * joins.)
+  *
+  * The available features are perhaps best explained by example.  Let's
+  * say that we have a [[org.positronicnet.db.Database]] with the following
+  * schema:
+  * {{{
+  *     def schemaUpdates =
+  *       List(""" create table todo_lists (
+  *                  _id integer primary key,
+  *                  name string
+  *                )
+  *            """,
+  *            """ create table todo_items (
+  *                  _id integer primary key,
+  *                  todo_list_id integer,
+  *                  description string,
+  *                  is_done integer
+  *                )
+  *            """)
+  * }}}
+  * The intent obviously is that we have multiple `todo_lists`, each of
+  * which has its own set of `todo_items` --- those being the items whose
+  * `todo_list_id` column matches the `id` of the corresponding row in
+  * `todo_lists`.  (Some Rails influence may be perceptible here in the
+  * conventions regarding plurals and so forth.)
+  *
+  * We'd like to be able to access the items given the list, and vice
+  * versa.  Here's an example of how that can get mapped:
+  * {{{
+  *     case class TodoList( name: String = null,
+  *                          id: Long     = ManagedRecord.unsavedId )
+  *       extends ManagedRecord( TodoLists )
+  *     {
+  *       lazy val items = new HasMany( TodoItems )
+  *     } 
+  *     
+  *     object TodoLists extends RecordManager[ TodoList ](TodoDb("todo_lists"))
+  *     
+  *     case class TodoItem( todoListId: Long    = ManagedRecord.unsavedId,
+  *                          description: String = null, 
+  *                          id: Long            = ManagedRecord.unsavedId )
+  *       extends ManagedRecord( TodoItems )
+  *     {
+  *       lazy val todoList = new BelongsTo( TodoLists )
+  *     }
+  * }}}
+  *
+  * Here, [[org.positronicnet.orm.ManagedRecord.HasMany]] and
+  * [[org.positronicnet.orm.ManagedRecord.BelongsTo]] are nested classes
+  * provided by the [[orm.positronicnet.orm.ManagedRecord]] superclass.
+  * The `lazy val`s here are, as usual, intended to delay construction
+  * of these objects until someone refers to them.  Constructing them
+  * doesn't immediately cause any database I/O, but it still takes time
+  * and storage space, and if no one's going to refer to them at all,
+  * making them `lazy` avoids that overhead completely.
+  *
+  * So, what the heck are these things?
+  *
+  * The [[org.positronicnet.orm.ManagedRecord.HasMany]] is the more familiar
+  * of the two --- it's a [[org.positronicnet.orm.Scope]], such as we might
+  * get by saying
+  * {{{
+  *     case class TodoList( ... ) extends ManagedRecord( TodoLists )
+  *     {
+  *       lazy val items = TodoItems.whereEq( "todoListId", this.id )
+  *     } 
+  * }}}
+  * and may be watched queried as such; for instance, code like this:
+  * {{{
+  *     myTodoList.items ! Fetch{ items => ... }
+  *     myTodoList.items ! AddWatcher( key ) { items => ... }
+  * }}}
+  * works either way.  Being a [[org.positronicnet.orm.ManagedRecord.HasMany]],
+  * though, it has two extra tricks.  First, it has a `create` method, which
+  * returns a new `TodoItem` with the `todoListId` prepopulated.  Thus, for
+  * example:
+  * {{{
+  *     val item = myTodoList.items.create
+  *     val itemWithDescription = item.copy( description = "Wash Dog" )
+  *     myTodoList.items ! Save( itemWithDescription )
+  * }}}
+  * (Note that the save gets sent to `mytodoList.items`, so that its watchers
+  * --- or the watchers of any other `TodoItem` sub-scope with the exact same
+  * conditions --- will be notified of the change.)
+  *
+  * Second, when a `TodoList` is deleted, the
+  * [[org.positronicnet.orm.RecordManager]]s use some reflection to track
+  * down `TodoItem`s associated with the vanishing lists, and to delete them
+  * as well.
+  *
+  * The [[org.positronicnet.orm.ManagedRecord.BelongsTo]] is somewhat different.
+  * A `TodoItem` has only one parent `TodoList` at a time, so the
+  * [[org.positronicnet.orm.MangedRecord.BelongsTo]] object behaves as a query
+  * for ''that particular list''.  Thus, for example,
+  * {{{
+  *     myItem.todoList ! Fetch { list =>
+  *       Log.d( "XXX", "The list's name is: " + list.name )
+  *     }
+  * }}}
+  * It currently supports only access to the parent record, not modifications.
+  */ 
 package object orm                      // empty --- hook for Scaladoc

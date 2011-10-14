@@ -15,13 +15,31 @@ package org.positronicnet
   * It works by transparently mapping rows from the cursors to (and
   * from) simple Scala objects, following the
   * [[http://en.wikipedia.org/wiki/Active_record_pattern active
-  * record]] pattern.  (That's lowercase; while the Ruby on Rails
-  * ActiveRecord ORM was an important influence, as can be seen in
-  * [[org.positronicnet.db.Database]] schema management, there are
-  * differences --- most notably in the use of the Actor-like
+  * record]] pattern --- in lowercase.
+  *
+  * The Ruby on Rails ActiveRecord ORM was an important
+  * influence, particularly in the framework's embrace of "convention
+  * over configuration".  That's perhaps best explained by example:  If
+  * you follow common naming conventions in for columns in tables and
+  * for fields in your record classes, the framework will figure out
+  * the mapping between them without needing explicit declarations.
+  * Similarly for the names of foreign keys in associations, and so forth.
+  * 
+  * (If you have a reason for violating the conventions, you ''can''
+  * declare that you're doing something else instead; see "explicit
+  * field mapping" below for cases where it's reasonable to do that,
+  * and an example of how it's done.  But that's only necessary when
+  * you're doing something unusual.  And if you are, that becomes more
+  * obvious to the next guy reading the code if the unconventional
+  * code isn't buried among dozens of lines of conventional
+  * boilerplate.)
+  *
+  * However, this is not a clone of the
+  * Rails ActiveRecord ORM.  There are significant differences
+  * --- most notably in the use of the Actor-like
   * [[org.positronicnet.notifications]] machinery to make it easy to
   * write client code that never blocks waiting for a query result or
-  * an update.)
+  * an update.
   *
   * So, for instance, if we have a [[org.positronicnet.orm.RecordManager]]
   * named `TodoItems`, for a [[org.positronicnet.orm.ManagedRecord]] class
@@ -126,10 +144,13 @@ package org.positronicnet
   *
   * Furthermore, the [[org.positronicnet.orm.RecordManager]] has to be
   * able to instantiate new instances of its
-  * [[org.positronicnet.orm.ManagedRecord]] class.  So, the
-  * [[org.positronicnet.orm.ManagedRecord]] class needs to have a niladic
+  * [[org.positronicnet.orm.ManagedRecord]] class.  The conventional approach is
+  * for the [[org.positronicnet.orm.ManagedRecord]] class to have a niladic
   * (no arguments) constructor --- or, at the very least, a constructor in
-  * which all arguments have defaults.
+  * which all arguments have defaults.  (If, for some reason, this doesn't
+  * work for you, you can override `newRecord` in the
+  * [[org.positronicnet.orm.RecordManager]] to do something else instead.
+  * But the common pattern just works.)
   *
   * Accordingly, a minimal record declaration might be something like the
   * following:

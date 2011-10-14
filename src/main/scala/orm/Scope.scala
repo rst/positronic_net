@@ -371,6 +371,7 @@ class AlternateViewScope[ T <: ManagedRecord ]( base: Scope[T],
   val baseScope = base
 }
 
+private [orm]
 class HasManyAssociation[ T <: ManagedRecord ]( base:       Scope[ T ],
                                                 foreignKey: String, 
                                                 idVal:      ContentValue

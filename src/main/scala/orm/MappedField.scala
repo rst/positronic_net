@@ -16,6 +16,7 @@ import scala.collection._
 // the build system, and there just *might* be someone out there who
 // feels the same way about sbt as I feel about Eclipse.
 
+private [orm]
 object MappedField {
 
   private [orm]
@@ -56,6 +57,7 @@ object MappedField {
   }
 }
 
+private [orm]
 abstract class MappedField( colName: String, 
                             colNumber: Int,
                             rfield: java.lang.reflect.Field )
@@ -77,6 +79,7 @@ abstract class MappedField( colName: String,
   def valPair( o: AnyRef ) = ( colName, getValue( o ))
 }
 
+private [orm]
 class MappedIntField( colName: String, 
                       colNumber: Int,
                       rfield: java.lang.reflect.Field )
@@ -92,6 +95,7 @@ class MappedIntField( colName: String,
     rfield.setInt( o, l.asInstanceOf[ CvInt ].value )
 }
 
+private [orm]
 class MappedLongField( colName: String, 
                        colNumber: Int,
                        rfield: java.lang.reflect.Field )
@@ -107,6 +111,7 @@ class MappedLongField( colName: String,
     rfield.setLong( o, l.asInstanceOf[ CvLong ].value )
 }
 
+private [orm]
 class MappedFloatField( colName: String, 
                         colNumber: Int,
                         rfield: java.lang.reflect.Field )
@@ -122,6 +127,7 @@ class MappedFloatField( colName: String,
     rfield.setFloat( o, l.asInstanceOf[ CvFloat ].value )
 }
 
+private [orm]
 class MappedDoubleField( colName: String, 
                          colNumber: Int,
                          rfield: java.lang.reflect.Field )
@@ -137,6 +143,7 @@ class MappedDoubleField( colName: String,
     rfield.setDouble( o, l.asInstanceOf[ CvDouble ].value )
 }
 
+private [orm]
 class MappedStringField( colName: String, 
                          colNumber: Int,
                          rfield: java.lang.reflect.Field )
@@ -152,6 +159,7 @@ class MappedStringField( colName: String,
     rfield.set( o, l.asInstanceOf[ CvString ].value )
 }
 
+private [orm]
 class MappedBooleanField( colName: String, 
                           colNumber: Int,
                           rfield: java.lang.reflect.Field )

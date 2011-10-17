@@ -21,11 +21,11 @@ abstract class ThreadlessDatabase( filename: String, logTag: String = null )
 
   def getFilename = filename
 
-  override def realOpen(ctx: Context) = { 
+  override protected def realOpen(ctx: Context) = { 
     dbWrapper = new DbWrapper( ctx, this ) 
   }
 
-  override def realClose = { 
+  override protected def realClose = { 
     dbWrapper.close; dbWrapper = null 
   }
 

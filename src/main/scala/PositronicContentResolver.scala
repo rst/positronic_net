@@ -9,24 +9,81 @@ import _root_.android.net.Uri
 import org.positronicnet.facility.AppFacility
 import org.positronicnet.facility.WorkerThread
 
-// Basic machinery for wrapping ContentResolver and friends.
-// SourceType is android.net.Uri.  IdType can be either Long
-// or URI, depending on what the caller wants; it must be
-// Long to use with the ORM.
+/** Simple [[org.positronicnet.facility.AppFacility]] for interacting with
+  * Android ContentProviders using the Positronic Net
+  * [[org.positronicnet.content.ContentQuery]] convenience shorthands,
+  * or the [[org.positronicnet.orm]].  Once the facility has been
+  * opened (via `openInContext`), it can be used to produce
+  * [[org.positronicnet.content.ContentQuery]] objects that refer to
+  * individual `ContentProvider`s, including those provided by other
+  * apps or the platform itself.
+  *
+  * The best treatment of row-IDs here isn't quite clear.  The
+  * underlying platform `insert` method on a `ContentProvider` returns
+  * a URI for the newly created row, but by convention that row will
+  * almost always include a `Long` which can be obtained from the URI
+  * itself via the `ContentURIs.parseID` method provided by the
+  * framework, and which will also be used to identify the row in the
+  * same bulk queries.  Since it isn't obvious which is better, we
+  * give you both choices, as follows:
+  *
+  * Let's say you have the URI of some
+  * `ContentProvider` --- say `android.provider.CallLog.Calls.CONTENT_URI`,
+  * just to be concrete.  Once you've got a resolver opened like so:
+  * {{{
+  *     object Resolver extends PositronicContentResolver( "call_log_app" )
+  *     ...
+  *     class SomeActivity {
+  *       onCreate {
+  *         useAppFacility( Resolver )
+  *       }
+  *     }
+  * }}}
+  * you can either say
+  * {{{
+  *     queryHandle = Resolver( Calls.CONTENT_URI )
+  * }}}
+  * to get a [[org.positronicnet.orm.ContentQuery]] on which `insert` will
+  * return a `Long` ID, or
+  * {{{
+  *     queryHandle = Resolver.withUriIds( Calls.CONTENT_URI )
+  * }}}
+  * to obtain one on which `insert` is typed to return the raw URIs.
+  *
+  * There's no other difference between the two, but only the latter
+  * will work with the [[org.positronicnet.orm]], which requires long
+  * IDs for the moment.
+  *
+  * In general, the `Long`-id variants are easier to deal with for
+  * providers which support that convention (most of the standard
+  * ones on the platform, for starters), but the `withUriIds` variant
+  * is there if you prefer it.
+  *
+  * (And of course, the raw platform API is still available if you
+  * prefer that.)
+  */
 
 class PositronicContentResolver( logTag: String = null ) 
   extends AppFacility( logTag )
 {
-  var realResolver: android.content.ContentResolver = null
+  private var realResolver: android.content.ContentResolver = null
 
-  override def realOpen(ctx: Context) = { 
+  override protected def realOpen(ctx: Context) = { 
     realResolver = ctx.getContentResolver
   }
+
+  /** Return a [[org.positronicnet.orm.ContentQuery]] obeying the `Long`-id
+    * convention, as described above.
+    */
 
   def apply( uri: Uri ) = 
     new ContentProviderQuery( new LongIdContentResolverRepository(realResolver,
                                                                   this ),
                               uri )
+
+  /** Return a [[org.positronicnet.orm.ContentQuery]] obeying the URI-id
+    * convention, as described above.
+    */
 
   def withUriIds( uri: Uri ) = 
     new ContentProviderQuery( new UriIdContentResolverRepository(realResolver,
@@ -34,6 +91,7 @@ class PositronicContentResolver( logTag: String = null )
                               uri )
 }
 
+private [content]
 abstract class BaseContentResolverRepo[ IdType ]( realResolver: ContentResolver,
                                                   facilityArg: AppFacility )
   extends ContentRepository[ Uri, IdType ]
@@ -75,7 +133,9 @@ class LongIdContentResolverRepository( realResolver: ContentResolver,
     ContentUris.parseId( realResolver.insert( where, vals ))
 }
 
-// Queries on ContentResolvers.
+/** Queries on ContentProviders. See
+  * [[org.positronicnet.content.PositronicContentResolver]]
+  */
 
 class ContentProviderQuery[IdType]( source: BaseContentResolverRepo[IdType],
                                     uri: Uri,

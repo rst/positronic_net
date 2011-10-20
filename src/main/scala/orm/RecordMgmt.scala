@@ -4,6 +4,7 @@ import org.positronicnet.content._
 import org.positronicnet.notifications._
 
 import android.database.Cursor
+import android.util.Log
 
 import scala.collection._
 
@@ -461,10 +462,10 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
 
       existingField match {
         case Some(x) => 
-          repository.log( "=== For " + managedKlass.getName +
-                          " found existing mapping for " + dbColName + 
-                          " db name " + x.dbColumnName + 
-                          " rec name " + x.recordFieldName )
+          log( "=== For " + managedKlass.getName +
+               " found existing mapping for " + dbColName + 
+               " db name " + x.dbColumnName + 
+               " rec name " + x.recordFieldName )
                               
         case None => {
           javaFields.get( recordFieldName ) match {
@@ -473,9 +474,9 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
 
               // Try to map automatically
         
-              repository.log( "=== For " + managedKlass.getName +
-                             " attempting to map " + dbColName + " to " +
-                             recordFieldName )
+              log( "=== For " + managedKlass.getName +
+                   " attempting to map " + dbColName + " to " +
+                   recordFieldName )
 
               mapField( recordFieldName, dbColName, dbColName == "_id" )
           }
@@ -489,4 +490,7 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
 
   private
   def camelize( str: String ) = str.split("_").reduceLeft{ _ + _.capitalize }
+
+  private 
+  def log( s: String ) = Log.d( repository.facility.getLogTag, s )
 }

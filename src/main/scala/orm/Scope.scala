@@ -155,6 +155,10 @@ trait Scope[ T <: ManagedRecord ]
     * The `onChangeTo` method in
     * [[org.positronicnet.ui.PositronicActivityHelpers]] can simplify this
     * a bit... but I digress.
+    *
+    * Note that `count` is supported only if it is supported by the underlying
+    * [[org.positronicnet.content.ContentRepository]]; e.g., by databases, but
+    * not by ContentProviders.
     */
 
   lazy val count = valueNotifier{ fullQuery.count }
@@ -272,7 +276,9 @@ trait Scope[ T <: ManagedRecord ]
 
   /** Produce a modified subscope which supplies at most a given
     * number of records.  The string supplied is used directly in a SQL `limit`
-    * clause.  (This isn't supported for `ContentProvider`s.)
+    * clause.
+    * May not be supported by all repositories; in particular, it is
+    * not supported by ContentProviders.
     */
 
   def limit( str: String ): Scope[T] =
@@ -280,7 +286,9 @@ trait Scope[ T <: ManagedRecord ]
 
   /** Produce a modified subscope which supplies at most a given
     * number of records.  The string supplied is used directly in a SQL `limit`
-    * clause.  (This isn't supported for `ContentProvider`s.)
+    * clause.
+    * May not be supported by all repositories; in particular, it is
+    * not supported by ContentProviders.
     */
 
   def limit( lim: Int ): Scope[T] =

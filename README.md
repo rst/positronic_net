@@ -8,15 +8,15 @@ or functional arguments) to let programmers say what they mean without
 so much chatter about components of the framework itself.
 
 It builds using `sbt` version 0.11.0 and the [sbt-android-plugin](https://github.com/jberkel/android-plugin).  
-Installation instructions are [here](http://rst.github.com/tut_sections/2001/01/01/installation.html).
 
-The project source includes the library itself (in `src`) and a simple
-sample app (as an sbt subproject); reading the sample app code might
-be the best way to get a feel for what the library is trying to
-accomplish.
+Available documentation includes:
 
-A tutorial on basic concepts and usage is under development
-[here](http://rst.github.com/tutorial.html).
+* [Installation instructions](http://rst.github.com/tut_sections/2001/01/01/installation.html).
+* [A tutorial](http://rst.github.com/tutorial.html).
+* [API reference documentation](http://rst.github.com/api/index.html#org.positronicnet.package).
+
+There are also two simple sample apps bundled with the library (as
+SBT subprojects).
 
 #Features
 

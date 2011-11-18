@@ -3,7 +3,7 @@ package org.positronicnet.test
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 
-import org.positronicnet.orm.ReflectUtils
+import org.positronicnet.util.ReflectUtils
 
 class BaseClassForThing {
   val inheritedVar = "inherited"

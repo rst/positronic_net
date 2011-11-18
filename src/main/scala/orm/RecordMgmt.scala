@@ -2,6 +2,7 @@ package org.positronicnet.orm
 
 import org.positronicnet.content._
 import org.positronicnet.notifications._
+import org.positronicnet.util._
 
 import android.database.Cursor
 import android.util.Log

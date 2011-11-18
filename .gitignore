@@ -12,3 +12,5 @@ lib_managed/
 target/
 tests/src/main/java/
 tests/target/
+tmp
+R.java

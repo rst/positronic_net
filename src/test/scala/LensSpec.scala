@@ -3,8 +3,8 @@ package org.positronicnet.test
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 
-import org.positronicnet.util.Lensable
-import org.positronicnet.util.LensImpl
+import org.positronicnet.util.ReflectiveProperties
+import org.positronicnet.util.Lens
 import org.positronicnet.util.LensFactory
 
 case class Canary( intProp: Int = 17,
@@ -13,7 +13,7 @@ case class Canary( intProp: Int = 17,
                    massagedStringInner: String = "::glorp",
                    otherThing: String = ""
                  )
-  extends Lensable
+  extends ReflectiveProperties
 {
   // Define some pseudoproperties, so we can test how they're handled.
 
@@ -27,7 +27,7 @@ case class Canary( intProp: Int = 17,
 class LensSpec
   extends Spec with ShouldMatchers
 {
-  def testLens[V]( l: LensImpl[Canary,V], defaultVal: V, otherVal: V ) = {
+  def testLens[V]( l: Lens[Canary,V], defaultVal: V, otherVal: V ) = {
 
     val testCanary = Canary( otherThing = "coalmine" )
 
@@ -40,37 +40,57 @@ class LensSpec
     setCanary.otherThing   should equal ( "coalmine" )
   }
 
+  def testPropApi[V:ClassManifest]( propName: String, defaultVal: V, otherVal: V ) = {
+    
+    val testCanary = Canary( otherThing = "coalmine" )
+
+    testCanary.getProperty[V]( propName ) should equal (defaultVal)
+
+    val setCanary = testCanary.setProperty[V]( propName, otherVal )
+    
+    testCanary.getProperty[V]( propName )     should equal ( defaultVal )
+    setCanary.getProperty[V](  propName )     should equal ( otherVal )
+    setCanary.asInstanceOf[Canary].otherThing should equal ( "coalmine" )
+  }
+
+  def testProperty[V:ClassManifest]( factory: LensFactory[V], propName: String, 
+                                     defaultVal: V, otherVal: V ) = {
+    testPropApi( propName, defaultVal, otherVal )
+    testLens( factory.forProperty[ Canary ]( propName ).get, 
+              defaultVal, otherVal )
+  }
+
   describe( "int lens factory" ) {
 
-    val fac: LensFactory[ Int ] = LensFactory.forType[ Int ]
+    val fac: LensFactory[ Int ] = LensFactory.forPropertyType[ Int ]
 
     it ("should work for plain int fields") {
-      testLens( fac.implForProperty[ Canary ]( "intProp" ).get, 17, 42 )
+      testProperty( fac, "intProp", 17, 42 )
     }
     it ("should work for wrapped int fields") {
-      testLens( fac.implForProperty[ Canary ]( "massagedInt" ).get, 4, 8 )
+      testProperty( fac, "massagedInt", 4, 8 )
     }
     it ("should not find fields of the wrong type") {
-      fac.implForProperty[ Canary ]( "stringProp" ) should equal (None)
-      fac.implForProperty[ Canary ]( "massagedString" ) should equal (None)
-      fac.implForProperty[ Canary ]( "quux" ) should equal (None)
+      fac.forProperty[ Canary ]( "stringProp" ) should equal (None)
+      fac.forProperty[ Canary ]( "massagedString" ) should equal (None)
+      fac.forProperty[ Canary ]( "quux" ) should equal (None)
     }
   }
 
   describe( "string lens factory" ) {
 
-    val fac: LensFactory[ String ] = LensFactory.forType[ String ]
+    val fac: LensFactory[ String ] = LensFactory.forPropertyType[ String ]
 
     it ("should work for plain string fields") {
-      testLens( fac.implForProperty[ Canary ]( "stringProp" ).get, "foo", "bar" )
+      testProperty( fac, "stringProp", "foo", "bar" )
     }
     it ("should work for wrapped int fields") {
-      testLens( fac.implForProperty[ Canary ]( "massagedString" ).get, "glorp", "gleep" )
+      testProperty( fac, "massagedString", "glorp", "gleep" )
     }
     it ("should not find fields of the wrong type") {
-      fac.implForProperty[ Canary ]( "intProp" ) should equal (None)
-      fac.implForProperty[ Canary ]( "massagedInt" ) should equal (None)
-      fac.implForProperty[ Canary ]( "quux" ) should equal (None)
+      fac.forProperty[ Canary ]( "intProp" ) should equal (None)
+      fac.forProperty[ Canary ]( "massagedInt" ) should equal (None)
+      fac.forProperty[ Canary ]( "quux" ) should equal (None)
     }
   }
 

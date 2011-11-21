@@ -1,36 +1,31 @@
 package org.positronicnet.util
 
-// Crude feasibility study --- 'forType', 'forProperty', and 'implForProperty'
-// are all meant to be memoized!
+// Crude feasibility study --- 'forPropertyType', 'forProperty', 
+// and 'implForProperty' are all meant to be memoized!
 
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 
 @cloneable
-class Lensable {
+trait ReflectiveProperties {
 
-  // Kludge --- attempt to scope package-private access to 'clone',
-  // without making it fully public.  But we can't do this in a trait,
-  // due to an "implementation restriction".  So, for now, Lensables
-  // have a common base class.  Shortly, we use reflection to just
-  // get the 'clone' method on 'Object'.  Sigh...
+  lazy val selfKlass = this.getClass.asInstanceOf[Class[Object]]
 
-  private[util]
-  def duplicate = clone
+  def getProperty[T : ClassManifest]( prop: String ): T =
+    LensFactory.forPropertyType[T].forProperty( selfKlass, prop ).get.getter( this )
+
+  // Note glitch --- return type is ReflectiveProperties, not anything more
+  // specific.  So, if you need a more specific type, you either need a cast
+  // (as in testPropApi in the specs), or to use lenses directly.
+
+  def setProperty[T : ClassManifest]( prop: String, value: T ): ReflectiveProperties =
+    LensFactory.forPropertyType[T].forProperty( selfKlass, prop ).get.setter( this, value ).asInstanceOf[ ReflectiveProperties ]
+    
 }
 
-case class Lens[T,V]( 
-  get : V,
-  set : V => T )
-
-case class LensImpl[T,V](
+case class Lens[T,V](
   getter: T => V,
   setter: (T,V) => T )
-{
-  def forObject( t: T ) =
-    Lens( getter( t ),
-          (v:V) => setter( t, v ))
-}
 
 abstract class LensFactory[ V : ClassManifest ] {
 
@@ -41,9 +36,11 @@ abstract class LensFactory[ V : ClassManifest ] {
 
   val targetKlass = classManifest[V].erasure.asInstanceOf[ Class[V] ]
 
-  def implForProperty[ T <: Lensable : ClassManifest ](prop: String): Option[LensImpl[T,V]] = {
+  def forProperty[ T <: ReflectiveProperties : ClassManifest ](prop: String) : Option[Lens[T,V]] =
+    this.forProperty( classManifest[T].erasure.asInstanceOf[ Class[T] ], prop )
 
-    val klass       = classManifest[T].erasure.asInstanceOf[ Class[T] ]
+  private [util]
+  def forProperty[ T <: Object ]( klass: Class[T], prop: String ):Option[Lens[T,V]] = {
 
     // First, look for explicit getter/setter pair
     // NB this looks for *public* methods only.
@@ -57,18 +54,18 @@ abstract class LensFactory[ V : ClassManifest ] {
     }
     catch {
       case ex: java.lang.NoSuchMethodException =>
-        // ... leave them as is.
+        // ... leave them null
     }
 
     if (getter != null && getter.getReturnType.equals( targetKlass ) &&
         setter != null && setter.getReturnType.equals( klass ))
-      return Some( LensImpl[T,V]((t:T)     => vFromObject( getter.invoke(t) ),
-                                 (t:T,v:V) => {
-                                   val vobj = vToObject(v)
-                                   setter.invoke(t,vobj).asInstanceOf[T]
-                                 }))
+      return Some( Lens[T,V]((t:T)     => vFromObject( getter.invoke(t) ),
+                             (t:T,v:V) => {
+                               val vobj = vToObject( v )
+                               setter.invoke( t, vobj ).asInstanceOf[T]
+                             }))
 
-    // Failing that, look for a property and do the clone/set thing...
+    // Failing that, look for a field and try to do the clone/set thing...
 
     val fieldOpt = ReflectUtils.declaredFieldsByName( klass ).get( prop )
     
@@ -78,12 +75,12 @@ abstract class LensFactory[ V : ClassManifest ] {
 
     if (field.getType.equals( targetKlass )) {
       field.setAccessible( true ) // might want some annotation checks...
-      return Some( LensImpl[T,V]((t:T) => vFromField( t, field ),
-                                 (t:T,v:V) => {
-                                   val newT = t.duplicate
-                                   vIntoField( newT, field, v )
-                                   newT.asInstanceOf[T]
-                                 }))
+      return Some( Lens[T,V]((t:T) => vFromField( t, field ),
+                             (t:T,v:V) => {
+                               val newT = LensFactory.klone( t )
+                               vIntoField( newT, field, v )
+                               newT.asInstanceOf[T]
+                             }))
     }
       
                   
@@ -91,9 +88,6 @@ abstract class LensFactory[ V : ClassManifest ] {
 
     return None
   }
-
-  def forProperty[T <: Lensable : ClassManifest](prop: String, t: T) =
-    implForProperty[T]( prop ).map{ _.forObject( t ) }
 }
 
 // LensFactory for ints.  I'll need one of these for each Java primitive type.
@@ -118,11 +112,22 @@ class ObjectLens[ V : ClassManifest ] extends LensFactory[ V ] {
 }
 
 object LensFactory {
-  def forType[ V : ClassManifest ]: LensFactory[V] = {
-    val klass = classManifest[V].erasure.asInstanceOf[ Class[V] ]
+
+  private
+  val cloneMethod = classOf[Object].getDeclaredMethod("clone")
+
+  cloneMethod.setAccessible( true )
+
+  private 
+  def klone[T <: Object]( target: T ) = 
+    cloneMethod.invoke( target ).asInstanceOf[T]
+
+  def forPropertyType[ V : ClassManifest ]: LensFactory[V] = 
+    this.forPropertyClass( classManifest[V].erasure.asInstanceOf[ Class[V] ] )
+
+  def forPropertyClass[ V : ClassManifest ]( klass: Class[V] ) =
     if (klass.equals( java.lang.Integer.TYPE ))
       IntLens.asInstanceOf[ LensFactory[ V ]]
     else
       new ObjectLens[ V ]
-  }
 }

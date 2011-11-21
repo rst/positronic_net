@@ -8,9 +8,13 @@ import org.positronicnet.util.Lens
 import org.positronicnet.util.LensFactory
 
 case class Canary( intProp: Int = 17,
+                   byteProp: Byte = 8,
                    stringProp: String = "foo",
+
                    massagedIntInner: Int = -4,
+                   massagedByteInner: Byte = 7,
                    massagedStringInner: String = "::glorp",
+
                    otherThing: String = ""
                  )
   extends ReflectiveProperties
@@ -19,6 +23,10 @@ case class Canary( intProp: Int = 17,
 
   def massagedInt = -massagedIntInner
   def massagedInt_:=( x: Int ) = copy( massagedIntInner = -x )
+
+  def massagedByte = (massagedByteInner + 1).asInstanceOf[ Byte ]
+  def massagedByte_:=( x: Byte ) = 
+    copy( massagedByteInner = (x-1).asInstanceOf[Byte] )
 
   def massagedString = massagedStringInner.slice(2, 1000)
   def massagedString_:=( s: String ) = copy( massagedStringInner = "::"+s )
@@ -94,4 +102,13 @@ class LensSpec
     }
   }
 
+  describe( "byte lens factory" ) {
+    it ("should handle things properly") {
+      val fac = LensFactory.forPropertyType[ Byte ]
+      val default: Byte = 8
+      val newVal:  Byte = 12
+      testProperty( fac, "byteProp",     default, newVal )
+      testProperty( fac, "massagedByte", default, newVal )
+    }
+  }
 }

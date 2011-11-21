@@ -90,20 +90,28 @@ abstract class LensFactory[ V : ClassManifest ] {
   }
 }
 
-// LensFactory for ints.  I'll need one of these for each Java primitive type.
+// LensFactories for Java primitive types.
 
 private [util]
-object IntLens extends LensFactory[ Int ] {
+object IntLensFactory extends LensFactory[ Int ] {
   def vFromObject( obj: Object ): Int = obj.asInstanceOf[ Integer ].intValue
   def vToObject( v: Int ) = new Integer( v )
   def vFromField( obj: Object, f: Field ) = f.getInt( obj )
   def vIntoField( obj: Object, f: Field, value: Int ) = f.setInt( obj, value )
 }
 
+private [util]
+object ByteLensFactory extends LensFactory[ Byte ] {
+  def vFromObject( obj: Object ): Byte = obj.asInstanceOf[ Byte ].byteValue
+  def vToObject( v: Byte ) = new java.lang.Byte( v )
+  def vFromField( obj: Object, f: Field ) = f.getByte( obj )
+  def vIntoField( obj: Object, f: Field, value: Byte ) = f.setByte( obj, value )
+}
+
 // LensFactory for generic java objects.
 
 private [util]
-class ObjectLens[ V : ClassManifest ] extends LensFactory[ V ] {
+class ObjectLensFactory[ V : ClassManifest ] extends LensFactory[ V ] {
   def vFromObject( obj: Object ): V = obj.asInstanceOf[ V ]
   def vToObject( v: V ): Object = v.asInstanceOf[ Object ]
   def vFromField( obj: Object, f: Field ) = f.get( obj ).asInstanceOf[ V ]
@@ -113,21 +121,47 @@ class ObjectLens[ V : ClassManifest ] extends LensFactory[ V ] {
 
 object LensFactory {
 
+  // We can't access "clone" in a trait the normal way due to
+  // an "implementation restriction", so we have this...
+
   private
   val cloneMethod = classOf[Object].getDeclaredMethod("clone")
-
-  cloneMethod.setAccessible( true )
 
   private 
   def klone[T <: Object]( target: T ) = 
     cloneMethod.invoke( target ).asInstanceOf[T]
 
+  cloneMethod.setAccessible( true )
+
+  // All known LensFactories.  The point here is memoization, so if the
+  // worst case is that due to some freak timing mistake, two LensFactories
+  // for a given property-type come into existence, we can live with it.
+
+  private
+  var classToFactory: Map[ Class[_], LensFactory[_] ] = Map.empty
+
+  // compiler glitch if we try to preinitialize like so:
+  //
+  //    = Map( java.lang.Integer.TYPE -> IntLensFactory,
+  //           java.lang.Byte.TYPE    -> ByteLensFactory )
+
   def forPropertyType[ V : ClassManifest ]: LensFactory[V] = 
     this.forPropertyClass( classManifest[V].erasure.asInstanceOf[ Class[V] ] )
 
   def forPropertyClass[ V : ClassManifest ]( klass: Class[V] ) =
-    if (klass.equals( java.lang.Integer.TYPE ))
-      IntLens.asInstanceOf[ LensFactory[ V ]]
-    else
-      new ObjectLens[ V ]
+    classToFactory.get( klass ) match {
+      case Some( factory ) => factory.asInstanceOf[ LensFactory[V] ]
+      case None => {
+        val fac = 
+          if (klass.equals( java.lang.Integer.TYPE ))
+            IntLensFactory.asInstanceOf[ LensFactory[ V ]]
+          else if (klass.equals( java.lang.Byte.TYPE ))
+            ByteLensFactory.asInstanceOf[ LensFactory[ V ]]
+          else
+            new ObjectLensFactory[ V ]
+
+        classToFactory += ( klass -> fac )
+        fac
+      }
+    }
 }

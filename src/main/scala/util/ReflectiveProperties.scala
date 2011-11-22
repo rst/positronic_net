@@ -90,6 +90,79 @@ abstract class LensFactory[ V : ClassManifest ] {
   }
 }
 
+// LensFactory singleton object --- mostly a way to instantiate 'em
+// (note the definitions of special-case lens factories for primitive
+// types below), but also has some runtime support for them.
+
+object LensFactory {
+
+  // We can't access "clone" in a trait the normal way due to
+  // an "implementation restriction", so we have this...
+
+  private
+  val cloneMethod = classOf[Object].getDeclaredMethod("clone")
+
+  cloneMethod.setAccessible( true )
+
+  private 
+  def klone[T <: Object]( target: T ) = 
+    cloneMethod.invoke( target ).asInstanceOf[T]
+
+  // All known LensFactories.  The point here is memoization, so if the
+  // worst case is that due to some freak timing mistake, two LensFactories
+  // for a given property-type come into existence, we can live with it.
+
+  private
+  var classToFactory: Map[ Class[_], LensFactory[_] ] = Map.empty
+
+  // compiler glitch if we try to preinitialize like so:
+  //
+  //    = Map( java.lang.Integer.TYPE -> IntLensFactory,
+  //           java.lang.Byte.TYPE    -> ByteLensFactory )
+
+  def forPropertyType[ V : ClassManifest ]: LensFactory[V] = 
+    this.forPropertyClass( classManifest[V].erasure.asInstanceOf[ Class[V] ] )
+
+  def forPropertyClass[ V : ClassManifest ]( klass: Class[V] ) =
+    classToFactory.get( klass ) match {
+      case Some( factory ) => factory.asInstanceOf[ LensFactory[V] ]
+      case None => {
+        val fac = 
+          if (klass.equals( java.lang.Integer.TYPE ))
+            IntLensFactory.asInstanceOf[ LensFactory[ V ]]
+          else if (klass.equals( java.lang.Byte.TYPE ))
+            ByteLensFactory.asInstanceOf[ LensFactory[ V ]]
+          else if (klass.equals( java.lang.Character.TYPE ))
+            CharLensFactory.asInstanceOf[ LensFactory[ V ]]
+          else if (klass.equals( java.lang.Short.TYPE ))
+            ShortLensFactory.asInstanceOf[ LensFactory[ V ]]
+          else if (klass.equals( java.lang.Long.TYPE ))
+            LongLensFactory.asInstanceOf[ LensFactory[ V ]]
+          else if (klass.equals( java.lang.Float.TYPE ))
+            FloatLensFactory.asInstanceOf[ LensFactory[ V ]]
+          else if (klass.equals( java.lang.Double.TYPE ))
+            DoubleLensFactory.asInstanceOf[ LensFactory[ V ]]
+          else if (klass.equals( java.lang.Boolean.TYPE ))
+            BooleanLensFactory.asInstanceOf[ LensFactory[ V ]]
+          else
+            new ObjectLensFactory[ V ]
+
+        classToFactory += ( klass -> fac )
+        fac
+      }
+    }
+}
+
+// LensFactory for generic java objects.
+
+private [util]
+class ObjectLensFactory[ V : ClassManifest ] extends LensFactory[ V ] {
+  def vFromObject( obj: Object ): V = obj.asInstanceOf[ V ]
+  def vToObject( v: V ): Object = v.asInstanceOf[ Object ]
+  def vFromField( obj: Object, f: Field ) = f.get( obj ).asInstanceOf[ V ]
+  def vIntoField( obj: Object, f: Field, value: V ) = 
+    f.set( obj, value.asInstanceOf[ Object ] )
+}
 // LensFactories for Java primitive types.
 
 private [util]
@@ -132,66 +205,33 @@ object LongLensFactory extends LensFactory[ Long ] {
   def vIntoField( obj: Object, f: Field, value: Long ) = f.setLong( obj, value )
 }
 
-// LensFactory for generic java objects.
+private [util]
+object FloatLensFactory extends LensFactory[ Float ] {
+  def vFromObject( obj: Object ): Float = obj.asInstanceOf[ Float ].floatValue
+  def vToObject( v: Float ) = new java.lang.Float( v )
+  def vFromField( obj: Object, f: Field ) = f.getFloat( obj )
+  def vIntoField( obj: Object, f: Field, value: Float ) = 
+    f.setFloat( obj, value )
+}
 
 private [util]
-class ObjectLensFactory[ V : ClassManifest ] extends LensFactory[ V ] {
-  def vFromObject( obj: Object ): V = obj.asInstanceOf[ V ]
-  def vToObject( v: V ): Object = v.asInstanceOf[ Object ]
-  def vFromField( obj: Object, f: Field ) = f.get( obj ).asInstanceOf[ V ]
-  def vIntoField( obj: Object, f: Field, value: V ) = 
-    f.set( obj, value.asInstanceOf[ Object ] )
+object DoubleLensFactory extends LensFactory[ Double ] {
+  def vFromObject( obj: Object ): Double = 
+    obj.asInstanceOf[ Double ].doubleValue
+  def vToObject( v: Double ) = new java.lang.Double( v )
+  def vFromField( obj: Object, f: Field ) = f.getDouble( obj )
+  def vIntoField( obj: Object, f: Field, value: Double ) = 
+    f.setDouble( obj, value )
 }
 
-object LensFactory {
-
-  // We can't access "clone" in a trait the normal way due to
-  // an "implementation restriction", so we have this...
-
-  private
-  val cloneMethod = classOf[Object].getDeclaredMethod("clone")
-
-  private 
-  def klone[T <: Object]( target: T ) = 
-    cloneMethod.invoke( target ).asInstanceOf[T]
-
-  cloneMethod.setAccessible( true )
-
-  // All known LensFactories.  The point here is memoization, so if the
-  // worst case is that due to some freak timing mistake, two LensFactories
-  // for a given property-type come into existence, we can live with it.
-
-  private
-  var classToFactory: Map[ Class[_], LensFactory[_] ] = Map.empty
-
-  // compiler glitch if we try to preinitialize like so:
-  //
-  //    = Map( java.lang.Integer.TYPE -> IntLensFactory,
-  //           java.lang.Byte.TYPE    -> ByteLensFactory )
-
-  def forPropertyType[ V : ClassManifest ]: LensFactory[V] = 
-    this.forPropertyClass( classManifest[V].erasure.asInstanceOf[ Class[V] ] )
-
-  def forPropertyClass[ V : ClassManifest ]( klass: Class[V] ) =
-    classToFactory.get( klass ) match {
-      case Some( factory ) => factory.asInstanceOf[ LensFactory[V] ]
-      case None => {
-        val fac = 
-          if (klass.equals( java.lang.Integer.TYPE ))
-            IntLensFactory.asInstanceOf[ LensFactory[ V ]]
-          else if (klass.equals( java.lang.Byte.TYPE ))
-            ByteLensFactory.asInstanceOf[ LensFactory[ V ]]
-          else if (klass.equals( java.lang.Character.TYPE ))
-            CharLensFactory.asInstanceOf[ LensFactory[ V ]]
-          else if (klass.equals( java.lang.Short.TYPE ))
-            ShortLensFactory.asInstanceOf[ LensFactory[ V ]]
-          else if (klass.equals( java.lang.Long.TYPE ))
-            LongLensFactory.asInstanceOf[ LensFactory[ V ]]
-          else
-            new ObjectLensFactory[ V ]
-
-        classToFactory += ( klass -> fac )
-        fac
-      }
-    }
+private [util]
+object BooleanLensFactory extends LensFactory[ Boolean ] {
+  def vFromObject( obj: Object ): Boolean = 
+    obj.asInstanceOf[ Boolean ].booleanValue
+  def vToObject( v: Boolean ) = new java.lang.Boolean( v )
+  def vFromField( obj: Object, f: Field ) = f.getBoolean( obj )
+  def vIntoField( obj: Object, f: Field, value: Boolean ) = 
+    f.setBoolean( obj, value )
 }
+
+

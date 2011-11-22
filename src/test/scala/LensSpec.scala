@@ -13,12 +13,18 @@ case class Canary( intProp: Int = 17,
                    shortProp: Short = 30001,
                    longProp: Long = (1L << 60),
                    stringProp: String = "foo",
+                   floatProp: Float = 3.5f,
+                   doubleProp: Double = 1e200,
+                   booleanProp: Boolean = true,
 
                    massagedIntInner: Int = -4,
                    massagedByteInner: Byte = 7,
                    massagedCharInner: Char = 9,
                    massagedShortInner: Short = 30000,
                    massagedLongInner: Long = (1L << 60) - 1,
+                   massagedFloatInner: Float = 7f,
+                   massagedDoubleInner: Double = 2e200,
+                   massagedBooleanInner: Boolean = false,
                    massagedStringInner: String = "::glorp",
 
                    otherThing: String = ""
@@ -26,6 +32,14 @@ case class Canary( intProp: Int = 17,
   extends ReflectiveProperties
 {
   // Define some pseudoproperties, so we can test how they're handled.
+  // The intent of this feature is to support cases where, say, a Date
+  // (as far as the UI is concerned) is stored as a Long internally.
+  //
+  // Here, the underlying storage in all cases is of the same type,
+  // but transformed somehow to keep the machinery honest.  (Slight
+  // subtlety:  the float types are transformed by multiplication or
+  // division by two, because these are exact operations on floats;
+  // they're integer math on the exponent.)
 
   def massagedInt = -massagedIntInner
   def massagedInt_:=( x: Int ) = copy( massagedIntInner = -x )
@@ -45,6 +59,15 @@ case class Canary( intProp: Int = 17,
   def massagedLong = (massagedLongInner + 1).asInstanceOf[ Long ]
   def massagedLong_:=( x: Long ) = 
     copy( massagedLongInner = (x-1).asInstanceOf[Long] )
+
+  def massagedFloat = massagedFloatInner / 2.0f
+  def massagedFloat_:=( x: Float ) = copy( massagedFloatInner = x * 2.0f )
+
+  def massagedDouble = massagedDoubleInner / 2.0
+  def massagedDouble_:=( x: Double ) = copy( massagedDoubleInner = x * 2.0 )
+
+  def massagedBoolean = !massagedBooleanInner
+  def massagedBoolean_:=( x: Boolean ) = copy( massagedBooleanInner = !x )
 
   def massagedString = massagedStringInner.slice(2, 1000)
   def massagedString_:=( s: String ) = copy( massagedStringInner = "::"+s )
@@ -157,6 +180,36 @@ class LensSpec
       val newVal:  Long = 15
       testProperty( fac, "longProp",     default, newVal )
       testProperty( fac, "massagedLong", default, newVal )
+    }
+  }
+
+  describe( "float lens factory" ) {
+    it ("should handle things properly") {
+      val fac = LensFactory.forPropertyType[ Float ]
+      val default: Float = 3.5f
+      val newVal:  Float = 14f
+      testProperty( fac, "floatProp",     default, newVal )
+      testProperty( fac, "massagedFloat", default, newVal )
+    }
+  }
+
+  describe( "double lens factory" ) {
+    it ("should handle things properly") {
+      val fac = LensFactory.forPropertyType[ Double ]
+      val default: Double = 1e200
+      val newVal:  Double = 7
+      testProperty( fac, "doubleProp",     default, newVal )
+      testProperty( fac, "massagedDouble", default, newVal )
+    }
+  }
+
+  describe( "boolean lens factory" ) {
+    it ("should handle things properly") {
+      val fac = LensFactory.forPropertyType[ Boolean ]
+      val default: Boolean = true
+      val newVal:  Boolean = false
+      testProperty( fac, "booleanProp",     default, newVal )
+      testProperty( fac, "massagedBoolean", default, newVal )
     }
   }
 }

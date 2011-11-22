@@ -108,6 +108,30 @@ object ByteLensFactory extends LensFactory[ Byte ] {
   def vIntoField( obj: Object, f: Field, value: Byte ) = f.setByte( obj, value )
 }
 
+private [util]
+object CharLensFactory extends LensFactory[ Char ] {
+  def vFromObject( obj: Object ): Char = obj.asInstanceOf[ Char ].charValue
+  def vToObject( v: Char ) = new java.lang.Character( v )
+  def vFromField( obj: Object, f: Field ) = f.getChar( obj )
+  def vIntoField( obj: Object, f: Field, value: Char ) = f.setChar( obj, value )
+}
+
+private [util]
+object ShortLensFactory extends LensFactory[ Short ] {
+  def vFromObject( obj: Object ): Short = obj.asInstanceOf[ Short ].shortValue
+  def vToObject( v: Short ) = new java.lang.Short( v )
+  def vFromField( obj: Object, f: Field ) = f.getShort( obj )
+  def vIntoField( obj: Object, f: Field, value: Short ) = f.setShort(obj, value)
+}
+
+private [util]
+object LongLensFactory extends LensFactory[ Long ] {
+  def vFromObject( obj: Object ): Long = obj.asInstanceOf[ Long ].longValue
+  def vToObject( v: Long ) = new java.lang.Long( v )
+  def vFromField( obj: Object, f: Field ) = f.getLong( obj )
+  def vIntoField( obj: Object, f: Field, value: Long ) = f.setLong( obj, value )
+}
+
 // LensFactory for generic java objects.
 
 private [util]
@@ -157,6 +181,12 @@ object LensFactory {
             IntLensFactory.asInstanceOf[ LensFactory[ V ]]
           else if (klass.equals( java.lang.Byte.TYPE ))
             ByteLensFactory.asInstanceOf[ LensFactory[ V ]]
+          else if (klass.equals( java.lang.Character.TYPE ))
+            CharLensFactory.asInstanceOf[ LensFactory[ V ]]
+          else if (klass.equals( java.lang.Short.TYPE ))
+            ShortLensFactory.asInstanceOf[ LensFactory[ V ]]
+          else if (klass.equals( java.lang.Long.TYPE ))
+            LongLensFactory.asInstanceOf[ LensFactory[ V ]]
           else
             new ObjectLensFactory[ V ]
 

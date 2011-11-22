@@ -9,10 +9,16 @@ import org.positronicnet.util.LensFactory
 
 case class Canary( intProp: Int = 17,
                    byteProp: Byte = 8,
+                   charProp: Char = 10,
+                   shortProp: Short = 30001,
+                   longProp: Long = (1L << 60),
                    stringProp: String = "foo",
 
                    massagedIntInner: Int = -4,
                    massagedByteInner: Byte = 7,
+                   massagedCharInner: Char = 9,
+                   massagedShortInner: Short = 30000,
+                   massagedLongInner: Long = (1L << 60) - 1,
                    massagedStringInner: String = "::glorp",
 
                    otherThing: String = ""
@@ -27,6 +33,18 @@ case class Canary( intProp: Int = 17,
   def massagedByte = (massagedByteInner + 1).asInstanceOf[ Byte ]
   def massagedByte_:=( x: Byte ) = 
     copy( massagedByteInner = (x-1).asInstanceOf[Byte] )
+
+  def massagedChar = (massagedCharInner + 1).asInstanceOf[ Char ]
+  def massagedChar_:=( x: Char ) = 
+    copy( massagedCharInner = (x-1).asInstanceOf[Char] )
+
+  def massagedShort = (massagedShortInner + 1).asInstanceOf[ Short ]
+  def massagedShort_:=( x: Short ) = 
+    copy( massagedShortInner = (x-1).asInstanceOf[Short] )
+
+  def massagedLong = (massagedLongInner + 1).asInstanceOf[ Long ]
+  def massagedLong_:=( x: Long ) = 
+    copy( massagedLongInner = (x-1).asInstanceOf[Long] )
 
   def massagedString = massagedStringInner.slice(2, 1000)
   def massagedString_:=( s: String ) = copy( massagedStringInner = "::"+s )
@@ -109,6 +127,36 @@ class LensSpec
       val newVal:  Byte = 12
       testProperty( fac, "byteProp",     default, newVal )
       testProperty( fac, "massagedByte", default, newVal )
+    }
+  }
+
+  describe( "char lens factory" ) {
+    it ("should handle things properly") {
+      val fac = LensFactory.forPropertyType[ Char ]
+      val default: Char = 10
+      val newVal:  Char = 15
+      testProperty( fac, "charProp",     default, newVal )
+      testProperty( fac, "massagedChar", default, newVal )
+    }
+  }
+ 
+  describe( "short lens factory" ) {
+    it ("should handle things properly") {
+      val fac = LensFactory.forPropertyType[ Short ]
+      val default: Short = 30001
+      val newVal:  Short = 15
+      testProperty( fac, "shortProp",     default, newVal )
+      testProperty( fac, "massagedShort", default, newVal )
+    }
+  }
+
+  describe( "long lens factory" ) {
+    it ("should handle things properly") {
+      val fac = LensFactory.forPropertyType[ Long ]
+      val default: Long = (1L << 60)
+      val newVal:  Long = 15
+      testProperty( fac, "longProp",     default, newVal )
+      testProperty( fac, "massagedLong", default, newVal )
     }
   }
 }

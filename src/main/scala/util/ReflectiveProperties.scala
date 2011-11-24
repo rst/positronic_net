@@ -1,7 +1,6 @@
 package org.positronicnet.util
 
-// Crude feasibility study --- 'forPropertyType', 'forProperty', 
-// and 'implForProperty' are all meant to be memoized!
+// Feasibility study ---'forProperty' ought to be memoized!
 
 import java.lang.reflect.Field
 import java.lang.reflect.Method

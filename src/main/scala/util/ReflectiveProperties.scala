@@ -38,7 +38,6 @@ abstract class LensFactory[ V : ClassManifest ] {
   def forProperty[ T <: ReflectiveProperties : ClassManifest ](prop: String) : Option[Lens[T,V]] =
     this.forProperty( classManifest[T].erasure.asInstanceOf[ Class[T] ], prop )
 
-  private [util]
   def forProperty[ T <: Object ]( klass: Class[T], prop: String ):Option[Lens[T,V]] = {
 
     // First, look for explicit getter/setter pair

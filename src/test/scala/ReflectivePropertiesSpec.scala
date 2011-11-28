@@ -73,7 +73,7 @@ case class Canary( intProp: Int = 17,
   def massagedString_:=( s: String ) = copy( massagedStringInner = "::"+s )
 }
 
-class LensSpec
+class ReflectivePropertiesSpec
   extends Spec with ShouldMatchers
 {
   def testLens[V]( l: Lens[Canary,V], defaultVal: V, otherVal: V ) = {

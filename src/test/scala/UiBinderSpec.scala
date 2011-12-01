@@ -51,7 +51,6 @@ class UiBinderSpec
       blurbEtxt.setText( "yellow" )
       val newCanary = UiBinder.update[ Canary ]( Canary( false, null ), 
                                                  List( flagCbox, blurbEtxt ))
-      System.err.println( "new canary is: " + newCanary.toString )
       newCanary.flag should equal (true)
       newCanary.blurb should equal ("yellow")
     }

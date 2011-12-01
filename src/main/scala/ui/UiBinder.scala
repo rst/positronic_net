@@ -1,7 +1,7 @@
 package org.positronicnet.ui
 
-import android.preference.PreferenceScreen
-import android.preference.Preference
+import android.preference.{Preference,PreferenceScreen,
+                           CheckBoxPreference,EditTextPreference}
 
 import org.positronicnet.util.ReflectiveProperties
 import org.positronicnet.util.LensFactory
@@ -24,6 +24,20 @@ object UiBinderImplicits {
     for (i <- 0 to adapter.getCount) 
     yield adapter.getItem( i ).asInstanceOf[ Preference ]
   }
+
+  // Dummy method to force the constructor on this object to get called...
+
+  private [ui]
+  def setup: Unit = null
+
+  // A few stock bindings --- checkbox prefs can set boolean properties;
+  // EditTextPreferences can set String properties.
+
+  PropertyBinder.declare[ CheckBoxPreference, Boolean ](
+    (_.isChecked), (_.setChecked( _ )))
+
+  PropertyBinder.declare[ EditTextPreference, String ](
+    (_.getText), (_.setText( _ ) ))
 }
 
 private [ui]
@@ -96,7 +110,9 @@ class PropertyBinding[ TWidget, TProp : ClassManifest ](
 
   def lens (widget: TWidget, props: ReflectiveProperties) = {
     val propsKlass = props.getClass.asInstanceOf[ Class[Object] ]
-    lensFactory.forProperty( propsKlass, propertyName( widget )) match {
+    val propName = propertyName( widget )
+    assert( propName != null, "null property name for " + widget.toString )
+    lensFactory.forProperty( propsKlass, propName ) match {
       case Some( lens ) => lens
       case None =>
         throw new RuntimeException( "Could not find property " + 
@@ -119,6 +135,11 @@ class PropertyBinding[ TWidget, TProp : ClassManifest ](
 }
 
 object PropertyBinder extends BindingManager {
+
+  // Make sure that the stock binding declarations in UiBinderImplicits
+  // get called before we're asked to do anything else!
+
+  UiBinderImplicits.setup
 
   def declare[ TWidget : ClassManifest, TProp : ClassManifest ](
     readFunc: TWidget => TProp,
@@ -152,7 +173,7 @@ object UiBinder extends BindingManager {
                                          prefs: Iterable[Preference] ): T = {
     var workingCopy = props
     for (pref <- prefs)
-      workingCopy = getBinder( pref ).update( pref, props )
+      workingCopy = getBinder( pref ).update( pref, workingCopy )
 
     return workingCopy.asInstanceOf[T]
   }

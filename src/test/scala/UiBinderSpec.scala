@@ -10,8 +10,12 @@ import org.positronicnet.util.ReflectiveProperties
 import com.xtremelabs.robolectric.Robolectric
 import org.positronicnet.test.RobolectricTests
 
-import android.preference.{Preference,CheckBoxPreference,EditTextPreference}
 import android.content.Context
+import android.util.AttributeSet
+import com.xtremelabs.robolectric.tester.android.util.TestAttributeSet
+
+import android.preference.{Preference,PreferenceGroup,
+                           CheckBoxPreference,EditTextPreference}
 
 // Entity being nominally bound to UI components (for now, prefs).
 
@@ -29,8 +33,9 @@ class UiBinderSpec
   // Our test prefs.  We use subclasses of FooPreference defined below
   // because Robolectrics mocking of some relevant features is... incomplete.
 
-  var flagCbox: CheckBoxPreference = null
+  var flagCbox:  CheckBoxPreference = null
   var blurbEtxt: EditTextPreference = null
+  var prefs:     PreferenceGroup = null
 
   override def beforeEach = {
     flagCbox = new BogoCheckBoxPref( myContext )
@@ -38,33 +43,24 @@ class UiBinderSpec
 
     blurbEtxt = new BogoEditTextPref( myContext )
     blurbEtxt.setKey( "blurb" )
+
+    prefs = new BogoPreferenceGroup( myContext, new TestAttributeSet )
+    prefs.addPreference( flagCbox )
+    prefs.addPreference( blurbEtxt )
   }
 
   describe( "PropertyBinder" ) {
     it( "should be able to extract values" ) {
-      UiBinder.show( Canary( true, "yellow" ), List( flagCbox, blurbEtxt ) )
+      UiBinder.show( Canary( true, "yellow" ), prefs )
       flagCbox.isChecked should equal (true)
       blurbEtxt.getText  should equal ("yellow")
     }
     it( "should be able to set values" ) {
       flagCbox.setChecked( true )
       blurbEtxt.setText( "yellow" )
-      val newCanary = UiBinder.update( Canary( false, null ), 
-                                       List( flagCbox, blurbEtxt ))
+      val newCanary = UiBinder.update( Canary( false, null ), prefs )
       newCanary.flag should equal (true)
       newCanary.blurb should equal ("yellow")
-    }
-  }
-
-  // Sanity checks on invisible infrastructure.
-  //
-  // We're in a subpackage of org.positronicnet.ui, or this stuff
-  // (declared private[ui]) wouldn't even be visible.
-
-  describe( "BindingManager" ) {
-    it( "should find declared bindings" ) {
-      PropertyBinder.findBinder( flagCbox ) should not equal (None)
-      PropertyBinder.findBinder( blurbEtxt ) should not equal (None)
     }
   }
 
@@ -74,11 +70,12 @@ class UiBinderSpec
     it( "should have proper keys" ) {
       flagCbox.getKey should equal( "flag" )
       blurbEtxt.getKey should equal( "blurb" )
+      prefs.getPreferenceCount should equal (2)
     }
   }
 }
 
-// Robolectric shadows for Preference are... awkward.  To avoid requiring
+// Robolectric shadows for Preference are... incomplete.  To avoid requiring
 // a private Robolectric build, we do this. 
 //
 // And as a bonus... we now also test that we find bindings for subclasses!
@@ -110,3 +107,14 @@ class BogoEditTextPref( ctx: Context )
   override def setText( s: String ): Unit = { txt = s }
 }
 
+class BogoPreferenceGroup( ctx: Context, attrs: AttributeSet ) 
+  extends PreferenceGroup( ctx, attrs )
+{
+  var prefs: Seq[Preference] = Seq.empty
+  override def addPreference( pref: Preference ): Boolean = { 
+    prefs = prefs :+ pref
+    return true
+  }
+  override def getPreferenceCount = prefs.size
+  override def getPreference( i: Int ) = prefs( i )
+}

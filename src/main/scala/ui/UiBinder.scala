@@ -106,19 +106,7 @@ class PropertyBinding[ TWidget, TProp : ClassManifest ](
   }
 }
 
-/** Class that helps shuffle data between properties of
-  * [[org.positronicnet.util.ReflectiveProperties]] objects and
-  * Android user interface widgets.  Each widget has a particular
-  * type of property that it can handle; a `CheckBoxPreference`
-  * can handle `Boolean` properties, an `EditTextPreference` can
-  * handle `String` properties, and so forth.
-  *
-  * Actual shuffling is done by calling the `show` and `update`
-  * methods of a [[org.positronicnet.ui.UiBinder]], which was builg
-  * with this [[org.positronicnet.ui.PropertyBinder]] as the
-  * argument to its constructor.
-  */
-
+private [ui]
 class PropertyBinder extends BindingManager {
 
   /** Declare that widgets of type `TWidget` can be used to render
@@ -144,6 +132,25 @@ class PropertyBinder extends BindingManager {
   ) =
     noteBinding( classManifest[ TWidget ].erasure,
                  new PropertyBinding( readFunc, writeFunc ) )
+}
+
+/** Class that helps shuffle data between properties of
+  * [[org.positronicnet.util.ReflectiveProperties]] objects and
+  * Android user interface widgets.  Each widget has a particular
+  * type of property that it can handle; a `CheckBoxPreference`
+  * can handle `Boolean` properties, an `EditTextPreference` can
+  * handle `String` properties, and so forth.
+  *
+  * Actual shuffling is done by calling the `show` and `update`
+  * methods of a [[org.positronicnet.ui.UiBinder]], which was builg
+  * with this [[org.positronicnet.ui.PropertyBinder]] as the
+  * argument to its constructor.
+  */
+
+class UiBinder
+  extends BindingManager 
+{
+  private val propertyBinder = new PropertyBinder
 
   // A few stock bindings --- checkbox prefs can set boolean properties;
   // EditTextPreferences can set String properties.  Subclasses can add more.
@@ -153,23 +160,40 @@ class PropertyBinder extends BindingManager {
 
   bindProperties[ CheckBoxPreference, Boolean ](
     (_.isChecked), (_.setChecked( _ )))
-}
 
-/** A utility [[org.positronicnet.ui.PropertyBinder]] object,
-  * implementing default policies for applications that don't
-  * need to extend them.
-  */
+  /** Declare that widgets of type `TWidget` can be used to render
+    * or set properties of type `TProp`.  The caller must supply two
+    * functions to manage the mechanics of the shuffling:
+    * a `readFunc` to get a `TProp` out of a `TWidget`,
+    * and a `writeFunc` to put a `TProp` into a `TWidget`.  Generally
+    * invoked from within a constructor.
+    *
+    * `TWidget` must be a subclass of `android.preference.Preference`;
+    * Views will be supported too, which is why the typechecker doesn't
+    * enforce this.
+    * 
+    * The default behavior is specified as follows; declarations for
+    * other preference types is specified similarly:
+    * {{{
+    *     bindProperties[ EditTextPreference, String ](
+    *       (_.getText), (_.setText( _ )))
+    *
+    *     bindProperties[ CheckBoxPreference, Boolean ](
+    *       (_.isChecked), (_.setChecked( _ )))
+    * }}}
+    */
 
-object PropertyBinder extends PropertyBinder
+  def bindProperties[ TWidget : ClassManifest, TProp : ClassManifest ](
+    readFunc: TWidget => TProp,
+    writeFunc: (TWidget, TProp) => Unit
+  ) =
+    propertyBinder.bindProperties[ TWidget, TProp ](readFunc, writeFunc)
 
-class UiBinder( val propBinder: PropertyBinder )
-  extends BindingManager 
-{
   private
   def getBinder( obj: Object ) = {
     findBinder( obj ) match {
       case Some (binder) => binder
-      case None => PropertyBinder.findBinder( obj ) match {
+      case None => propertyBinder.findBinder( obj ) match {
         case Some (binder) => binder
         case None => 
           throw new RuntimeException(
@@ -178,19 +202,72 @@ class UiBinder( val propBinder: PropertyBinder )
     }
   }  
 
-  def show( props: ReflectiveProperties, prefs: Iterable[Preference] ) = {
-    for (pref <- prefs) 
-      getBinder( pref ).show( pref, props )
+  /** Update an Android `Preference` (or `PreferenceGroup`) based on
+    * the properties of the [[org.positronicnet.util.ReflectiveProperties]]
+    * object `hasProps`.
+    * 
+    * A basic `Preference` is treated as referring to the property named
+    * by its key (viz. `getKey`).  If an appropriately typed property can
+    * be found on `hasProps`, the `Preference` will be updated to show its
+    * value.  (If not, you get a `RuntimeException`.)
+    *
+    * See `bindProperties` for how you declare that a given `Preference`
+    * type can be used to display or update a given property type.
+    *
+    * A `PreferenceGroup` is handled by iterating over its members.  (If
+    * those contain nested `PreferenceGroup`s, we iterate over their members
+    * too.)
+    */
+
+  def show( hasProps: ReflectiveProperties, pref: Preference ): Unit = {
+    pref match {
+      case grp: PreferenceGroup =>
+        for (i <- 0 to grp.getPreferenceCount - 1)
+          show( hasProps, grp.getPreference( i ))
+      case _ =>
+        getBinder( pref ).show( pref, hasProps )
+    }
   }
-  
+  /** Use an Android `Preference` (or `PreferenceGroup`) to produce
+    * an updated version of the [[org.positronicnet.util.ReflectiveProperties]]
+    * object `hasProps`.
+    * 
+    * A basic `Preference` is treated as referring to the property
+    * named by its key (viz. `getKey`).  If an appropriately typed
+    * property can be found on `hasProps`, the returned value will
+    * have its value updated by that shown from the `Preference`.  (If
+    * not, you get a `RuntimeException`.)
+    *
+    * Properties not named by any `Preference` are left unaltered.
+    *
+    * See `bindProperties` for how you declare that a given `Preference`
+    * type can be used to display or update a given property type.
+    *
+    * A `PreferenceGroup` is handled by iterating over its members.  (If
+    * those contain nested `PreferenceGroup`s, we iterate over their members
+    * too.)
+    */
+
   def update[T <: ReflectiveProperties]( props: T,
-                                         prefs: Iterable[Preference] ): T = {
+                                         pref: Preference ): T = 
+  {
     var workingCopy: ReflectiveProperties = props
-    for (pref <- prefs)
-      workingCopy = getBinder( pref ).update( pref, workingCopy )
+
+    pref match {
+      case grp: PreferenceGroup =>
+        for (i <- 0 to grp.getPreferenceCount - 1)
+          workingCopy = this.update( workingCopy, grp.getPreference(i) )
+      case _ =>
+        workingCopy = getBinder( pref ).update( pref, workingCopy )
+    }
 
     return workingCopy.asInstanceOf[T]
   }
 }
 
-object UiBinder extends UiBinder( PropertyBinder )
+/** A utility [[org.positronicnet.ui.UiBinder]] object,
+  * implementing default policies for applications that don't
+  * need to extend them.
+  */
+
+object UiBinder extends UiBinder

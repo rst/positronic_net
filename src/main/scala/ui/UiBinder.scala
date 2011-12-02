@@ -1,6 +1,6 @@
 package org.positronicnet.ui
 
-import android.preference.{Preference,PreferenceScreen,
+import android.preference.{Preference,PreferenceGroup,
                            CheckBoxPreference,EditTextPreference}
 
 import org.positronicnet.util.ReflectiveProperties
@@ -11,34 +11,6 @@ import org.positronicnet.util.LensFactory
 //
 // (May also want to ultimately factor out commonalities with 
 // code that walks a View hierarchy.)
-
-object UiBinderImplicits {
-
-  def getPrefs( screen: PreferenceScreen ): Iterable[Preference] = {
-
-    // The following looks hinky, but I can't find another documented
-    // way to get a complete list of the actual prefs!
-
-    val adapter = screen.getRootAdapter
-
-    for (i <- 0 to adapter.getCount) 
-    yield adapter.getItem( i ).asInstanceOf[ Preference ]
-  }
-
-  // Dummy method to force the constructor on this object to get called...
-
-  private [ui]
-  def setup: Unit = null
-
-  // A few stock bindings --- checkbox prefs can set boolean properties;
-  // EditTextPreferences can set String properties.
-
-  PropertyBinder.declare[ CheckBoxPreference, Boolean ](
-    (_.isChecked), (_.setChecked( _ )))
-
-  PropertyBinder.declare[ EditTextPreference, String ](
-    (_.getText), (_.setText( _ ) ))
-}
 
 private [ui]
 abstract class UiBinding {
@@ -134,23 +106,65 @@ class PropertyBinding[ TWidget, TProp : ClassManifest ](
   }
 }
 
-object PropertyBinder extends BindingManager {
+/** Class that helps shuffle data between properties of
+  * [[org.positronicnet.util.ReflectiveProperties]] objects and
+  * Android user interface widgets.  Each widget has a particular
+  * type of property that it can handle; a `CheckBoxPreference`
+  * can handle `Boolean` properties, an `EditTextPreference` can
+  * handle `String` properties, and so forth.
+  *
+  * Actual shuffling is done by calling the `show` and `update`
+  * methods of a [[org.positronicnet.ui.UiBinder]], which was builg
+  * with this [[org.positronicnet.ui.PropertyBinder]] as the
+  * argument to its constructor.
+  */
 
-  // Make sure that the stock binding declarations in UiBinderImplicits
-  // get called before we're asked to do anything else!
+class PropertyBinder extends BindingManager {
 
-  UiBinderImplicits.setup
+  /** Declare that widgets of type `TWidget` can be used to render
+    * or set properties of type `TProp`.  The caller must supply two
+    * functions to manage the mechanics of the shuffling:
+    * a `readFunc` to get a `TProp` out of a `TWidget`,
+    * and a `writeFunc` to put a `TProp` into a `TWidget`.  Generally
+    * invoked from within a constructor.
+    * 
+    * Sample usage, representing the default behavior:
+    * {{{
+    *     bindProperties[ EditTextPreference, String ](
+    *       (_.getText), (_.setText( _ )))
+    *
+    *     bindProperties[ CheckBoxPreference, Boolean ](
+    *       (_.isChecked), (_.setChecked( _ )))
+    * }}}
+    */
 
-  def declare[ TWidget : ClassManifest, TProp : ClassManifest ](
+  def bindProperties[ TWidget : ClassManifest, TProp : ClassManifest ](
     readFunc: TWidget => TProp,
     writeFunc: (TWidget, TProp) => Unit
   ) =
     noteBinding( classManifest[ TWidget ].erasure,
                  new PropertyBinding( readFunc, writeFunc ) )
+
+  // A few stock bindings --- checkbox prefs can set boolean properties;
+  // EditTextPreferences can set String properties.  Subclasses can add more.
+
+  bindProperties[ EditTextPreference, String ](
+    (_.getText), (_.setText( _ )))
+
+  bindProperties[ CheckBoxPreference, Boolean ](
+    (_.isChecked), (_.setChecked( _ )))
 }
 
-object UiBinder extends BindingManager {
+/** A utility [[org.positronicnet.ui.PropertyBinder]] object,
+  * implementing default policies for applications that don't
+  * need to extend them.
+  */
 
+object PropertyBinder extends PropertyBinder
+
+class UiBinder( val propBinder: PropertyBinder )
+  extends BindingManager 
+{
   private
   def getBinder( obj: Object ) = {
     findBinder( obj ) match {
@@ -179,4 +193,4 @@ object UiBinder extends BindingManager {
   }
 }
 
-
+object UiBinder extends UiBinder( PropertyBinder )

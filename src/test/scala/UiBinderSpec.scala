@@ -49,8 +49,8 @@ class UiBinderSpec
     it( "should be able to set values" ) {
       flagCbox.setChecked( true )
       blurbEtxt.setText( "yellow" )
-      val newCanary = UiBinder.update[ Canary ]( Canary( false, null ), 
-                                                 List( flagCbox, blurbEtxt ))
+      val newCanary = UiBinder.update( Canary( false, null ), 
+                                       List( flagCbox, blurbEtxt ))
       newCanary.flag should equal (true)
       newCanary.blurb should equal ("yellow")
     }

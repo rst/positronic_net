@@ -169,9 +169,9 @@ object UiBinder extends BindingManager {
       getBinder( pref ).show( pref, props )
   }
   
-  def update[T <: ReflectiveProperties]( props: ReflectiveProperties,
+  def update[T <: ReflectiveProperties]( props: T,
                                          prefs: Iterable[Preference] ): T = {
-    var workingCopy = props
+    var workingCopy: ReflectiveProperties = props
     for (pref <- prefs)
       workingCopy = getBinder( pref ).update( pref, workingCopy )
 

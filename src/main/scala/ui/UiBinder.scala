@@ -109,23 +109,6 @@ class PropertyBinding[ TWidget, TProp : ClassManifest ](
 private [ui]
 class PropertyBinder extends BindingManager {
 
-  /** Declare that widgets of type `TWidget` can be used to render
-    * or set properties of type `TProp`.  The caller must supply two
-    * functions to manage the mechanics of the shuffling:
-    * a `readFunc` to get a `TProp` out of a `TWidget`,
-    * and a `writeFunc` to put a `TProp` into a `TWidget`.  Generally
-    * invoked from within a constructor.
-    * 
-    * Sample usage, representing the default behavior:
-    * {{{
-    *     bindProperties[ EditTextPreference, String ](
-    *       (_.getText), (_.setText( _ )))
-    *
-    *     bindProperties[ CheckBoxPreference, Boolean ](
-    *       (_.isChecked), (_.setChecked( _ )))
-    * }}}
-    */
-
   def bindProperties[ TWidget : ClassManifest, TProp : ClassManifest ](
     readFunc: TWidget => TProp,
     writeFunc: (TWidget, TProp) => Unit
@@ -228,6 +211,7 @@ class UiBinder
         getBinder( pref ).show( pref, hasProps )
     }
   }
+
   /** Use an Android `Preference` (or `PreferenceGroup`) to produce
     * an updated version of the [[org.positronicnet.util.ReflectiveProperties]]
     * object `hasProps`.
@@ -248,10 +232,10 @@ class UiBinder
     * too.)
     */
 
-  def update[T <: ReflectiveProperties]( props: T,
+  def update[T <: ReflectiveProperties]( hasProps: T,
                                          pref: Preference ): T = 
   {
-    var workingCopy: ReflectiveProperties = props
+    var workingCopy: ReflectiveProperties = hasProps
 
     pref match {
       case grp: PreferenceGroup =>

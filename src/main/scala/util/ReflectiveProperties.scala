@@ -1,7 +1,5 @@
 package org.positronicnet.util
 
-// Feasibility study ---'forProperty' ought to be memoized!
-
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 
@@ -33,13 +31,27 @@ abstract class LensFactory[ V : ClassManifest ] {
   def vFromField( obj: Object, f: Field ): V
   def vIntoField( obj: Object, f: Field, value: V): Unit
 
+  private
   val targetKlass = classManifest[V].erasure.asInstanceOf[ Class[V] ]
+
+  private
+  var lensMap: Map[(Class[_], String), Option[Lens[_,_]]] = Map.empty
 
   def forProperty[ T <: ReflectiveProperties : ClassManifest ](prop: String) : Option[Lens[T,V]] =
     this.forProperty( classManifest[T].erasure.asInstanceOf[ Class[T] ], prop )
 
   def forProperty[ T <: Object ]( klass: Class[T], prop: String ):Option[Lens[T,V]] = {
+    val key = (klass, prop)
+    lensMap.get( key ) match {
+      case Some(option) => option.asInstanceOf[Option[Lens[T,V]]]
+      case None =>
+        val lensOption = this.buildLens( klass, prop )
+        lensMap += (key -> lensOption)
+        lensOption
+    }
+  }
 
+  def buildLens[ T <: Object ]( klass: Class[T], prop: String ):Option[Lens[T,V]] = {
     // First, look for explicit getter/setter pair
     // NB this looks for *public* methods only.
 

@@ -5,6 +5,7 @@ import org.scalatest.matchers.ShouldMatchers
 
 import org.positronicnet.ui.UiBinder
 import org.positronicnet.ui.PropertyBinder
+import org.positronicnet.ui.ResourceId
 import org.positronicnet.util.ReflectiveProperties
 
 import com.xtremelabs.robolectric.Robolectric
@@ -21,6 +22,8 @@ import android.preference.{Preference,PreferenceGroup,
 
 case class Canary( flag: Boolean, blurb: String )
   extends ReflectiveProperties
+
+// The spec itself
 
 class UiBinderSpec
   extends Spec 
@@ -61,6 +64,19 @@ class UiBinderSpec
       val newCanary = UiBinder.update( Canary( false, null ), prefs )
       newCanary.flag should equal (true)
       newCanary.blurb should equal ("yellow")
+    }
+  }
+
+  describe( "ResourceId" ) {
+    it( "should extract values from our dummy R class" ) {
+
+      // We're in org.positronicnet.ui.testUiBinder, which has a
+      // dummy R class declared for it in .../src/test/java.
+
+      ResourceId.harvestAssociatedResources (this)
+      ResourceId.toName (R.id.e)  should equal (Some("e"))
+      ResourceId.toName (R.id.pi) should equal (Some("pi"))
+      ResourceId.toName (53)      should equal (None)
     }
   }
 

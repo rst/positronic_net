@@ -173,17 +173,8 @@ class UiBinder
     propertyBinder.bindProperties[ TWidget, TProp ](readFunc, writeFunc)
 
   private
-  def getBinder( obj: Object ) = {
-    findBinder( obj ) match {
-      case Some (binder) => binder
-      case None => propertyBinder.findBinder( obj ) match {
-        case Some (binder) => binder
-        case None => 
-          throw new RuntimeException(
-            "No UI binder declared for class " + obj.getClass.toString)
-      }
-    }
-  }  
+  def getBinder( obj: Object ) =
+    findBinder (obj) orElse propertyBinder.findBinder (obj)
 
   /** Update an Android `Preference` (or `PreferenceGroup`) based on
     * the properties of the [[org.positronicnet.util.ReflectiveProperties]]
@@ -208,7 +199,8 @@ class UiBinder
         for (i <- 0 to grp.getPreferenceCount - 1)
           show( hasProps, grp.getPreference( i ))
       case _ =>
-        getBinder( pref ).show( pref, hasProps )
+        val binder = getBinder(pref).getOrElse(throw new NoBinderFor(pref))
+        binder.show( pref, hasProps )
     }
   }
 
@@ -242,7 +234,8 @@ class UiBinder
         for (i <- 0 to grp.getPreferenceCount - 1)
           workingCopy = this.update( workingCopy, grp.getPreference(i) )
       case _ =>
-        workingCopy = getBinder( pref ).update( pref, workingCopy )
+        val binder = getBinder(pref).getOrElse(throw new NoBinderFor(pref))
+        workingCopy = binder.update( pref, workingCopy )
     }
 
     return workingCopy.asInstanceOf[T]
@@ -255,3 +248,9 @@ class UiBinder
   */
 
 object UiBinder extends UiBinder
+
+/** Exception indicating that there is no binder for a particular widget
+  */
+
+class NoBinderFor( obj: Object )
+  extends RuntimeException( "No UI binder declared for " + obj.toString )

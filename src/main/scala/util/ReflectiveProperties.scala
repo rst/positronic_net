@@ -9,25 +9,25 @@ trait ReflectiveProperties {
   lazy val selfKlass = this.getClass.asInstanceOf[Class[Object]]
 
   def getProperty[T : ClassManifest]( prop: String ): T =
-    LensFactory.forPropertyType[T].forProperty( selfKlass, prop ).get.getter( this )
+    PropertyLensFactory.forPropertyType[T].forProperty( selfKlass, prop ).get.getter( this )
 
   // Note glitch --- return type is ReflectiveProperties, not anything more
   // specific.  So, if you need a more specific type, you either need a cast
   // (as in testPropApi in the specs), or to use lenses directly.
 
   def setProperty[T : ClassManifest]( prop: String, value: T ): ReflectiveProperties =
-    LensFactory.forPropertyType[T].forProperty( selfKlass, prop ).get.setter( this, value ).asInstanceOf[ ReflectiveProperties ]
+    PropertyLensFactory.forPropertyType[T].forProperty( selfKlass, prop ).get.setter( this, value ).asInstanceOf[ ReflectiveProperties ]
     
 }
 
-case class Lens[T,V](
+case class PropertyLens[T,V](
   getter: T => V,
   setter: (T,V) => T,
   hostClass: Class[T],
   valueClass: Class[V]
 )
 
-abstract class LensFactory[ V : ClassManifest ] {
+abstract class PropertyLensFactory[ V : ClassManifest ] {
 
   def vFromObject( obj: Object ): V
   def vToObject( v: V ): Object
@@ -38,15 +38,18 @@ abstract class LensFactory[ V : ClassManifest ] {
   val valueKlass = classManifest[V].erasure.asInstanceOf[ Class[V] ]
 
   private
-  var lensMap: Map[(Class[_], String), Option[Lens[_,_]]] = Map.empty
+  var lensMap: Map[(Class[_], String), Option[PropertyLens[_,_]]] = Map.empty
 
-  def forProperty[ T <: ReflectiveProperties : ClassManifest ](prop: String) : Option[Lens[T,V]] =
+  def forProperty[ T <: ReflectiveProperties : ClassManifest ](prop: String)
+         :Option[ PropertyLens[T,V]] =
     this.forProperty( classManifest[T].erasure.asInstanceOf[ Class[T] ], prop )
 
-  def forProperty[ T <: Object ]( klass: Class[T], prop: String ):Option[Lens[T,V]] = {
+  def forProperty[T <: Object : ClassManifest](klass: Class[T], prop: String)
+         :Option[ PropertyLens[T,V]] =
+  {
     val key = (klass, prop)
     lensMap.get( key ) match {
-      case Some(option) => option.asInstanceOf[Option[Lens[T,V]]]
+      case Some(option) => option.asInstanceOf[Option[PropertyLens[T,V]]]
       case None =>
         val lensOption = this.buildLens( klass, prop )
         lensMap += (key -> lensOption)
@@ -54,7 +57,7 @@ abstract class LensFactory[ V : ClassManifest ] {
     }
   }
 
-  def buildLens[ T <: Object ]( klass: Class[T], prop: String ):Option[Lens[T,V]] = {
+  def buildLens[ T <: Object ]( klass: Class[T], prop: String ):Option[PropertyLens[T,V]] = {
     // First, look for explicit getter/setter pair
     // NB this looks for *public* methods only.
 
@@ -72,14 +75,14 @@ abstract class LensFactory[ V : ClassManifest ] {
 
     if (getter != null && getter.getReturnType.equals( valueKlass ) &&
         setter != null && setter.getReturnType.equals( klass ))
-      return Some( Lens[T,V]((t:T)     => vFromObject( getter.invoke(t) ),
-                             (t:T,v:V) => {
-                               val vobj = vToObject( v )
-                               setter.invoke( t, vobj ).asInstanceOf[T]
-                             },
-                             klass,
-                             valueKlass
-                           ))
+      return Some( PropertyLens[T,V]((t)   => vFromObject( getter.invoke(t) ),
+                                     (t,v) => {
+                                       val vobj = vToObject( v )
+                                       setter.invoke( t, vobj ).asInstanceOf[T]
+                                     },
+                                     klass,
+                                     valueKlass
+                                   ))
 
     // Failing that, look for a field and try to do the clone/set thing...
 
@@ -91,15 +94,15 @@ abstract class LensFactory[ V : ClassManifest ] {
 
     if (field.getType.equals( valueKlass )) {
       field.setAccessible( true ) // might want some annotation checks...
-      return Some( Lens[T,V]((t:T) => vFromField( t, field ),
-                             (t:T,v:V) => {
-                               val newT = LensFactory.klone( t )
-                               vIntoField( newT, field, v )
-                               newT.asInstanceOf[T]
-                             },
-                             klass,
-                             valueKlass
-                           ))
+      return Some( PropertyLens[T,V]((t) => vFromField( t, field ),
+                                     (t,v) => {
+                                       val newT = PropertyLensFactory.klone( t )
+                                       vIntoField( newT, field, v )
+                                       newT.asInstanceOf[T]
+                                     },
+                                     klass,
+                                     valueKlass
+                                   ))
     }
       
                   
@@ -109,11 +112,11 @@ abstract class LensFactory[ V : ClassManifest ] {
   }
 }
 
-// LensFactory singleton object --- mostly a way to instantiate 'em
+// PropertyLensFactory singleton object --- mostly a way to instantiate 'em
 // (note the definitions of special-case lens factories for primitive
 // types below), but also has some runtime support for them.
 
-object LensFactory {
+object PropertyLensFactory {
 
   // We can't access "clone" in a trait the normal way due to
   // an "implementation restriction", so we have this...
@@ -132,37 +135,37 @@ object LensFactory {
   // for a given property-type come into existence, we can live with it.
 
   private
-  var classToFactory: Map[ Class[_], LensFactory[_] ] = Map.empty
+  var classToFactory: Map[ Class[_], PropertyLensFactory[_] ] = Map.empty
 
   // compiler glitch if we try to preinitialize like so:
   //
   //    = Map( java.lang.Integer.TYPE -> IntLensFactory,
   //           java.lang.Byte.TYPE    -> ByteLensFactory )
 
-  def forPropertyType[ V : ClassManifest ]: LensFactory[V] = 
+  def forPropertyType[ V : ClassManifest ]: PropertyLensFactory[V] = 
     this.forPropertyClass( classManifest[V].erasure.asInstanceOf[ Class[V] ] )
 
   def forPropertyClass[ V : ClassManifest ]( klass: Class[V] ) =
     classToFactory.get( klass ) match {
-      case Some( factory ) => factory.asInstanceOf[ LensFactory[V] ]
+      case Some( factory ) => factory.asInstanceOf[ PropertyLensFactory[V] ]
       case None => {
         val fac = 
           if (klass.equals( java.lang.Integer.TYPE ))
-            IntLensFactory.asInstanceOf[ LensFactory[ V ]]
+            IntLensFactory.asInstanceOf[ PropertyLensFactory[ V ]]
           else if (klass.equals( java.lang.Byte.TYPE ))
-            ByteLensFactory.asInstanceOf[ LensFactory[ V ]]
+            ByteLensFactory.asInstanceOf[ PropertyLensFactory[ V ]]
           else if (klass.equals( java.lang.Character.TYPE ))
-            CharLensFactory.asInstanceOf[ LensFactory[ V ]]
+            CharLensFactory.asInstanceOf[ PropertyLensFactory[ V ]]
           else if (klass.equals( java.lang.Short.TYPE ))
-            ShortLensFactory.asInstanceOf[ LensFactory[ V ]]
+            ShortLensFactory.asInstanceOf[ PropertyLensFactory[ V ]]
           else if (klass.equals( java.lang.Long.TYPE ))
-            LongLensFactory.asInstanceOf[ LensFactory[ V ]]
+            LongLensFactory.asInstanceOf[ PropertyLensFactory[ V ]]
           else if (klass.equals( java.lang.Float.TYPE ))
-            FloatLensFactory.asInstanceOf[ LensFactory[ V ]]
+            FloatLensFactory.asInstanceOf[ PropertyLensFactory[ V ]]
           else if (klass.equals( java.lang.Double.TYPE ))
-            DoubleLensFactory.asInstanceOf[ LensFactory[ V ]]
+            DoubleLensFactory.asInstanceOf[ PropertyLensFactory[ V ]]
           else if (klass.equals( java.lang.Boolean.TYPE ))
-            BooleanLensFactory.asInstanceOf[ LensFactory[ V ]]
+            BooleanLensFactory.asInstanceOf[ PropertyLensFactory[ V ]]
           else
             new ObjectLensFactory[ V ]
 
@@ -172,10 +175,10 @@ object LensFactory {
     }
 }
 
-// LensFactory for generic java objects.
+// PropertyLensFactory for generic java objects.
 
 private [util]
-class ObjectLensFactory[ V : ClassManifest ] extends LensFactory[ V ] {
+class ObjectLensFactory[ V : ClassManifest ] extends PropertyLensFactory[ V ] {
   def vFromObject( obj: Object ): V = obj.asInstanceOf[ V ]
   def vToObject( v: V ): Object = v.asInstanceOf[ Object ]
   def vFromField( obj: Object, f: Field ) = f.get( obj ).asInstanceOf[ V ]
@@ -185,7 +188,7 @@ class ObjectLensFactory[ V : ClassManifest ] extends LensFactory[ V ] {
 // LensFactories for Java primitive types.
 
 private [util]
-object IntLensFactory extends LensFactory[ Int ] {
+object IntLensFactory extends PropertyLensFactory[ Int ] {
   def vFromObject( obj: Object ): Int = obj.asInstanceOf[ Integer ].intValue
   def vToObject( v: Int ) = new Integer( v )
   def vFromField( obj: Object, f: Field ) = f.getInt( obj )
@@ -193,7 +196,7 @@ object IntLensFactory extends LensFactory[ Int ] {
 }
 
 private [util]
-object ByteLensFactory extends LensFactory[ Byte ] {
+object ByteLensFactory extends PropertyLensFactory[ Byte ] {
   def vFromObject( obj: Object ): Byte = obj.asInstanceOf[ Byte ].byteValue
   def vToObject( v: Byte ) = new java.lang.Byte( v )
   def vFromField( obj: Object, f: Field ) = f.getByte( obj )
@@ -201,7 +204,7 @@ object ByteLensFactory extends LensFactory[ Byte ] {
 }
 
 private [util]
-object CharLensFactory extends LensFactory[ Char ] {
+object CharLensFactory extends PropertyLensFactory[ Char ] {
   def vFromObject( obj: Object ): Char = obj.asInstanceOf[ Char ].charValue
   def vToObject( v: Char ) = new java.lang.Character( v )
   def vFromField( obj: Object, f: Field ) = f.getChar( obj )
@@ -209,7 +212,7 @@ object CharLensFactory extends LensFactory[ Char ] {
 }
 
 private [util]
-object ShortLensFactory extends LensFactory[ Short ] {
+object ShortLensFactory extends PropertyLensFactory[ Short ] {
   def vFromObject( obj: Object ): Short = obj.asInstanceOf[ Short ].shortValue
   def vToObject( v: Short ) = new java.lang.Short( v )
   def vFromField( obj: Object, f: Field ) = f.getShort( obj )
@@ -217,7 +220,7 @@ object ShortLensFactory extends LensFactory[ Short ] {
 }
 
 private [util]
-object LongLensFactory extends LensFactory[ Long ] {
+object LongLensFactory extends PropertyLensFactory[ Long ] {
   def vFromObject( obj: Object ): Long = obj.asInstanceOf[ Long ].longValue
   def vToObject( v: Long ) = new java.lang.Long( v )
   def vFromField( obj: Object, f: Field ) = f.getLong( obj )
@@ -225,7 +228,7 @@ object LongLensFactory extends LensFactory[ Long ] {
 }
 
 private [util]
-object FloatLensFactory extends LensFactory[ Float ] {
+object FloatLensFactory extends PropertyLensFactory[ Float ] {
   def vFromObject( obj: Object ): Float = obj.asInstanceOf[ Float ].floatValue
   def vToObject( v: Float ) = new java.lang.Float( v )
   def vFromField( obj: Object, f: Field ) = f.getFloat( obj )
@@ -234,7 +237,7 @@ object FloatLensFactory extends LensFactory[ Float ] {
 }
 
 private [util]
-object DoubleLensFactory extends LensFactory[ Double ] {
+object DoubleLensFactory extends PropertyLensFactory[ Double ] {
   def vFromObject( obj: Object ): Double = 
     obj.asInstanceOf[ Double ].doubleValue
   def vToObject( v: Double ) = new java.lang.Double( v )
@@ -244,7 +247,7 @@ object DoubleLensFactory extends LensFactory[ Double ] {
 }
 
 private [util]
-object BooleanLensFactory extends LensFactory[ Boolean ] {
+object BooleanLensFactory extends PropertyLensFactory[ Boolean ] {
   def vFromObject( obj: Object ): Boolean = 
     obj.asInstanceOf[ Boolean ].booleanValue
   def vToObject( v: Boolean ) = new java.lang.Boolean( v )

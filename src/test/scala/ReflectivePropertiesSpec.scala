@@ -4,8 +4,8 @@ import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 
 import org.positronicnet.util.ReflectiveProperties
-import org.positronicnet.util.Lens
-import org.positronicnet.util.LensFactory
+import org.positronicnet.util.PropertyLens
+import org.positronicnet.util.PropertyLensFactory
 
 case class Canary( intProp: Int = 17,
                    byteProp: Byte = 8,
@@ -76,7 +76,7 @@ case class Canary( intProp: Int = 17,
 class ReflectivePropertiesSpec
   extends Spec with ShouldMatchers
 {
-  def testLens[V]( l: Lens[Canary,V], defaultVal: V, otherVal: V ) = {
+  def testLens[V]( l: PropertyLens[Canary,V], defaultVal: V, otherVal: V ) = {
 
     val testCanary = Canary( otherThing = "coalmine" )
 
@@ -102,7 +102,7 @@ class ReflectivePropertiesSpec
     setCanary.asInstanceOf[Canary].otherThing should equal ( "coalmine" )
   }
 
-  def testProperty[V:ClassManifest]( factory: LensFactory[V], propName: String, 
+  def testProperty[V:ClassManifest]( factory: PropertyLensFactory[V], propName: String, 
                                      defaultVal: V, otherVal: V ) = 
   {
     val lens = factory.forProperty[ Canary ]( propName ).get
@@ -116,7 +116,8 @@ class ReflectivePropertiesSpec
 
   describe( "int lens factory" ) {
 
-    val fac: LensFactory[ Int ] = LensFactory.forPropertyType[ Int ]
+    val fac: PropertyLensFactory[ Int ] = 
+      PropertyLensFactory.forPropertyType[ Int ]
 
     it ("should work for plain int fields") {
       testProperty( fac, "intProp", 17, 42 )
@@ -133,7 +134,8 @@ class ReflectivePropertiesSpec
 
   describe( "string lens factory" ) {
 
-    val fac: LensFactory[ String ] = LensFactory.forPropertyType[ String ]
+    val fac: PropertyLensFactory[ String ] = 
+      PropertyLensFactory.forPropertyType[ String ]
 
     it ("should work for plain string fields") {
       testProperty( fac, "stringProp", "foo", "bar" )
@@ -150,7 +152,7 @@ class ReflectivePropertiesSpec
 
   describe( "byte lens factory" ) {
     it ("should handle things properly") {
-      val fac = LensFactory.forPropertyType[ Byte ]
+      val fac = PropertyLensFactory.forPropertyType[ Byte ]
       val default: Byte = 8
       val newVal:  Byte = 12
       testProperty( fac, "byteProp",     default, newVal )
@@ -160,7 +162,7 @@ class ReflectivePropertiesSpec
 
   describe( "char lens factory" ) {
     it ("should handle things properly") {
-      val fac = LensFactory.forPropertyType[ Char ]
+      val fac = PropertyLensFactory.forPropertyType[ Char ]
       val default: Char = 10
       val newVal:  Char = 15
       testProperty( fac, "charProp",     default, newVal )
@@ -170,7 +172,7 @@ class ReflectivePropertiesSpec
  
   describe( "short lens factory" ) {
     it ("should handle things properly") {
-      val fac = LensFactory.forPropertyType[ Short ]
+      val fac = PropertyLensFactory.forPropertyType[ Short ]
       val default: Short = 30001
       val newVal:  Short = 15
       testProperty( fac, "shortProp",     default, newVal )
@@ -180,7 +182,7 @@ class ReflectivePropertiesSpec
 
   describe( "long lens factory" ) {
     it ("should handle things properly") {
-      val fac = LensFactory.forPropertyType[ Long ]
+      val fac = PropertyLensFactory.forPropertyType[ Long ]
       val default: Long = (1L << 60)
       val newVal:  Long = 15
       testProperty( fac, "longProp",     default, newVal )
@@ -190,7 +192,7 @@ class ReflectivePropertiesSpec
 
   describe( "float lens factory" ) {
     it ("should handle things properly") {
-      val fac = LensFactory.forPropertyType[ Float ]
+      val fac = PropertyLensFactory.forPropertyType[ Float ]
       val default: Float = 3.5f
       val newVal:  Float = 14f
       testProperty( fac, "floatProp",     default, newVal )
@@ -200,7 +202,7 @@ class ReflectivePropertiesSpec
 
   describe( "double lens factory" ) {
     it ("should handle things properly") {
-      val fac = LensFactory.forPropertyType[ Double ]
+      val fac = PropertyLensFactory.forPropertyType[ Double ]
       val default: Double = 1e200
       val newVal:  Double = 7
       testProperty( fac, "doubleProp",     default, newVal )
@@ -210,7 +212,7 @@ class ReflectivePropertiesSpec
 
   describe( "boolean lens factory" ) {
     it ("should handle things properly") {
-      val fac = LensFactory.forPropertyType[ Boolean ]
+      val fac = PropertyLensFactory.forPropertyType[ Boolean ]
       val default: Boolean = true
       val newVal:  Boolean = false
       testProperty( fac, "booleanProp",     default, newVal )

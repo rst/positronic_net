@@ -4,7 +4,7 @@ import android.preference.{Preference,PreferenceGroup,
                            CheckBoxPreference,EditTextPreference}
 
 import org.positronicnet.util.ReflectiveProperties
-import org.positronicnet.util.LensFactory
+import org.positronicnet.util.PropertyLensFactory
 
 // Feasibility study for binding UI components.
 // May ultimately want to sugar the syntax here.
@@ -77,7 +77,7 @@ class PropertyBinding[ TWidget, TProp : ClassManifest ](
         throw new RuntimeException( "Not introspecting on resource IDs yet" )
     }
 
-  val lensFactory = LensFactory.forPropertyType[ TProp ]
+  val lensFactory = PropertyLensFactory.forPropertyType[ TProp ]
   val propKlass = classManifest[ TProp ].erasure
 
   def lens (widget: TWidget, props: ReflectiveProperties) = {

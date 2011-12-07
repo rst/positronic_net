@@ -22,7 +22,10 @@ trait ReflectiveProperties {
 
 case class Lens[T,V](
   getter: T => V,
-  setter: (T,V) => T )
+  setter: (T,V) => T,
+  hostClass: Class[T],
+  valueClass: Class[V]
+)
 
 abstract class LensFactory[ V : ClassManifest ] {
 
@@ -32,7 +35,7 @@ abstract class LensFactory[ V : ClassManifest ] {
   def vIntoField( obj: Object, f: Field, value: V): Unit
 
   private
-  val targetKlass = classManifest[V].erasure.asInstanceOf[ Class[V] ]
+  val valueKlass = classManifest[V].erasure.asInstanceOf[ Class[V] ]
 
   private
   var lensMap: Map[(Class[_], String), Option[Lens[_,_]]] = Map.empty
@@ -60,20 +63,23 @@ abstract class LensFactory[ V : ClassManifest ] {
 
     try {
       getter = klass.getMethod( prop )
-      setter = klass.getMethod( prop + "_$colon$eq", targetKlass )
+      setter = klass.getMethod( prop + "_$colon$eq", valueKlass )
     }
     catch {
       case ex: java.lang.NoSuchMethodException =>
         // ... leave them null
     }
 
-    if (getter != null && getter.getReturnType.equals( targetKlass ) &&
+    if (getter != null && getter.getReturnType.equals( valueKlass ) &&
         setter != null && setter.getReturnType.equals( klass ))
       return Some( Lens[T,V]((t:T)     => vFromObject( getter.invoke(t) ),
                              (t:T,v:V) => {
                                val vobj = vToObject( v )
                                setter.invoke( t, vobj ).asInstanceOf[T]
-                             }))
+                             },
+                             klass,
+                             valueKlass
+                           ))
 
     // Failing that, look for a field and try to do the clone/set thing...
 
@@ -83,14 +89,17 @@ abstract class LensFactory[ V : ClassManifest ] {
 
     val field = fieldOpt.get
 
-    if (field.getType.equals( targetKlass )) {
+    if (field.getType.equals( valueKlass )) {
       field.setAccessible( true ) // might want some annotation checks...
       return Some( Lens[T,V]((t:T) => vFromField( t, field ),
                              (t:T,v:V) => {
                                val newT = LensFactory.klone( t )
                                vIntoField( newT, field, v )
                                newT.asInstanceOf[T]
-                             }))
+                             },
+                             klass,
+                             valueKlass
+                           ))
     }
       
                   

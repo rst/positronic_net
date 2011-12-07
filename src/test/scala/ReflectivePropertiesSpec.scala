@@ -103,10 +103,15 @@ class ReflectivePropertiesSpec
   }
 
   def testProperty[V:ClassManifest]( factory: LensFactory[V], propName: String, 
-                                     defaultVal: V, otherVal: V ) = {
+                                     defaultVal: V, otherVal: V ) = 
+  {
+    val lens = factory.forProperty[ Canary ]( propName ).get
+
+    lens.valueClass should equal (classManifest[V].erasure)
+    lens.hostClass  should equal (classOf[Canary])
+    
+    testLens( lens, defaultVal, otherVal )
     testPropApi( propName, defaultVal, otherVal )
-    testLens( factory.forProperty[ Canary ]( propName ).get, 
-              defaultVal, otherVal )
   }
 
   describe( "int lens factory" ) {

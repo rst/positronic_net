@@ -14,8 +14,8 @@ import org.positronicnet.util.PropertyLensFactory
 
 private [ui]
 abstract class UiBinding {
-  def show (widget: Object, props: ReflectiveProperties): Unit
-  def update (widget: Object, props: ReflectiveProperties): ReflectiveProperties
+  def show (widget: Object, props: Object): Unit
+  def update (widget: Object, props: Object): Object
 }
 
 private [ui]
@@ -94,14 +94,16 @@ class PropertyBinding[ TWidget, TProp : ClassManifest ](
     }
   }
 
-  def show (widget: Object, props: ReflectiveProperties) = {
+  def show (widget: Object, props: Object) = {
     val wwidget = widget.asInstanceOf[ TWidget ]
-    writeFunc( wwidget, lens( wwidget, props ).getter( props ) )
+    val pprops = props.asInstanceOf[ ReflectiveProperties ]
+    writeFunc( wwidget, lens( wwidget, pprops ).getter( pprops ) )
   }
 
-  def update (widget: Object, props: ReflectiveProperties) = {
+  def update (widget: Object, props: Object) = {
     val wwidget = widget.asInstanceOf[ TWidget ]
-    val result = lens( wwidget, props ).setter( props, readFunc( wwidget ))
+    val pprops = props.asInstanceOf[ ReflectiveProperties ]
+    val result = lens( wwidget, pprops ).setter( pprops, readFunc( wwidget ))
     result.asInstanceOf[ ReflectiveProperties ]
   }
 }
@@ -227,7 +229,7 @@ class UiBinder
   def update[T <: ReflectiveProperties]( hasProps: T,
                                          pref: Preference ): T = 
   {
-    var workingCopy: ReflectiveProperties = hasProps
+    var workingCopy = hasProps
 
     pref match {
       case grp: PreferenceGroup =>
@@ -235,10 +237,10 @@ class UiBinder
           workingCopy = this.update( workingCopy, grp.getPreference(i) )
       case _ =>
         val binder = getBinder(pref).getOrElse(throw new NoBinderFor(pref))
-        workingCopy = binder.update( pref, workingCopy )
+        workingCopy = binder.update( pref, workingCopy ).asInstanceOf[T]
     }
 
-    return workingCopy.asInstanceOf[T]
+    return workingCopy
   }
 }
 

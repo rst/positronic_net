@@ -44,7 +44,7 @@ abstract class PropertyLensFactory[ V : ClassManifest ] {
          :Option[ PropertyLens[T,V]] =
     this.forProperty( classManifest[T].erasure.asInstanceOf[ Class[T] ], prop )
 
-  def forProperty[T <: Object : ClassManifest](klass: Class[T], prop: String)
+  def forProperty[T <: Object](klass: Class[T], prop: String)
          :Option[ PropertyLens[T,V]] =
   {
     val key = (klass, prop)

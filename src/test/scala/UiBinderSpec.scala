@@ -4,7 +4,6 @@ import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 
 import org.positronicnet.ui.UiBinder
-import org.positronicnet.ui.PropertyBinder
 import org.positronicnet.ui.ResourceId
 import org.positronicnet.util.ReflectiveProperties
 

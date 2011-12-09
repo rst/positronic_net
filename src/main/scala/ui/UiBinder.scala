@@ -6,8 +6,9 @@ import android.preference.{Preference,PreferenceGroup,
 import android.view.{View,ViewGroup}
 import android.widget.{TextView,CheckBox}
 
-import org.positronicnet.util.ReflectiveProperties
-import org.positronicnet.util.PropertyLensFactory
+import org.positronicnet.util.{ReflectiveProperties,
+                               PropertyLens,
+                               PropertyLensFactory}
 
 // Feasibility study for binding UI components.
 // May ultimately want to sugar the syntax here.
@@ -22,13 +23,13 @@ abstract class UiBinding {
 }
 
 private [ui]
-class BindingManager {
+class BindingManager[TBinding] {
 
   protected
-  var bindingMap: Map[Class[_], UiBinding] = Map.empty
+  var bindingMap: Map[Class[_], TBinding] = Map.empty
 
   protected
-  def noteBinding( klass: Class[_], binder: UiBinding ) =
+  def noteBinding( klass: Class[_], binder: TBinding ) =
     bindingMap += ( klass -> binder )
 
   private [ui]
@@ -48,7 +49,7 @@ class BindingManager {
   }
 
   private
-  def findBinderForSuperclass( klass: Class[_] ): Option[UiBinding] = {
+  def findBinderForSuperclass( klass: Class[_] ): Option[TBinding] = {
     var kklass = klass
     while( kklass != null ) {
       bindingMap.get( kklass ) match {
@@ -64,7 +65,7 @@ private [ui]
 class SimpleBinding[ TWidget <: Object, TData <: Object ](
     showFunc: (TWidget, TData) => Unit,
     updateFunc: (TWidget, TData) => TData)
- extends UiBinding
+  extends UiBinding
 {
   def show( widget: Object, data: Object ) =
     showFunc( widget.asInstanceOf[ TWidget ],
@@ -76,64 +77,86 @@ class SimpleBinding[ TWidget <: Object, TData <: Object ](
 }
 
 private [ui]
-class PropertyBinding[ TWidget, TProp : ClassManifest ](
+class PropertyBinding[ TWidget <: Object, TData <: Object, TProp ](
+    readFunc: TWidget => TProp,
+    writeFunc: (TWidget, TProp) => Unit,
+    lens: PropertyLens[ TData, TProp ])
+  extends UiBinding
+{
+  def show (widget: Object, props: Object) = {
+    val wwidget = widget.asInstanceOf[ TWidget ]
+    val pprops = props.asInstanceOf[ TData ]
+    writeFunc( wwidget, lens.getter( pprops ) )
+  }
+
+  def update (widget: Object, props: Object) = {
+    val wwidget = widget.asInstanceOf[ TWidget ]
+    val pprops = props.asInstanceOf[ TData ]
+    val result = lens.setter( pprops, readFunc( wwidget ))
+    result.asInstanceOf[ TData ]
+  }
+}
+
+private [ui]
+class PropertyBindingFactory[ TWidget <: Object, 
+                              TProp : ClassManifest ](
     readFunc: TWidget => TProp,
     writeFunc: (TWidget, TProp) => Unit
   )
-  extends UiBinding
 {
-  // XXX This is ridiculous.  We know which branch of the match will
-  // be taken at declare time; no need for reflection at all here!
-  // At the very least, could have two subclasses with two different
-  // implementations, and let 'PropertyBinder.declare' pick the right
-  // one...
+  val lensFactory = PropertyLensFactory.forPropertyType[ TProp ]
+  val propKlass = classManifest[ TProp ].erasure
+  var bindingMap: Map [(Class[_], String), 
+                       Option [PropertyBinding[_,_,_]]] = 
+    Map.empty
 
-  def propertyName( widget: TWidget ) =
+  def findBinder[TData <: Object](propName: String,
+                                  dataKlass: Class[TData])
+      :Option[ PropertyBinding[ TWidget, TData, TProp ]] = 
+  {
+    val option = bindingMap.get( (dataKlass, propName) ) match {
+      case Some(option) => 
+        option
+      case None => {
+        val newOption = 
+          lensFactory.forProperty( dataKlass, propName ) map { lens =>
+            new PropertyBinding( readFunc, writeFunc, lens) }
+        bindingMap += ((dataKlass, propName) -> newOption)
+        newOption
+      }
+    }
+    option.asInstanceOf[ Option [PropertyBinding[ TWidget, TData, TProp ]]]
+  }
+}
+
+private [ui]
+class PropertyBinderManager
+  extends BindingManager[PropertyBindingFactory[_,_]] 
+{
+  // A factory factory.  Sigh...
+
+  def propertyName( widget: Object ) =
     widget match {
       case pref: android.preference.Preference => pref.getKey
       case view: android.view.View =>
         ResourceId.toName( view.getId ).getOrElse("")
     }
 
-  val lensFactory = PropertyLensFactory.forPropertyType[ TProp ]
-  val propKlass = classManifest[ TProp ].erasure
-
-  def lensOption (widget: TWidget, props: ReflectiveProperties) = {
-    val propsKlass = props.getClass.asInstanceOf[ Class[Object] ]
-    val propName = propertyName( widget )
-    assert( propName != null, "null property name for " + widget.toString )
-    lensFactory.forProperty( propsKlass, propName )
-  }
-
-  def show (widget: Object, props: Object) = {
-    val wwidget = widget.asInstanceOf[ TWidget ]
-    val pprops = props.asInstanceOf[ ReflectiveProperties ]
-    lensOption( wwidget, pprops ) map { lens =>
-      writeFunc( wwidget, lens.getter( pprops ) )}
-  }
-
-  def update (widget: Object, props: Object) = {
-    val wwidget = widget.asInstanceOf[ TWidget ]
-    val pprops = props.asInstanceOf[ ReflectiveProperties ]
-    lensOption( wwidget, pprops ) match {
-      case None => props
-      case Some(lens) => {
-        val result = lens.setter( pprops, readFunc( wwidget ))
-        result.asInstanceOf[ ReflectiveProperties ]
-      }
-    }
-  }
-}
-
-private [ui]
-class PropertyBinder extends BindingManager {
-
   def bindProperties[ TWidget : ClassManifest, TProp : ClassManifest ](
     readFunc: TWidget => TProp,
     writeFunc: (TWidget, TProp) => Unit
   ) =
     noteBinding( classManifest[ TWidget ].erasure,
-                 new PropertyBinding( readFunc, writeFunc ) )
+                 new PropertyBindingFactory( readFunc, writeFunc ) )
+
+  def findPropertyBinder( widget: Object, obj: Object ) =
+    findBinder( widget ) match { 
+      case None => 
+        None
+      case Some(factory) =>
+        val klass = obj.getClass.asInstanceOf[ Class[T] forSome{type T<:Object}]
+        factory.findBinder( propertyName( widget ), klass ) 
+    }
 }
 
 /** Class that helps shuffle data between properties of
@@ -150,9 +173,9 @@ class PropertyBinder extends BindingManager {
   */
 
 class UiBinder
-  extends BindingManager 
+  extends BindingManager[SimpleBinding[_,_]]
 {
-  private val propertyBinder = new PropertyBinder
+  private val propertyBinders = new PropertyBinderManager
 
   // A few stock bindings --- checkbox prefs can set boolean properties;
   // EditTextPreferences can set String properties.  Subclasses can add more.
@@ -176,11 +199,10 @@ class UiBinder
     * and a `writeFunc` to put a `TProp` into a `TWidget`.  
     *
     * `TWidget` must be a subclass of `android.preference.Preference`;
-    * Views will be supported too, which is why the typechecker doesn't
-    * enforce this.
+    * or `android.view.View`.
     * 
     * The default behavior is specified as follows; declarations for
-    * other preference types is specified similarly:
+    * other types may be specified similarly, often in a subclass constructor:
     * {{{
     *     bindProperties[ EditTextPreference, String ](
     *       (_.getText), (_.setText( _ )))
@@ -200,7 +222,7 @@ class UiBinder
     readFunc: TWidget => TProp,
     writeFunc: (TWidget, TProp) => Unit
   ) =
-    propertyBinder.bindProperties[ TWidget, TProp ](readFunc, writeFunc)
+    propertyBinders.bindProperties[ TWidget, TProp ](readFunc, writeFunc)
 
   /** Declare that widgets of type `TWidget` can be used to directly
     * render or update objects of type `TData`.  The caller must supply two
@@ -221,8 +243,9 @@ class UiBinder
                  new SimpleBinding( showFunc, updateFunc ))
 
   private
-  def getBinder( obj: Object ) =
-    this.findBinder (obj) orElse propertyBinder.findBinder (obj)
+  def getBinder( widget: Object, target: Object ):Option[UiBinding] =
+    this.findBinder( widget ).orElse(
+      propertyBinders.findPropertyBinder (widget, target))
 
   /** Update an Android `Preference` (or `PreferenceGroup`) based on
     * the properties of the object `toShow`.
@@ -249,7 +272,9 @@ class UiBinder
         for (i <- 0 to grp.getPreferenceCount - 1)
           show( toShow, grp.getPreference( i ))
       case _ =>
-        val binder = getBinder(pref).getOrElse(throw new NoBinderFor(pref))
+        val binder = 
+          getBinder(pref, toShow).getOrElse(throw new NoBinderFor(pref))
+
         binder.show( pref, toShow )
     }
   }
@@ -282,7 +307,10 @@ class UiBinder
         for (i <- 0 to grp.getPreferenceCount - 1)
           workingCopy = this.update( workingCopy, grp.getPreference(i) )
       case _ =>
-        val binder = getBinder(pref).getOrElse(throw new NoBinderFor(pref))
+
+        val binder = 
+          getBinder(pref, toUpdate).getOrElse(throw new NoBinderFor(pref))
+
         workingCopy = binder.update( pref, workingCopy ).asInstanceOf[T]
     }
 
@@ -325,7 +353,7 @@ class UiBinder
         for (i <- 0 to grp.getChildCount - 1)
           showInner( toShow, grp.getChildAt( i ), false)
       case _ =>
-        getBinder(view) match {
+        getBinder(view, toShow) match {
           case Some(binder) => binder.show( view, toShow )
           case None => 
             if (topLvl)
@@ -365,7 +393,7 @@ class UiBinder
         for (i <- 0 to grp.getChildCount - 1)
           workingCopy = this.update( workingCopy, grp.getChildAt( i ) )
       case _ =>
-        getBinder(view) map { binder => 
+        getBinder(view, toUpdate) map { binder => 
           workingCopy = binder.update( view, workingCopy ).asInstanceOf[T] }
     }
 

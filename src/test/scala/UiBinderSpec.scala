@@ -6,7 +6,8 @@ import org.scalatest.matchers.ShouldMatchers
 import org.positronicnet.ui.{UiBinder, 
                              ResourceId,
                              DoubleBindingException,
-                             NoBinderFor}
+                             NoBinderFor,
+                             IndexedSeqAdapter}
 import org.positronicnet.util.ReflectiveProperties
 
 import com.xtremelabs.robolectric.Robolectric
@@ -27,6 +28,8 @@ import android.widget.{TextView, EditText, CheckBox,
 
 case class Canary( flag: Boolean, blurb: String )
   extends ReflectiveProperties
+
+// Our binder
 
 class CanaryBinder extends UiBinder
 {
@@ -209,6 +212,31 @@ class UiBinderSpec
     }
   }
 
+  describe( "full framework integration" ) {
+    it( "should harvest resource IDs when an Activity is created" ) {
+      ResourceId.clear
+      ResourceId.toName (R.id.e) should equal (None)
+      val dummy = new ActivityInThisPackage
+      ResourceId.toName (R.id.e) should equal (Some("e"))
+    }
+    describe( "integration with IndexedSeqAdapter" ) {
+      it( "should properly support default behavior" ) {
+        val adapter = new IndexedSeqAdapter( IndexedSeq(Canary(true, "tweety")))
+        val sillyView = new TextView( myContext )
+        val myCanary = Canary(false, "heckle")
+        adapter.bindView( sillyView, myCanary )
+        sillyView.getText.toString should equal (myCanary.toString)
+      }
+      it( "should allow override binders" ) {
+        val adapter = new IndexedSeqAdapter( IndexedSeq(Canary(true, "tweety")),
+                                             binder = myBinder )
+        adapter.bindView( views, Canary(true, "jekyll" ))
+        flagCboxView.isChecked         should equal (true)
+        blurbEtxtView.getText.toString should equal ("jekyll")
+      }
+    }
+  }
+
   // Testing the test infrastructure... sigh.
 
   describe( "mocks (sigh...)" ) {
@@ -224,6 +252,11 @@ class UiBinderSpec
     }
   }
 }
+
+// Nonce classes for further test support.
+
+class ActivityInThisPackage 
+  extends org.positronicnet.ui.PositronicActivity
 
 // Robolectric shadows for Preference are... incomplete.  To avoid requiring
 // a private Robolectric build, we do this. 
@@ -271,14 +304,6 @@ class CanaryPref( ctx: Context )
     tweety.copy( blurb = getText )
 }
 
-class HackedCheckedTextView( ctx: Context )
-  extends CheckedTextView( ctx )
-{
-  var checked: Boolean = false
-  override def isChecked = checked
-  override def setChecked( b: Boolean ):Unit = { checked = b }
-}
-
 class BogoPreferenceGroup( ctx: Context, attrs: AttributeSet ) 
   extends PreferenceGroup( ctx, attrs )
 {
@@ -290,3 +315,14 @@ class BogoPreferenceGroup( ctx: Context, attrs: AttributeSet )
   override def getPreferenceCount = prefs.size
   override def getPreference( i: Int ) = prefs( i )
 }
+
+// Similar hackery for incomplete CheckedTextView emulation.
+
+class HackedCheckedTextView( ctx: Context )
+  extends CheckedTextView( ctx )
+{
+  var checked: Boolean = false
+  override def isChecked = checked
+  override def setChecked( b: Boolean ):Unit = { checked = b }
+}
+

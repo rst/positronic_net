@@ -86,7 +86,7 @@ abstract class CursorSourceAdapter[T <: AnyRef](
 
 class IndexedSeqAdapter[T <: Object](protected var seq:IndexedSeq[T] = new ArrayBuffer[T],
                                      itemViewResourceId: Int = 0, 
-                                     itemTextResourceId: Int = 0
+                                     binder: UiBinder = UiBinder
                                     ) 
   extends _root_.android.widget.BaseAdapter 
 {
@@ -138,25 +138,19 @@ class IndexedSeqAdapter[T <: Object](protected var seq:IndexedSeq[T] = new Array
   }
 
   /** Make one of the views resulting from `newView` display a particular
-    * `item`.
+    * `item`.  The default implementation uses the
+    * [[org.positronicnet.ui.UiBinder]] object passed in as a constructor
+    * argument, for which the default is the [[org.positronicnet.ui.UiBinder]]
+    * singleton.
     *
-    * If it's not overridden, it will call `toString` on the item, and
-    * try to stuff the resulting string into a relevant `TextView`.  If
-    * an `itemTextResourceId` was supplied to the adapter constructor,
-    * we'll call `findViewById` on the `view` we get to find the `View`
-    * we update.  Otherwise, the `view` we get (returned by `newView`)
-    * must be a `TextView`, and we'll update that.
+    * If the `view` is a `TextView`, and no other arrangements have been
+    * made, this will effectively do `view.setText(item.toString)`.  See
+    * the documentation on [[org.positronicnet.ui.UiBinder]] for how to
+    * easily make it do something smarter (e.g., loading views with the
+    * values of properties named by their resource IDs).
     */
 
-  def bindView( view: View, item: T ) = {
-    val textView = 
-      (if (itemTextResourceId != 0)
-        view.findViewById( itemTextResourceId )
-       else
-         view).asInstanceOf[ android.widget.TextView ]
-
-    textView.setText( item.toString )
-  }
+  def bindView( view: View, item: T ) = binder.show( item, view )
 
   /** Get the n'th item from the current sequence */
 
@@ -183,9 +177,9 @@ class IndexedSeqAdapter[T <: Object](protected var seq:IndexedSeq[T] = new Array
 class IndexedSeqSourceAdapter[T <: Object](activity: PositronicActivityHelpers,
                                            source: Notifier[IndexedSeq[T]],
                                            itemViewResourceId: Int = 0, 
-                                           itemTextResourceId: Int = 0 ) 
+                                           binder: UiBinder = UiBinder) 
   extends IndexedSeqAdapter[T]( itemViewResourceId = itemViewResourceId,
-                                itemTextResourceId = itemTextResourceId )
+                                binder = binder )
 {
   activity.manageListener( this, source ) { resetSeq( _ ) }
 }

@@ -29,8 +29,13 @@ import scala.collection.mutable.ArrayBuffer
   */
 
 trait PositronicActivityHelpers
- extends _root_.android.app.Activity
+  extends _root_.android.app.Activity
 {
+  // Note resource IDs associated with the R class in the package 
+  // containing this activity (or its parents), if we haven't already...
+
+  ResourceId.harvestAssociatedResources( this )
+
   /** Run `handler` whenever the given
     * [[org.positronicnet.notifications.Notifier]] signals a change,
     * within the lifetime of this activity.

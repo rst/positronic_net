@@ -229,14 +229,14 @@ class UiBinder
     * [[org.positronicnet.ui.NoBinderFor]] exception is thrown at runtime.
     */
 
-  def show( hasProps: ReflectiveProperties, pref: Preference ): Unit = {
+  def show( toShow: Object, pref: Preference ): Unit = {
     pref match {
       case grp: PreferenceGroup =>
         for (i <- 0 to grp.getPreferenceCount - 1)
-          show( hasProps, grp.getPreference( i ))
+          show( toShow, grp.getPreference( i ))
       case _ =>
         val binder = getBinder(pref).getOrElse(throw new NoBinderFor(pref))
-        binder.show( pref, hasProps )
+        binder.show( pref, toShow )
     }
   }
 
@@ -259,8 +259,7 @@ class UiBinder
     * Properties not named by any `Preference` are left unaltered.
     */
 
-  def update[T <: ReflectiveProperties]( hasProps: T,
-                                         pref: Preference ): T = 
+  def update[T <: Object]( hasProps: T, pref: Preference ): T = 
   {
     var workingCopy = hasProps
 

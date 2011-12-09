@@ -23,6 +23,11 @@ import android.preference.{Preference,PreferenceGroup,
 case class Canary( flag: Boolean, blurb: String )
   extends ReflectiveProperties
 
+class CanaryBinder extends UiBinder
+{
+  bind[CanaryPref, Canary]( (_.showCanary(_)), (_.updateCanary(_)) )
+}
+
 // The spec itself
 
 class UiBinderSpec
@@ -32,8 +37,9 @@ class UiBinderSpec
   with RobolectricTests
 {
   val myContext = Robolectric.application
+  val myBinder = new CanaryBinder
 
-  // Our test prefs.  We use subclasses of FooPreference defined below
+  // Some test fixtures.  We use subclasses of FooPreference defined below
   // because Robolectrics mocking of some relevant features is... incomplete.
 
   var flagCbox:  CheckBoxPreference = null
@@ -52,18 +58,34 @@ class UiBinderSpec
     prefs.addPreference( blurbEtxt )
   }
 
-  describe( "PropertyBinder" ) {
+  // Specs proper.
+
+  describe( "bindings to properties" ) {
     it( "should be able to extract values" ) {
-      UiBinder.show( Canary( true, "yellow" ), prefs )
+      myBinder.show( Canary( true, "yellow" ), prefs )
       flagCbox.isChecked should equal (true)
       blurbEtxt.getText  should equal ("yellow")
     }
     it( "should be able to set values" ) {
       flagCbox.setChecked( true )
       blurbEtxt.setText( "yellow" )
-      val newCanary = UiBinder.update( Canary( false, null ), prefs )
+      val newCanary = myBinder.update( Canary( false, null ), prefs )
       newCanary.flag should equal (true)
       newCanary.blurb should equal ("yellow")
+    }
+  }
+
+  describe( "bindings at class level" ) {
+    it( "should be able to show" ) {
+      val myPref = new CanaryPref( myContext )
+      myBinder.show( Canary( true, "yellow" ), myPref )
+      myPref.getText should equal ("yellow [flagged]")
+    }
+    it( "should be able to update" ) {
+      val myPref = new CanaryPref( myContext )
+      myPref.setText("blue")
+      val updated = myBinder.update( Canary( true, "yellow" ), myPref ) 
+      updated should equal (Canary (true, "blue"))
     }
   }
 
@@ -121,6 +143,20 @@ class BogoEditTextPref( ctx: Context )
 
   override def getText = txt
   override def setText( s: String ): Unit = { txt = s }
+}
+
+class CanaryPref( ctx: Context )
+  extends BogoEditTextPref( ctx )
+{
+  def showCanary( tweety: Canary ) =
+    setText( 
+      if (tweety.flag) 
+        tweety.blurb + " [flagged]" 
+      else
+        tweety.blurb)
+
+  def updateCanary( tweety: Canary ) =
+    tweety.copy( blurb = getText )
 }
 
 class BogoPreferenceGroup( ctx: Context, attrs: AttributeSet ) 

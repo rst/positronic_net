@@ -58,6 +58,21 @@ class BindingManager {
 }
 
 private [ui]
+class SimpleBinding[ TWidget <: Object, TData <: Object ](
+    showFunc: (TWidget, TData) => Unit,
+    updateFunc: (TWidget, TData) => TData)
+ extends UiBinding
+{
+  def show( widget: Object, data: Object ) =
+    showFunc( widget.asInstanceOf[ TWidget ],
+              data.asInstanceOf[ TData ] )
+  
+  def update( widget: Object, data: Object): Object =
+    updateFunc( widget.asInstanceOf[ TWidget ], 
+                data.asInstanceOf[ TData ])
+}
+
+private [ui]
 class PropertyBinding[ TWidget, TProp : ClassManifest ](
     readFunc: TWidget => TProp,
     writeFunc: (TWidget, TProp) => Unit
@@ -150,8 +165,7 @@ class UiBinder
     * or set properties of type `TProp`.  The caller must supply two
     * functions to manage the mechanics of the shuffling:
     * a `readFunc` to get a `TProp` out of a `TWidget`,
-    * and a `writeFunc` to put a `TProp` into a `TWidget`.  Generally
-    * invoked from within a constructor.
+    * and a `writeFunc` to put a `TProp` into a `TWidget`.  
     *
     * `TWidget` must be a subclass of `android.preference.Preference`;
     * Views will be supported too, which is why the typechecker doesn't
@@ -174,25 +188,45 @@ class UiBinder
   ) =
     propertyBinder.bindProperties[ TWidget, TProp ](readFunc, writeFunc)
 
+  /** Declare that widgets of type `TWidget` can be used to directly
+    * render or update objects of type `TData`.  The caller must supply two
+    * functions to manage the mechanics of the shuffling:
+    * a `showFunc` to update a `TWidget` from the state of a `TData`,
+    * and an `updateFunc` to update a `TData` into a `TWidget`.  
+    *
+    * `TWidget` must be a subclass of `android.preference.Preference`;
+    * Views will be supported too, which is why the typechecker doesn't
+    * enforce this.
+    */
+
+  def bind[ TWidget <: Object : ClassManifest, TData <: Object ](
+    showFunc: (TWidget, TData) => Unit,
+    updateFunc: (TWidget, TData) => TData
+  ) =
+    noteBinding( classManifest[ TWidget ].erasure,
+                 new SimpleBinding( showFunc, updateFunc ))
+
   private
   def getBinder( obj: Object ) =
-    findBinder (obj) orElse propertyBinder.findBinder (obj)
+    this.findBinder (obj) orElse propertyBinder.findBinder (obj)
 
   /** Update an Android `Preference` (or `PreferenceGroup`) based on
-    * the properties of the [[org.positronicnet.util.ReflectiveProperties]]
-    * object `hasProps`.
+    * the properties of the object `toShow`.
     * 
-    * A basic `Preference` is treated as referring to the property named
-    * by its key (viz. `getKey`).  If an appropriately typed property can
-    * be found on `hasProps`, the `Preference` will be updated to show its
-    * value.  (If not, you get a `RuntimeException`.)
-    *
-    * See `bindProperties` for how you declare that a given `Preference`
-    * type can be used to display or update a given property type.
-    *
     * A `PreferenceGroup` is handled by iterating over its members.  (If
     * those contain nested `PreferenceGroup`s, we iterate over their members
-    * too.)
+    * too.)  Otherwise, we proceed as follows:
+    *
+    * If a binder has been declared for the particular `Preference` type
+    * and the class of `toShow` (q.v. `bind`), then it is used to handle
+    * the data transfer.  Otherwise, if the `Preference` has been bound
+    * to a particular property type with `bindProperties`, and if `toShow`
+    * is a [[org.postronicnet.util.ReflectiveProperties]] object, we look
+    * for a property of that type named by the `Preference`'s key
+    * (viz. `getKey`).
+    *
+    * Otherwise, if we can't find a relevant declared UI Binding, a
+    * [[org.positronicnet.ui.NoBinderFor]] exception is thrown at runtime.
     */
 
   def show( hasProps: ReflectiveProperties, pref: Preference ): Unit = {
@@ -208,22 +242,21 @@ class UiBinder
 
   /** Use an Android `Preference` (or `PreferenceGroup`) to produce
     * an updated version of the [[org.positronicnet.util.ReflectiveProperties]]
-    * object `hasProps`.
+    * object `toUpdate`.
     * 
-    * A basic `Preference` is treated as referring to the property
-    * named by its key (viz. `getKey`).  If an appropriately typed
-    * property can be found on `hasProps`, the returned value will
-    * have its value updated by that shown from the `Preference`.  (If
-    * not, you get a `RuntimeException`.)
-    *
-    * Properties not named by any `Preference` are left unaltered.
-    *
-    * See `bindProperties` for how you declare that a given `Preference`
-    * type can be used to display or update a given property type.
-    *
     * A `PreferenceGroup` is handled by iterating over its members.  (If
     * those contain nested `PreferenceGroup`s, we iterate over their members
-    * too.)
+    * too.)  Otherwise, we proceed as follows:
+    *
+    * If a binder has been declared for the particular `Preference` type
+    * and the class of `toShow` (q.v. `bind`), then it is used to handle
+    * the data transfer.  Otherwise, if the `Preference` has been bound
+    * to a particular property type with `bindProperties`, and if `toShow`
+    * is a [[org.postronicnet.util.ReflectiveProperties]] object, we look
+    * for a property of that type named by the `Preference`'s key
+    * (viz. `getKey`).
+    *
+    * Properties not named by any `Preference` are left unaltered.
     */
 
   def update[T <: ReflectiveProperties]( hasProps: T,

@@ -5,7 +5,8 @@ import org.scalatest.matchers.ShouldMatchers
 
 import org.positronicnet.ui.{UiBinder, 
                              ResourceId,
-                             DoubleBindingException}
+                             DoubleBindingException,
+                             NoBinderFor}
 import org.positronicnet.util.ReflectiveProperties
 
 import com.xtremelabs.robolectric.Robolectric
@@ -112,63 +113,78 @@ class UiBinderSpec
     }
   }
 
-  describe( "bindings of preferences to properties" ) {
-    it( "should be able to extract values" ) {
-      myBinder.show( Canary( true, "yellow" ), prefs )
-      flagCbox.isChecked should equal (true)
-      blurbEtxt.getText  should equal ("yellow")
+  describe( "bindings to preferences" ) {
+    describe( "of properties" ) {
+      it( "should be able to extract values" ) {
+        myBinder.show( Canary( true, "yellow" ), prefs )
+        flagCbox.isChecked should equal (true)
+        blurbEtxt.getText  should equal ("yellow")
+      }
+      it( "should be able to set values" ) {
+        flagCbox.setChecked( true )
+        blurbEtxt.setText( "yellow" )
+        val newCanary = myBinder.update( Canary( false, null ), prefs )
+        newCanary.flag should equal (true)
+        newCanary.blurb should equal ("yellow")
+      }
     }
-    it( "should be able to set values" ) {
-      flagCbox.setChecked( true )
-      blurbEtxt.setText( "yellow" )
-      val newCanary = myBinder.update( Canary( false, null ), prefs )
-      newCanary.flag should equal (true)
-      newCanary.blurb should equal ("yellow")
+    describe( "at class level" ) {
+      it( "should be able to show" ) {
+        val myPref = new CanaryPref( myContext )
+        myBinder.show( Canary( true, "yellow" ), myPref )
+        myPref.getText should equal ("yellow [flagged]")
+      }
+      it( "should be able to update" ) {
+        val myPref = new CanaryPref( myContext )
+        myPref.setText("blue")
+        val updated = myBinder.update( Canary( true, "yellow" ), myPref ) 
+        updated should equal (Canary (true, "blue"))
+      }
     }
-  }
-
-  describe( "bindings to preferences at class level" ) {
-    it( "should be able to show" ) {
-      val myPref = new CanaryPref( myContext )
-      myBinder.show( Canary( true, "yellow" ), myPref )
-      myPref.getText should equal ("yellow [flagged]")
-    }
-    it( "should be able to update" ) {
-      val myPref = new CanaryPref( myContext )
-      myPref.setText("blue")
-      val updated = myBinder.update( Canary( true, "yellow" ), myPref ) 
-      updated should equal (Canary (true, "blue"))
-    }
-  }
-
-  describe( "bindings of views to properties" ) {
-    it( "should be able to extract values" ) {
-      myBinder.show( Canary( true, "yellow" ), views )
-      flagCboxView.isChecked         should equal (true)
-      blurbEtxtView.getText.toString should equal ("yellow")
-    }
-    it( "should be able to set values" ) {
-      flagCboxView.setChecked( true )
-      blurbEtxtView.setText( "yellow" )
-      val newCanary = myBinder.update( Canary( false, null ), views )
-      newCanary.flag should equal (true)
-      newCanary.blurb should equal ("yellow")
+    describe ("should whine about missing bindings") {
+      it( "on show" ) {
+        intercept[ NoBinderFor ]{
+          myBinder.show( List(3,3), prefs )
+        }
+      }
+      it( "on update" ) {
+        intercept[ NoBinderFor ]{
+          myBinder.update( List(3,3), prefs )
+        }
+      }
     }
   }
 
-  describe( "bindings to views at class level" ) {
-    it( "should be able to show" ) {
-      val view = new HackedCheckedTextView( myContext )
-      myBinder.show( Canary( true, "yellow" ), view )
-      view.getText should equal ("yellow")
-      view.isChecked should equal (true)
-      randomTxtView.getText should equal ("random") // unchanged
+  describe( "bindings of views" ) {
+    describe( "to properties" ) {
+      it( "should be able to extract values" ) {
+        myBinder.show( Canary( true, "yellow" ), views )
+        flagCboxView.isChecked         should equal (true)
+        blurbEtxtView.getText.toString should equal ("yellow")
+      }
+      it( "should be able to set values" ) {
+        flagCboxView.setChecked( true )
+        blurbEtxtView.setText( "yellow" )
+        val newCanary = myBinder.update( Canary( false, null ), views )
+        newCanary.flag should equal (true)
+        newCanary.blurb should equal ("yellow")
+      }
     }
-    it( "should be able to update" ) {
-      val view = new HackedCheckedTextView( myContext )
-      view.setText("blue")
-      val updated = myBinder.update( Canary( true, "yellow" ), view ) 
-      updated should equal (Canary (false, "blue"))
+
+    describe( "at class level" ) {
+      it( "should be able to show" ) {
+        val view = new HackedCheckedTextView( myContext )
+        myBinder.show( Canary( true, "yellow" ), view )
+        view.getText should equal ("yellow")
+        view.isChecked should equal (true)
+        randomTxtView.getText should equal ("random") // unchanged
+      }
+      it( "should be able to update" ) {
+        val view = new HackedCheckedTextView( myContext )
+        view.setText("blue")
+        val updated = myBinder.update( Canary( true, "yellow" ), view ) 
+        updated should equal (Canary (false, "blue"))
+      }
     }
   }
 

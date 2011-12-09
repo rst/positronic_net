@@ -98,31 +98,30 @@ class PropertyBinding[ TWidget, TProp : ClassManifest ](
   val lensFactory = PropertyLensFactory.forPropertyType[ TProp ]
   val propKlass = classManifest[ TProp ].erasure
 
-  def lens (widget: TWidget, props: ReflectiveProperties) = {
+  def lensOption (widget: TWidget, props: ReflectiveProperties) = {
     val propsKlass = props.getClass.asInstanceOf[ Class[Object] ]
     val propName = propertyName( widget )
     assert( propName != null, "null property name for " + widget.toString )
-    lensFactory.forProperty( propsKlass, propName ) match {
-      case Some( lens ) => lens
-      case None =>
-        throw new RuntimeException( "Could not find property " + 
-                                    propertyName( widget ) + " of type " +
-                                    propKlass.toString + 
-                                    " in class " + propsKlass.toString )
-    }
+    lensFactory.forProperty( propsKlass, propName )
   }
 
   def show (widget: Object, props: Object) = {
     val wwidget = widget.asInstanceOf[ TWidget ]
     val pprops = props.asInstanceOf[ ReflectiveProperties ]
-    writeFunc( wwidget, lens( wwidget, pprops ).getter( pprops ) )
+    lensOption( wwidget, pprops ) map { lens =>
+      writeFunc( wwidget, lens.getter( pprops ) )}
   }
 
   def update (widget: Object, props: Object) = {
     val wwidget = widget.asInstanceOf[ TWidget ]
     val pprops = props.asInstanceOf[ ReflectiveProperties ]
-    val result = lens( wwidget, pprops ).setter( pprops, readFunc( wwidget ))
-    result.asInstanceOf[ ReflectiveProperties ]
+    lensOption( wwidget, pprops ) match {
+      case None => props
+      case Some(lens) => {
+        val result = lens.setter( pprops, readFunc( wwidget ))
+        result.asInstanceOf[ ReflectiveProperties ]
+      }
+    }
   }
 }
 
@@ -305,6 +304,8 @@ class UiBinder
     * attempt to get the name corresponding to the view's ID
     * (viz. [[org.positronicnet.ui.ResourceId]]), and look for an
     * appropriate property of that name.
+    *
+    * XXX not working:
     *
     * If we can't find any relevant declared UI Binding, and the supplied
     * `view` is a `TextView`, we effectively do `view.setText(toShow.toString)`.

@@ -67,6 +67,7 @@ class UiBinderSpec
 
   var flagCboxView:  CheckBox = null
   var blurbEtxtView: EditText = null
+  var randomTxtView: TextView = null
   var views:         ViewGroup = null
 
   override def beforeEach = {
@@ -87,9 +88,13 @@ class UiBinderSpec
     blurbEtxtView = new EditText( myContext )
     blurbEtxtView.setId( R.id.blurb )
 
+    randomTxtView = new TextView( myContext )
+    randomTxtView.setText( "random" )
+
     views = new LinearLayout( myContext )
     views.addView( flagCboxView )
     views.addView( blurbEtxtView )
+    views.addView( randomTxtView )
   }
 
   // Specs proper.
@@ -144,12 +149,26 @@ class UiBinderSpec
       myBinder.show( Canary( true, "yellow" ), view )
       view.getText should equal ("yellow")
       view.isChecked should equal (true)
+      randomTxtView.getText should equal ("random") // unchanged
     }
     it( "should be able to update" ) {
       val view = new HackedCheckedTextView( myContext )
       view.setText("blue")
       val updated = myBinder.update( Canary( true, "yellow" ), view ) 
       updated should equal (Canary (false, "blue"))
+    }
+  }
+
+  describe( "binding to a random TextView" ) {
+    it ("should show the result of toString") {
+      val canary = Canary ( true, "yellow" )
+      myBinder.show( canary, randomTxtView )
+      randomTxtView.getText.toString should equal (canary.toString)
+    }
+    it ("should leave an 'update' unaltered") {
+      val canary = Canary ( true, "yellow" )
+      val updated = myBinder.update( canary, randomTxtView )
+      updated should equal (canary)
     }
   }
 
@@ -164,7 +183,7 @@ class UiBinderSpec
   // Testing the test infrastructure... sigh.
 
   describe( "mocks (sigh...)" ) {
-    it( "should have proper keys" ) {
+    it( "should have proper keys, ids, etc." ) {
 
       flagCbox.getKey should equal( "flag" )
       blurbEtxt.getKey should equal( "blurb" )
@@ -172,7 +191,7 @@ class UiBinderSpec
 
       flagCboxView.getId should equal (R.id.flag)
       blurbEtxtView.getId should equal (R.id.blurb)
-      views.getChildCount should equal (2)
+      views.getChildCount should equal (3) // including random text view.
     }
   }
 }

@@ -3,8 +3,9 @@ package org.positronicnet.ui.testUiBinder
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 
-import org.positronicnet.ui.UiBinder
-import org.positronicnet.ui.ResourceId
+import org.positronicnet.ui.{UiBinder, 
+                             ResourceId,
+                             DoubleBindingException}
 import org.positronicnet.util.ReflectiveProperties
 
 import com.xtremelabs.robolectric.Robolectric
@@ -97,6 +98,19 @@ class UiBinderSpec
   }
 
   // Specs proper.
+
+  describe( "declarations of bindings" ) {
+
+    // Mostly implicitly tested through tests of the declared bindings
+    // below, but there is this...
+
+    it ( "should whine about double declarations" ) {
+      intercept [DoubleBindingException] {
+        myBinder.bind[CanaryPref, Canary]( 
+          (_.showCanary(_)), (_.updateCanary(_)) )
+      }
+    }
+  }
 
   describe( "bindings of preferences to properties" ) {
     it( "should be able to extract values" ) {

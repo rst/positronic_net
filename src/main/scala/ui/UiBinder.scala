@@ -29,8 +29,11 @@ class BindingManager[TBinding] {
   var bindingMap: Map[Class[_], TBinding] = Map.empty
 
   protected
-  def noteBinding( klass: Class[_], binder: TBinding ) =
-    bindingMap += ( klass -> binder )
+  def noteBinding( klass: Class[_], binder: TBinding, kind: String ) =
+    if (bindingMap.isDefinedAt( klass ))
+      throw new DoubleBindingException( klass, kind )
+    else
+      bindingMap += ( klass -> binder )
 
   private [ui]
   def findBinder( obj: Object ) = {
@@ -147,7 +150,9 @@ class PropertyBinderManager
     writeFunc: (TWidget, TProp) => Unit
   ) =
     noteBinding( classManifest[ TWidget ].erasure,
-                 new PropertyBindingFactory( readFunc, writeFunc ) )
+                 new PropertyBindingFactory( readFunc, writeFunc ),
+                 "property"
+               )
 
   def findPropertyBinder( widget: Object, obj: Object ) =
     findBinder( widget ) match { 
@@ -240,9 +245,16 @@ class UiBinder
     updateFunc: (TWidget, TData) => TData
   ) =
     noteBinding( classManifest[ TWidget ].erasure,
-                 new SimpleBinding( showFunc, updateFunc ))
+                 new SimpleBinding( showFunc, updateFunc ),
+                 "class-level"
+               )
 
-  private
+  /** Get Some of a UiBinder that can be used to mediate between
+    * 'widget' and 'object' (or some appropriately chosen property),
+    * or none.
+    */
+
+  protected
   def getBinder( widget: Object, target: Object ):Option[UiBinding] =
     this.findBinder( widget ).orElse(
       propertyBinders.findPropertyBinder (widget, target))
@@ -408,8 +420,17 @@ class UiBinder
 
 object UiBinder extends UiBinder
 
-/** Exception indicating that there is no binder for a particular widget
-  */
+/** Exception indicating that there is no binder for a particular widget */
 
 class NoBinderFor( obj: Object )
   extends RuntimeException( "No UI binder declared for " + obj.toString )
+
+/** Exception indicating that a widget already has a binder of a particular
+  * type
+  */
+
+class DoubleBindingException( klass: Class[_], kind: String )
+  extends RuntimeException( klass.toString + " already has a " + 
+                            kind + " binding.  " +
+                            "(Consider subclassing if it needs more than one?)"
+                          )

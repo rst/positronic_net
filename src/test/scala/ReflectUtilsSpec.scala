@@ -25,6 +25,15 @@ class ThingWithLazyFields {
   val food            = "cheese"
 }
 
+case class ThingWithChangingDefaults( val fubar: Int = DefaultSequence.next )
+object DefaultSequence {
+  private var current = 0
+  def next = {
+    current = current + 1
+    current
+  }
+}
+
 class ReflectUtilsSpec
   extends Spec with ShouldMatchers
 {
@@ -57,14 +66,24 @@ class ReflectUtilsSpec
       rec.instanceVar  should equal ("initialized")
     }
 
-    it ("should find all-defaults constructor") {
+    describe("all-defaults constructor") {
 
-      val builder =
-        ReflectUtils.getObjectBuilder[ ThingWithDefaultingConstructor ]
-      val rec: ThingWithDefaultingConstructor = builder()
+      it ("should build objects correctly") {
 
-      rec.x should equal ("x")
-      rec.y should equal (12345)
+        val builder =
+          ReflectUtils.getObjectBuilder[ ThingWithDefaultingConstructor ]
+        val rec: ThingWithDefaultingConstructor = builder()
+
+        rec.x should equal ("x")
+        rec.y should equal (12345)
+      }
+
+      it ("should invoke constructor arguments every time") {
+        val builder = ReflectUtils.getObjectBuilder[ ThingWithChangingDefaults ]
+        val x = builder()
+        val y = builder()
+        x.fubar should not equal (y.fubar)
+      }
     }
   }
 

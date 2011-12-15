@@ -48,8 +48,10 @@ object ReflectUtils
         for (i <- Range( 1, constructorParmTypes.size + 1 ))
         yield companionClass.getDeclaredMethod("init$default$"+i.toString)
       val companionObject = companionClass.getField("MODULE$").get(null)
-      val args = methods.map{ _.invoke( companionObject ) }
-      return (() => constructor.newInstance( args: _* ).asInstanceOf[ T ])
+      return (() => {
+        val args = methods.map{ _.invoke( companionObject ) }
+        constructor.newInstance( args: _* ).asInstanceOf[ T ]
+      })
     }
     catch {
       case ex: java.lang.NoSuchMethodException =>

@@ -45,6 +45,13 @@ class SingleThreadOrmSpec
     }
   }
 
+  describe( "ID manipulation on find" ) {
+    it ("should make ids distinct" ) {
+      val items = TodoItems.fetchOnThisThread
+      items(0).id should not equal (items(1).id)
+    }
+  }
+
   describe( "Single-thread ORM find" ) {
     it ("should find the right records") {
       for (item <- TodoItems.fetchOnThisThread) {

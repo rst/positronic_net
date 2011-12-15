@@ -10,8 +10,8 @@ case class WrappedString( raw: String )
 
 case class TodoItemWithWrapping ( 
     rawDescription: String  = null, 
-    isDone:         Boolean = false,
-    id:             Long    = ManagedRecord.unsavedId
+    isDone: Boolean = false,
+    id: RecordId[TodoItemWithWrapping] = TodoItemsWithWrapping.unsavedId
   )
   extends ManagedRecord( TodoItemsWithWrapping )
 {

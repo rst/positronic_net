@@ -42,6 +42,8 @@ object MappedField {
                  ( s, n, f ) => new MappedDoubleField( s, n, f ))
   declareMapper( classOf[ String ], 
                  ( s, n, f ) => new MappedStringField( s, n, f ))
+  declareMapper( classOf[ RecordId[_] ],
+                 ( s, n, f ) => new MappedIdField( s, n, f ))
 
   def create( colName: String, colNumber: Int, rfield: java.lang.reflect.Field )
     : MappedField =
@@ -174,3 +176,37 @@ class MappedBooleanField( colName: String,
   def setValue( o: AnyRef, l: ContentValue ): Unit = 
     rfield.setBoolean( o, l.asInstanceOf[ CvBoolean ].value )
 }
+
+private [orm]
+object MappedIdField {
+  val idField = classOf[RecordId[_]].getDeclaredField("id")
+  idField.setAccessible( true )
+}
+
+private [orm]
+class MappedIdField( colName: String, 
+                     colNumber: Int,
+                     rfield: java.lang.reflect.Field )
+  extends MappedField( colName, colNumber, rfield )
+{
+  // Wrapping up Longs in our RecordId objects.
+  //
+  // We assume that the constructor has already produced a recordId
+  // object, and just dink that.
+
+  def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = {
+    val recordIdObj = rfield.get( o )
+    MappedIdField.idField.set( recordIdObj, c.getLong( colNumber ))
+  }
+  
+  def getValue( o: AnyRef ): ContentValue = {
+    val recordIdObj = rfield.get( o )
+    new CvLong( MappedIdField.idField.getLong( recordIdObj ) )
+  }
+
+  def setValue( o: AnyRef, l: ContentValue ): Unit = {
+    val recordIdObj = rfield.get( o )
+    MappedIdField.idField.setLong( recordIdObj, l.asInstanceOf[ CvLong ].value )
+  }
+}
+

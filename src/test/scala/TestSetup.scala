@@ -84,20 +84,18 @@ class TodoDatabase( filename: String )
 
 case class TodoItem( description: String  = null, 
                      isDone:      Boolean = false,
-                     todoListId:  Long    = ManagedRecord.unsavedId,
-                     id:          Long    = ManagedRecord.unsavedId
+                     todoListId:  RecordId[TodoList] = TodoLists.unsavedId,
+                     id:          RecordId[TodoItem] = TodoItems.unsavedId
                    )
   extends ManagedRecord( TodoItems )
 {
   def isDone( newVal: Boolean ) = copy( isDone = newVal )
-
-  lazy val list = new BelongsTo( TodoLists )
 }
 
 object TodoItems extends RecordManager[ TodoItem ]( TodoDb("todo_items") )
 
-case class TodoList( name: String = null,
-                     id:   Long   = ManagedRecord.unsavedId )
+case class TodoList( name: String             = null,
+                     id:   RecordId[TodoList] = TodoLists.unsavedId )
   extends ManagedRecord( TodoLists )
 {
   def name( newName: String ) = copy( name = newName )

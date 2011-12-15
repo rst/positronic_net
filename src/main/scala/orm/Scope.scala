@@ -24,7 +24,8 @@ abstract class ScopeAction[T] extends Action[IndexedSeq[T]]
 
 object Actions {
 
-  private [orm] case class FindAction[T]( id: Long, handler: T => Unit) 
+  private [orm] case class FindAction[T <: ManagedRecord]( id: RecordId[T], 
+                                                           handler: T => Unit) 
                      extends ScopeAction[T]
   private [orm] case class DeleteAllAction[T]( dummy: Long = 0 ) 
                      extends ScopeAction[T]
@@ -66,7 +67,7 @@ object Actions {
     * scope, as per Rails.
     */
 
-  def Find[T]( id: Long )( handler: T => Unit ) =
+  def Find[T <: ManagedRecord]( id: RecordId[T] )( handler: T => Unit ) =
     FindAction( id, handler )
 }
 
@@ -301,7 +302,7 @@ trait Scope[ T <: ManagedRecord ]
     * scope, as per Rails.
     */
 
-  def findOnThisThread( id: Long ) = mgr.find( id, baseQuery )
+  def findOnThisThread( id: RecordId[T] ) = mgr.find( id, baseQuery )
 
   // Action interface.
 
@@ -383,9 +384,9 @@ class AlternateViewScope[ T <: ManagedRecord ]( base: Scope[T],
 private [orm]
 class HasManyAssociation[ T <: ManagedRecord ]( base:       Scope[ T ],
                                                 foreignKey: String, 
-                                                idVal:      ContentValue
+                                                idVal:      RecordId[_]
                                               )
-  extends AlternateViewScope( base.whereEq( foreignKey -> idVal ))
+  extends AlternateViewScope( base.whereEq( foreignKey -> idVal.id ))
 {
   override def toString = "HasMany: " + notificationManagerDelegate.toString
 
@@ -396,7 +397,7 @@ class HasManyAssociation[ T <: ManagedRecord ]( base:       Scope[ T ],
 
   def create: T = {
     val target = mgr.newRecord
-    foreignKeyField.setValue( target, idVal )
+    foreignKeyField.setValue( target, idVal.id )
     target
   }
 

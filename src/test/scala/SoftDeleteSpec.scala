@@ -62,8 +62,8 @@ object TodoDbSD extends TodoDatabase( "todos_softdel.sqlite3" )
 
 case class TodoItemSD( description: String  = null, 
                        isDone:      Boolean = false,
-                       todoListId:  Long    = ManagedRecord.unsavedId,
-                       id:          Long    = ManagedRecord.unsavedId
+                       todoListId:  RecordId[TodoListSD]=TodoListsSD.unsavedId,
+                       id:          RecordId[TodoItemSD]=TodoItemsSD.unsavedId
                      )
   extends ManagedRecord( TodoItemsSD )
 {
@@ -91,8 +91,8 @@ object TodoItemsSD
   }
 }
 
-case class TodoListSD( name: String = null,
-                       id:   Long   = ManagedRecord.unsavedId )
+case class TodoListSD( name: String               = null,
+                       id:   RecordId[TodoListSD] = TodoListsSD.unsavedId )
   extends ManagedRecord( TodoListsSD )
 {
   def name( newName: String ) = copy( name = newName )
@@ -132,7 +132,7 @@ class SoftDeleteSpec
     // Have to go to DB to see the is_deleted items...
 
     def catItemsRaw =
-      db("todo_items").whereEq( "todo_list_id" -> catList.id)
+      db("todo_items").whereEq( "todo_list_id" -> catList.id.id)
 
     def catItemRawDescs =
       catItemsRaw.select( "description ").map{ _.getString(0) }
@@ -194,7 +194,7 @@ class SoftDeleteSpec
     var dogList: TodoListSD = null
 
     def itemsQuery( l: TodoListSD ) = 
-      db( "todo_items" ).whereEq( "todo_list_id" -> l.id )
+      db( "todo_items" ).whereEq( "todo_list_id" -> l.id.id )
 
     def setupForCrossDeletionTests = {
 
@@ -230,7 +230,7 @@ class SoftDeleteSpec
     it( "should expunge only within a given scope for subscoped delete" ) {
       setupForCrossDeletionTests
       val items = dogList.items.whereEq("description" -> "feed dog").fetchOnThisThread
-      dogList.items.whereEq( "_id" -> items(0).id ).onThisThread( DeleteAll )
+      dogList.items.whereEq( "_id" -> items(0).id.id ).onThisThread( DeleteAll )
       assertDoglistExpungeOk( 1, 1 )
     }
     

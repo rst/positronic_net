@@ -155,9 +155,9 @@ package org.positronicnet
   * Accordingly, a minimal record declaration might be something like the
   * following:
   * {{{
-  *     case class TodoItem( description: String = null, 
-  *                          isDone: Boolean     = false,
-  *                          id: Long            = ManagedRecord.unsavedId 
+  *     case class TodoItem( description: String    = null, 
+  *                          isDone: Boolean        = false,
+  *                          id: RecordId[TodoItem] = TodoItems.unsavedId 
   *                        )
   *       extends ManagedRecord( TodoItem )
   *
@@ -185,8 +185,12 @@ package org.positronicnet
   *    companion object of the [[org.positronicnet.orm.ManagedRecord]] class
   *    that it manages (although it certainly can be).
   *  - The [[org.positronicnet.orm.ManagedRecord]] class needs to have a
-  *    `Long`-valued field named `id`, which will be mapped to the `_id`
-  *    within the database (to match Android conventions).
+  *    field named `id`, which will be mapped to the `_id`
+  *    within the database (to match Android conventions).  The type of
+  *    that field is declared as `RecordId[...]`.  For saved records, this
+  *    just wraps the underlying `Long` in the obvious way; for unsaved
+  *    records, there is special handling.  Also, a `RecordId` for a saved
+  *    record can be used to retrieve the record itself, as discussed below.
   *  - The [[org.positronicnet.orm.RecordManager]] will happily persist
   *    `Boolean` fields into `integer` columns by setting them to 0 or 1,
   *    following SQLite's recommended convention for booleans.  It will
@@ -303,7 +307,7 @@ package org.positronicnet
   * versa.  Here's an example of how that can get mapped:
   * {{{
   *     case class TodoList( name: String = null,
-  *                          id: Long     = ManagedRecord.unsavedId )
+  *                          id: RecordId[TodoList] = TodoLists.unsavedId )
   *       extends ManagedRecord( TodoLists )
   *     {
   *       lazy val items = new HasMany( TodoItems )
@@ -311,19 +315,15 @@ package org.positronicnet
   *     
   *     object TodoLists extends RecordManager[ TodoList ](TodoDb("todo_lists"))
   *     
-  *     case class TodoItem( todoListId: Long    = ManagedRecord.unsavedId,
+  *     case class TodoItem( todoListId: RecordId[TodoList]=TodoLists.unsavedId,
   *                          description: String = null, 
-  *                          id: Long            = ManagedRecord.unsavedId )
+  *                          id: RecordId[TodoItem] = TodoItems.unsavedId )
   *       extends ManagedRecord( TodoItems )
-  *     {
-  *       lazy val todoList = new BelongsTo( TodoLists )
-  *     }
   * }}}
   *
-  * Here, [[org.positronicnet.orm.ManagedRecord.HasMany]] and
-  * [[org.positronicnet.orm.ManagedRecord.BelongsTo]] are nested classes
+  * Here, [[org.positronicnet.orm.ManagedRecord.HasMany]] is a nested class
   * provided by the [[orm.positronicnet.orm.ManagedRecord]] superclass.
-  * The `lazy val`s here are, as usual, intended to delay construction
+  * The `lazy val`s here is, as usual, intended to delay construction
   * of these objects until someone refers to them.  Constructing them
   * doesn't immediately cause any database I/O, but it still takes time
   * and storage space, and if no one's going to refer to them at all,
@@ -363,15 +363,13 @@ package org.positronicnet
   * down `TodoItem`s associated with the vanishing lists, and to delete them
   * as well.
   *
-  * The [[org.positronicnet.orm.ManagedRecord.BelongsTo]] is somewhat different.
-  * A `TodoItem` has only one parent `TodoList` at a time, so the
-  * [[org.positronicnet.orm.MangedRecord.BelongsTo]] object behaves as a query
-  * for ''that particular list''.  Thus, for example,
+  * However, it's also sometimes useful to go the other way --- to be able
+  * to use a `TodoItem` to fetch the associated `TodoList`.  That can be done
+  * by using the `RecordId` as a query source for the item in question, like so:
   * {{{
-  *     myItem.todoList ! Fetch { list =>
+  *     myItem.todoListId ! Fetch { list =>
   *       Log.d( "XXX", "The list's name is: " + list.name )
   *     }
   * }}}
-  * It currently supports only access to the parent record, not modifications.
   */ 
 package object orm                      // empty --- hook for Scaladoc

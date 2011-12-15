@@ -23,14 +23,14 @@ class AssociationSpec
     catList = lseq.find{ _.name == "cat list" }.get
   }
 
-  describe( "belongs to association" ) {
+  describe( "record ID as belongs to association" ) {
     it( "should fetch correct values" ) {
 
       for( item <- dogList.items.fetchOnThisThread ) 
-        item.list.fetchOnThisThread should equal (dogList)
+        item.todoListId.fetchOnThisThread should equal (dogList)
 
       for( item <- catList.items.fetchOnThisThread ) 
-        item.list.fetchOnThisThread should equal (catList)
+        item.todoListId.fetchOnThisThread should equal (catList)
     }
   }
 
@@ -62,7 +62,7 @@ class AssociationSpec
     }
 
     it ( "should have a working create()" ) {
-      dogList.items.create should equal ( TodoItem( todoListId = dogList.id ))
+      dogList.items.create.todoListId should equal (dogList.id)
     }
 
     it ( "should delete dependent records" ) {
@@ -70,8 +70,8 @@ class AssociationSpec
       val dogListId = dogList.id
       val catListId = catList.id
 
-      def itemCount( listId: Long ) = 
-        TodoDb("todo_items").whereEq( "todo_list_id" -> listId ).count
+      def itemCount( listId: RecordId[ TodoList ] ) = 
+        TodoDb("todo_items").whereEq( "todo_list_id" -> listId.id ).count
 
       itemCount( dogListId ) should equal (3)
       itemCount( catListId ) should equal (1)

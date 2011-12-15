@@ -33,9 +33,9 @@ import scala.collection._
   * like so:
   * 
   * {{{
-  *     case class TodoItem( description: String = null, 
-  *                          isDone: Boolean     = false,
-  *                          id: Long            = ManagedRecord.unsavedId 
+  *     case class TodoItem( description: String    = null, 
+  *                          isDone: Boolean        = false,
+  *                          id: RecordId[TodoItem] = TodoItems.unsavedId 
   *                        )
   *       extends ManagedRecord( TodoItem )
   *
@@ -69,11 +69,11 @@ abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
     * overridden.
     */
 
-  val id: Long
+  val id: RecordId[_]
 
   /** True if this is a new record (i.e., not a query result). */
 
-  def isNewRecord = (id == ManagedRecord.unsavedId)
+  def isNewRecord = id.isNewRecord
 
   /** True if this record is unsaved (i.e., a new record or
     * modified query result).
@@ -102,54 +102,37 @@ abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
       this( src, src.columnNameFor( manager.defaultForeignKeyField ))
   }
 
-  /** Many-to-one association.  See discussion in the
-    * [[org.positronicnet.orm]] overview.  Note that the
-    * `foreignKey` need not be supplied if it follows common conventions.
-    * (If the class the `BelongsTo` refers to is named `ParentClass`, the
-    * conventional foreign key field is the one whose Scala name is
-    * `parentClassId`, in the "child" class.  That is, if a `TodoItem`
-    * belongs to a `TodoList`, the convention is for `TodoItem` to have
-    * a `todoListId`, and that's what we use.)
-    *
-    * Otherwise it must be the column name for the
-    * [[org.positronicnet.orm.ContentRepository]], not the name of the
-    * corresponding Scala record field.
-    */
-
-  class BelongsTo[T <: ManagedRecord]( src: RecordManager[T],
-                                       foreignKeyField: MappedField )
-    extends BelongsToImpl( src, foreignKeyField, this )
-  {
-    def this( src: RecordManager[T] ) =
-      this( src, manager.columnFor( src.defaultForeignKeyField ))
-
-    def this( src: RecordManager[T], foreignKey: String ) =
-      this( src, manager.columnFor( foreignKey ))
-  }
-
-  private [orm]
-  class BelongsToImpl[T <: ManagedRecord]( src: RecordManager[T],
-                                           foreignKeyField: MappedField,
-                                           parent: ManagedRecord
-                                         )
-    extends BaseNotifier( src.baseQuery.facility )
-    with CachingNotifier[ T ]
-  {
-    protected def currentValue = {
-      val scope = src.whereEq( src.primaryKeyField.dbColumnName -> 
-                               foreignKeyField.getValue( parent ))
-      (scope.records.fetchOnThisThread)(0)
-    }
-  }
 }
 
-/** Companion object for the [[org.positronicnet.orm.ManagedRecord]] class. */
+/** Representation for a record ID.
+  *
+  * Ordinarily just wraps a Long, but also tracks when records have been
+  * saved, which can be useful when creating a base record (e.g., TodoList)
+  * and several dependent records (e.g., TodoItem) in one go.
+  */
 
-object ManagedRecord {
+case class RecordId[T <: ManagedRecord] private[orm] (mgr: BaseRecordManager[T],
+                                                      id: Long)
+  extends BaseNotifier( mgr.facility )
+  with NonSharedNotifier[T]
+{
+  def isNewRecord = id < 0
 
-  /** ID of all unsaved [[org.positronicnet.orm.ManagedRecord]]s */
+  private[orm] var savedId = id
+  private[orm] def markedSaved( savedId: Long ) = { this.savedId = savedId }
 
-  val unsavedId = -1
+  protected def currentValue = {
+    val scope = mgr.whereEq( mgr.primaryKeyField.dbColumnName -> this.id )
+    (scope.records.fetchOnThisThread)(0)
+  }
+
+  override def equals( other: Any ) =
+    other match {
+      case otherId: RecordId[_] =>
+        otherId.id == this.id && otherId.mgr == this.mgr
+      case _ =>
+        false
+    }
 }
 
 /** Base class for mapping of [[org.positronicnet.orm.ManagedRecord]]s
@@ -164,6 +147,15 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   extends BaseNotificationManager( repository.facility )
   with Scope[T]
 {
+  /** ID for a new unsaved object */
+
+  private var nextUnsavedId = 0
+
+  def unsavedId = {
+    nextUnsavedId -= 1
+    RecordId( this, nextUnsavedId )
+  }
+
   /**
     * Produce a new object (to be populated with mapped data from a query). 
     *
@@ -192,7 +184,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   protected[orm] val fieldsBuffer = new mutable.ArrayBuffer[ MappedField ]
   protected[orm] def fieldsSeq: Seq[ MappedField ] = fieldsBuffer
 
-  protected[orm] var primaryKeyField: MappedLongField = null
+  protected[orm] var primaryKeyField: MappedIdField = null
 
   protected[orm] def columnNameFor( fieldName: String ) =
     columnFor( fieldName ).dbColumnName
@@ -248,10 +240,10 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
         throw new IllegalArgumentException( "Multiple primary key fields" )
       }
       mappedField match {
-        case f: MappedLongField => 
+        case f: MappedIdField => 
           primaryKeyField = f
         case _ => 
-          throw new IllegalArgumentException("Primary key field must be Long")
+          throw new IllegalArgumentException("Primary key field must be an ID")
       }
     }
   }
@@ -392,19 +384,19 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   def deleteAll( scope: Scope[T] ): Unit = deleteAll( scope.baseQuery, scope )
 
   protected [orm]
-  def save( rec: T, scope: Scope[T] ): Long = {
+  def save( rec: T, scope: Scope[T] ): RecordId[T] = {
     val data = nonKeyFields.map{ f => f.valPair( rec ) }
     if (rec.isNewRecord) 
-      return insert( data ).asInstanceOf[Long]
+      return RecordId( this, insert( data ).asInstanceOf[Long] )
     else {
       update( rec, data )
-      return rec.id.asInstanceOf[Long]
+      return rec.id.asInstanceOf[RecordId[T]]
     }
   }
 
   protected [orm]
-  def find( id: Long, qry: ContentQuery[_,_] ) =
-    fetchRecords( qry.whereEq( primaryKeyField.dbColumnName -> id ))(0)
+  def find( id: RecordId[T], qry: ContentQuery[_,_] ) =
+    fetchRecords( qry.whereEq( primaryKeyField.dbColumnName -> id.id ))(0)
 
   protected [orm]
   def delete( rec: T, scope: Scope[T] ):Unit = 

@@ -175,21 +175,21 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   // constructor.  The mapping is frozen at first use when the
   // lazy val 'fields' is computed below...
 
-  protected[orm] val managedKlass: Class[T] = 
+  private [orm] val managedKlass: Class[T] = 
     classManifest[T].erasure.asInstanceOf[ Class[T] ]
 
-  protected[orm] val javaFields = 
+  private [orm] val javaFields = 
     ReflectUtils.declaredFieldsByName( managedKlass )
 
-  protected[orm] val fieldsBuffer = new mutable.ArrayBuffer[ MappedField ]
-  protected[orm] def fieldsSeq: Seq[ MappedField ] = fieldsBuffer
+  private [orm] val fieldsBuffer = new mutable.ArrayBuffer[ MappedField ]
+  private [orm] def fieldsSeq: Seq[ MappedField ] = fieldsBuffer
 
-  protected[orm] var primaryKeyField: MappedIdField = null
+  private [orm] var primaryKeyField: MappedIdField = null
 
-  protected[orm] def columnNameFor( fieldName: String ) =
+  private [orm] def columnNameFor( fieldName: String ) =
     columnFor( fieldName ).dbColumnName
 
-  protected[orm] def columnFor( fieldName: String ) =
+  private [orm] def columnFor( fieldName: String ) =
     fields.find{ _.recordFieldName == fieldName } match {
       case Some( mappedField ) => mappedField
       case None =>
@@ -219,9 +219,20 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     * everything explicitly.
     */
 
-  def mapField( fieldName: String, 
-                columnName: String, 
-                primaryKey: Boolean = false ): Unit = 
+  def mapField( fieldName: String, columnName: String ) =
+    mapFieldInternal( fieldName, columnName, false )
+
+  /** Declare a mapping, as with `mapField`, for a field to be
+    * designated as the primary key.
+    */
+
+  def primaryKey( fieldName: String, columnName: String ) =
+    mapFieldInternal( fieldName, columnName, true )
+
+  private[orm]
+  def mapFieldInternal( fieldName: String, 
+                        columnName: String,
+                        primaryKey: Boolean = false ): Unit = 
   {
     val javaField = javaFields( fieldName )
 
@@ -345,11 +356,11 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     */
 
   def fetchRecords( qry: ContentQuery[_,_] ): IndexedSeq[ T ] = {
-    qry.select( fieldNames: _* ).map{ c => instantiateFrom( c ) }
+    qry.select( fieldNames: _* ).map{ c => instantiateFrom( c, fields ) }
   }
 
   private [orm] 
-  def instantiateFrom( c: Cursor ): T = {
+  def instantiateFrom( c: Cursor, fields: Seq[ MappedField ] ): T = {
     val result = newRecord
     result.unsaved = false              // ... not yet altered.
     for( field <- fields ) field.setFromCursorColumn( result, c )
@@ -367,6 +378,20 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   protected [orm]
   def queryForAll( qry: ContentQuery[_,_] ) = qry
 
+  protected [orm]
+  def save( rec: T, scope: Scope[T] ): RecordId[T] = {
+    val data = dataPairs( rec )
+    if (rec.isNewRecord) 
+      return RecordId( this, insert( data ).asInstanceOf[Long] )
+    else {
+      update( rec, data )
+      return rec.id.asInstanceOf[RecordId[T]]
+    }
+  }
+
+  protected [orm]
+  def dataPairs( rec: T ) = nonKeyFields.map{ f => f.valPair( rec ) }
+
   private
   def insert( vals: Seq[(String, ContentValue)] ) = repository.insert( vals:_* )
 
@@ -382,17 +407,6 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 
   protected [orm]
   def deleteAll( scope: Scope[T] ): Unit = deleteAll( scope.baseQuery, scope )
-
-  protected [orm]
-  def save( rec: T, scope: Scope[T] ): RecordId[T] = {
-    val data = nonKeyFields.map{ f => f.valPair( rec ) }
-    if (rec.isNewRecord) 
-      return RecordId( this, insert( data ).asInstanceOf[Long] )
-    else {
-      update( rec, data )
-      return rec.id.asInstanceOf[RecordId[T]]
-    }
-  }
 
   protected [orm]
   def find( id: RecordId[T], qry: ContentQuery[_,_] ) =
@@ -430,6 +444,10 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   */
 abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
   extends BaseRecordManager[ T ]( repository )
+  with AutomaticFieldMappingFromQuery[ T ]
+
+trait AutomaticFieldMappingFromQuery[ T <: ManagedRecord ]
+  extends BaseRecordManager[ T ]
 {
   override protected[orm] def fieldsSeq: Seq[ MappedField ] = {
 
@@ -438,7 +456,7 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
     // For that, we have to do a dummy query which will
     // (hopefully) return no rows...
 
-    val dummyCursor = repository.where( "2 + 2 = 5" ).selectDefaultColumns
+    val dummyCursor = baseQuery.where( "2 + 2 = 5" ).selectDefaultColumns
     val dbColNames  = dummyCursor.getColumnNames
     val klassName   = managedKlass.getName
 
@@ -471,7 +489,7 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
                    " attempting to map " + dbColName + " to " +
                    recordFieldName )
 
-              mapField( recordFieldName, dbColName, dbColName == "_id" )
+              mapFieldInternal( recordFieldName, dbColName, dbColName == "_id" )
           }
         }
       }
@@ -485,5 +503,5 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
   def camelize( str: String ) = str.split("_").reduceLeft{ _ + _.capitalize }
 
   private 
-  def log( s: String ) = Log.d( repository.facility.getLogTag, s )
+  def log( s: String ) = Log.d( facility.getLogTag, s )
 }

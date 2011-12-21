@@ -59,6 +59,7 @@ object MappedField {
   }
 }
 
+@cloneable
 private [orm]
 abstract class MappedField( colName: String, 
                             colNumber: Int,
@@ -71,6 +72,13 @@ abstract class MappedField( colName: String,
 
   val dbColumnName    = colName
   val recordFieldName = rfield.getName
+  var realColNumber   = colNumber       // reset by atIndex...
+
+  def atIndex( newColNumber: Int ) = {
+    val result = this.clone.asInstanceOf[ MappedField ]
+    result.realColNumber = newColNumber
+    result
+  }
 
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit
   
@@ -88,7 +96,7 @@ class MappedIntField( colName: String,
   extends MappedField( colName, colNumber, rfield )
 {
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = 
-    rfield.setInt( o, c.getInt( colNumber ))
+    rfield.setInt( o, c.getInt( realColNumber ))
   
   def getValue( o: AnyRef ): ContentValue = 
     new CvInt( rfield.getInt( o ))
@@ -104,7 +112,7 @@ class MappedLongField( colName: String,
   extends MappedField( colName, colNumber, rfield )
 {
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = 
-    rfield.setLong( o, c.getLong( colNumber ))
+    rfield.setLong( o, c.getLong( realColNumber ))
   
   def getValue( o: AnyRef ): ContentValue = 
     new CvLong( rfield.getLong( o ))
@@ -120,7 +128,7 @@ class MappedFloatField( colName: String,
   extends MappedField( colName, colNumber, rfield )
 {
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = 
-    rfield.setFloat( o, c.getFloat( colNumber ))
+    rfield.setFloat( o, c.getFloat( realColNumber ))
   
   def getValue( o: AnyRef ): ContentValue = 
     new CvFloat( rfield.getFloat( o ))
@@ -136,7 +144,7 @@ class MappedDoubleField( colName: String,
   extends MappedField( colName, colNumber, rfield )
 {
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = 
-    rfield.setDouble( o, c.getDouble( colNumber ))
+    rfield.setDouble( o, c.getDouble( realColNumber ))
   
   def getValue( o: AnyRef ): ContentValue = 
     new CvDouble( rfield.getDouble( o ))
@@ -152,7 +160,7 @@ class MappedStringField( colName: String,
   extends MappedField( colName, colNumber, rfield )
 {
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = 
-    rfield.set( o, c.getString( colNumber ))
+    rfield.set( o, c.getString( realColNumber ))
   
   def getValue( o: AnyRef ): ContentValue = 
     new CvString( rfield.get( o ).asInstanceOf[ String ] )
@@ -168,7 +176,7 @@ class MappedBooleanField( colName: String,
   extends MappedField( colName, colNumber, rfield )
 {
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = 
-    rfield.setBoolean( o, c.getInt( colNumber ) != 0 )
+    rfield.setBoolean( o, c.getInt( realColNumber ) != 0 )
   
   def getValue( o: AnyRef ): ContentValue = 
     new CvBoolean( rfield.getBoolean( o ))
@@ -196,7 +204,7 @@ class MappedIdField( colName: String,
 
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = {
     val recordIdObj = rfield.get( o )
-    MappedIdField.idField.set( recordIdObj, c.getLong( colNumber ))
+    MappedIdField.idField.set( recordIdObj, c.getLong( realColNumber ))
   }
   
   def getValue( o: AnyRef ): ContentValue = {

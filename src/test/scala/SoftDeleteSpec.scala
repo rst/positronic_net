@@ -65,7 +65,7 @@ case class TodoItemSD( description: String  = null,
                        todoListId:  RecordId[TodoListSD]=TodoListsSD.unsavedId,
                        id:          RecordId[TodoItemSD]=TodoItemsSD.unsavedId
                      )
-  extends ManagedRecord( TodoItemsSD )
+  extends ManagedRecord
 {
   def isDone( newVal: Boolean ) = copy( isDone = newVal )
 }
@@ -93,7 +93,7 @@ object TodoItemsSD
 
 case class TodoListSD( name: String               = null,
                        id:   RecordId[TodoListSD] = TodoListsSD.unsavedId )
-  extends ManagedRecord( TodoListsSD )
+  extends ManagedRecord
 {
   def name( newName: String ) = copy( name = newName )
 

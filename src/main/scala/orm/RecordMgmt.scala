@@ -54,7 +54,7 @@ import scala.collection._
   * awfully awkward to write that constraint...
   */
 
-abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
+trait ManagedRecord extends Object {
 
   // Bookkeeping
 
@@ -99,7 +99,7 @@ abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
     extends HasManyAssociation( src, foreignKey, this.id )
   {
     def this( src: RecordManager[T] ) = 
-      this( src, src.columnNameFor( manager.defaultForeignKeyField ))
+      this( src, src.columnNameFor( this.id.mgr.defaultForeignKeyField ))
   }
 
 }

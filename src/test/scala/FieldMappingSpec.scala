@@ -13,7 +13,7 @@ case class TodoItemWithWrapping (
     isDone: Boolean = false,
     id: RecordId[TodoItemWithWrapping] = TodoItemsWithWrapping.unsavedId
   )
-  extends ManagedRecord( TodoItemsWithWrapping )
+  extends ManagedRecord
 {
   def isDone( newVal: Boolean ) = copy( isDone = newVal )
 

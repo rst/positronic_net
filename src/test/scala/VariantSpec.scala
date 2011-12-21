@@ -1,6 +1,7 @@
 package org.positronicnet.orm.variantTest
 
 import org.positronicnet.orm._
+import org.positronicnet.orm.Actions._
 import org.positronicnet.db._
 
 import org.scalatest._
@@ -23,6 +24,25 @@ object PeopleDb
             rating int
           )
           """ )
+
+  def setupFixtures = {
+    this("people").delete
+    this("people").insert ("person_type" -> "student",
+                           "name"        -> "Charlie Brown",
+                           "class_year"  -> 2011)
+    this("people").insert ("person_type" -> "student",
+                           "name"        -> "Sally Brown",
+                           "class_year"  -> 2014)
+    this("people").insert ("person_type" -> "student",
+                           "name"        -> "Lucy van Pelt",
+                           "class_year"  -> 2011)
+    this("people").insert ("person_type" -> "student",
+                           "name"        -> "Linus van Pelt",
+                           "class_year"  -> 2014)
+    this("people").insert ("person_type" -> "teacher",
+                           "name"        -> "Mwom wom wom Mwom",
+                           "rating"      -> 6)
+  }
 }
 
 abstract class Person extends ManagedRecord {
@@ -58,7 +78,11 @@ class FieldMappingSpec
   with BeforeAndAfterEach
   with RobolectricTests
 {
-  override def beforeEach = PeopleDb.openInContext( Robolectric.application )
+  override def beforeEach = {
+    PeopleDb.openInContext( Robolectric.application )
+    PeopleDb.setupFixtures
+  }
+
   override def afterEach  = PeopleDb.close
 
   describe( "field mapping in variants" ) {
@@ -79,5 +103,50 @@ class FieldMappingSpec
         }
       }
     }
+  }
+
+  describe( "a single variant manager" ) {
+
+    it ("should find pre-placed records") {
+      val students = People.students.order("name").fetchOnThisThread
+      students should have size (4)
+      students.map{_.name} should equal (
+        Seq("Charlie Brown", "Linus van Pelt", "Lucy van Pelt", "Sally Brown"))
+      students.map{_.classYear} should equal (Seq(2011, 2014, 2011, 2014))
+    }
+
+    it ("should be able to insert") {
+      People.students.onThisThread (Save (Student ("Pigpen", 2010)))
+      People.students.count.fetchOnThisThread should equal (5)
+
+      val pigpens = People.students.whereEq("name"->"Pigpen").fetchOnThisThread
+      pigpens should have size (1)
+
+      val pigpen = pigpens(0)
+      pigpen.name should equal ("Pigpen")
+      pigpen.classYear should equal (2010)
+    }
+
+    it ("should be able to update") {
+      val lucy = 
+        (People.students.whereEq("name"->"Lucy van Pelt").fetchOnThisThread)(0)
+      People.students.onThisThread (Save (lucy.copy (classYear = 2010)))
+
+      val nucy = 
+        (People.students.whereEq("name"->"Lucy van Pelt").fetchOnThisThread)(0)
+      nucy.classYear should equal (2010)
+    }
+
+    it ("should be able to delete") {
+      val lucy = 
+        (People.students.whereEq("name"->"Lucy van Pelt").fetchOnThisThread)(0)
+      People.students.onThisThread (Delete (lucy))
+
+      val students = People.students.order("name").fetchOnThisThread
+      students should have size (3)
+      students.map{_.name} should equal (
+        Seq("Charlie Brown", "Linus van Pelt", "Sally Brown"))
+    }
+
   }
 }

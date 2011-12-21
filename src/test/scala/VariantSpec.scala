@@ -147,6 +147,53 @@ class FieldMappingSpec
       students.map{_.name} should equal (
         Seq("Charlie Brown", "Linus van Pelt", "Sally Brown"))
     }
+  }
 
+  describe( "combined manager for all variants" ) {
+
+    it ("should find pre-placed records") {
+
+      val people = People.order("name").fetchOnThisThread
+      people should have size (5)
+      people.map{_.name} should equal (
+        Seq("Charlie Brown", "Linus van Pelt", "Lucy van Pelt", 
+            "Mwom wom wom Mwom", "Sally Brown"))
+
+      val teachers = 
+        people.flatMap{_ match { case t:Teacher => Seq(t); case _ => Seq.empty}}
+
+      teachers(0).rating should equal (6)
+    }
+
+    it ("should be able to insert") {
+      People.onThisThread (Save (Student ("Pigpen", 2010)))
+      People.count.fetchOnThisThread should equal (6)
+
+      val pigpens = People.whereEq("name"->"Pigpen").fetchOnThisThread
+      pigpens should have size (1)
+
+      val pigpen = pigpens(0)
+      pigpen.name should equal ("Pigpen")
+      pigpen.asInstanceOf[Student].classYear should equal (2010)
+    }
+
+    it ("should be able to update") {
+      val lucy = (People.whereEq("name"->"Lucy van Pelt").fetchOnThisThread)(0)
+      People.onThisThread(Save(lucy.asInstanceOf[Student].copy(classYear=2010)))
+
+      val nucy = (People.whereEq("name"->"Lucy van Pelt").fetchOnThisThread)(0)
+      nucy.asInstanceOf[Student].classYear should equal (2010)
+    }
+
+    it ("should be able to delete") {
+      val lucy = (People.whereEq("name"->"Lucy van Pelt").fetchOnThisThread)(0)
+      People.onThisThread (Delete (lucy))
+
+      val people = People.order("name").fetchOnThisThread
+      people should have size (4)
+      people.map{_.name} should equal (
+        Seq("Charlie Brown", "Linus van Pelt", 
+            "Mwom wom wom Mwom", "Sally Brown"))
+    }
   }
 }

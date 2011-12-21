@@ -68,6 +68,12 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
     variantMgrKludge.saveAny( rec ).asInstanceOf[ RecordId[T] ]
   }
 
+  protected [orm]
+  override def delete( rec: T, scope: Scope[T] ):Unit = {
+    val variantMgrKludge = rec.id.mgr.asInstanceOf[VariantOps]
+    variantMgrKludge.deleteAny( rec )
+  }
+
   // Managing the variants
 
   val parentRecordManager = this        // for variant RM instances.
@@ -80,6 +86,10 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
     private [orm]
     def saveAny( rec: ManagedRecord ): RecordId[_] =
       this.save( rec.asInstanceOf[TT], this )
+
+    private [orm]
+    def deleteAny( rec: ManagedRecord ) =
+      this.delete( rec.asInstanceOf[TT], this )
 
     private [orm]
     lazy val fieldsFromParentQuery =
@@ -129,6 +139,8 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
   trait VariantOps {
     private [orm]
     def saveAny( rec: ManagedRecord ): RecordId[_]
+    private [orm]
+    def deleteAny( rec: ManagedRecord ): Unit
   }
 }
 

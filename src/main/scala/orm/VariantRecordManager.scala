@@ -123,8 +123,9 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
       (super.dataPairs( rec )) :+ ( discriminantColumn -> CvString(varTag) )
   }
 
-  protected abstract class CatchAllVariant[ TT <: T : ClassManifest ]
+  protected class CatchAllVariant[ TT <: T : ClassManifest ]
     extends BaseVariant[ TT ]( repository )
+    with AutomaticFieldMappingFromQuery[ TT ]
   {
     if (catchAllVariant == None)
       catchAllVariant = Some(this)

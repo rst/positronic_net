@@ -25,6 +25,8 @@ object PeopleDb
           )
           """ )
 
+  val numFixtures = 6
+
   def setupFixtures = {
     this("people").delete
     this("people").insert ("person_type" -> "student",
@@ -42,6 +44,8 @@ object PeopleDb
     this("people").insert ("person_type" -> "teacher",
                            "name"        -> "Mwom wom wom Mwom",
                            "rating"      -> 6)
+    this("people").insert ("person_type" -> "beagle",
+                           "name"        -> "Snoopy")
   }
 }
 
@@ -63,11 +67,19 @@ case class Teacher (
 )
 extends Person
 
+case class StrangePerson (
+  val name: String = null,
+  val personType: String = null,
+  val id: RecordId[StrangePerson] = People.strange.unsavedId
+)
+extends Person
+
 object People
   extends VariantRecordManager[Person]( PeopleDb( "people" ), "person_type")
 {
   val students = new TaggedVariant[ Student ]("student")
   val teachers = new TaggedVariant[ Teacher ]("teacher")
+  val strange  = new CatchAllVariant[ StrangePerson ]
 }
 
 // The actual spec
@@ -150,23 +162,39 @@ class FieldMappingSpec
 
   describe( "combined manager for all variants" ) {
 
-    it ("should find pre-placed records") {
+    describe ("finding pre-placed records") {
 
-      val people = People.order("name").fetchOnThisThread
-      people should have size (5)
-      people.map{_.name} should equal (
-        Seq("Charlie Brown", "Linus van Pelt", "Lucy van Pelt", 
-            "Mwom wom wom Mwom", "Sally Brown"))
+      def people = People.order("name").fetchOnThisThread
 
-      val teachers = 
-        people.flatMap{_ match { case t:Teacher => Seq(t); case _ => Seq.empty}}
+      it ("should get number of records and common fields right") {
+        people should have size (PeopleDb.numFixtures)
+      
+        people.map{_.name} should equal (
+          Seq("Charlie Brown", "Linus van Pelt", "Lucy van Pelt", 
+              "Mwom wom wom Mwom", "Sally Brown", "Snoopy"))
+      }
 
-      teachers(0).rating should equal (6)
+      it ("should get specific fields right") {
+        val teachers = 
+          people.flatMap{_ match {case t:Teacher => Seq(t); case _ =>Seq.empty}}
+
+        teachers(0).rating should equal (6)
+      }
+
+      it ("should retrieve records with unknown discriminants via catch-all") {
+        val strange =
+          people.flatMap{_ match { case s:StrangePerson => Seq(s); 
+                                   case _ => Seq.empty }}
+
+        strange should have size (1)
+        strange(0).name should equal ("Snoopy")
+        strange(0).personType should equal ("beagle")
+      }
     }
 
     it ("should be able to insert") {
       People.onThisThread (Save (Student ("Pigpen", 2010)))
-      People.count.fetchOnThisThread should equal (6)
+      People.count.fetchOnThisThread should equal (PeopleDb.numFixtures + 1)
 
       val pigpens = People.whereEq("name"->"Pigpen").fetchOnThisThread
       pigpens should have size (1)
@@ -189,10 +217,10 @@ class FieldMappingSpec
       People.onThisThread (Delete (lucy))
 
       val people = People.order("name").fetchOnThisThread
-      people should have size (4)
+      people should have size (PeopleDb.numFixtures - 1)
       people.map{_.name} should equal (
         Seq("Charlie Brown", "Linus van Pelt", 
-            "Mwom wom wom Mwom", "Sally Brown"))
+            "Mwom wom wom Mwom", "Sally Brown", "Snoopy"))
     }
   }
 }

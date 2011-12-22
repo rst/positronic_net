@@ -127,13 +127,12 @@ class FieldMappingSpec
       pigpen.classYear should equal (2010)
     }
 
-    it ("should be able to update") {
+    it ("should be able to update (and find by ID)") {
       val lucy = 
         (People.students.whereEq("name"->"Lucy van Pelt").fetchOnThisThread)(0)
       People.students.onThisThread (Save (lucy.copy (classYear = 2010)))
 
-      val nucy = 
-        (People.students.whereEq("name"->"Lucy van Pelt").fetchOnThisThread)(0)
+      val nucy = People.students.findOnThisThread (lucy.id) 
       nucy.classYear should equal (2010)
     }
 
@@ -177,11 +176,11 @@ class FieldMappingSpec
       pigpen.asInstanceOf[Student].classYear should equal (2010)
     }
 
-    it ("should be able to update") {
+    it ("should be able to update (and find by ID)") {
       val lucy = (People.whereEq("name"->"Lucy van Pelt").fetchOnThisThread)(0)
       People.onThisThread(Save(lucy.asInstanceOf[Student].copy(classYear=2010)))
 
-      val nucy = (People.whereEq("name"->"Lucy van Pelt").fetchOnThisThread)(0)
+      val nucy = People.findOnThisThread (lucy.id.asInstanceOf[RecordId[Person]]) 
       nucy.asInstanceOf[Student].classYear should equal (2010)
     }
 

@@ -63,6 +63,12 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
   }
 
   protected [orm]
+  override def find( recId: RecordId[T], qry: ContentQuery[_,_] ) = {
+    val variantMgrKludge = recId.mgr.asInstanceOf[VariantOps]
+    variantMgrKludge.findAny( recId, qry )
+  }
+
+  protected [orm]
   override def save( rec: T, scope: Scope[T] ) = {
     val variantMgrKludge = rec.id.mgr.asInstanceOf[VariantOps]
     variantMgrKludge.saveAny( rec ).asInstanceOf[ RecordId[T] ]
@@ -83,6 +89,10 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
     extends BaseRecordManager[ TT ](variantQry)
     with VariantOps
   {
+    private [orm]
+    def findAny( id: RecordId[_], qry: ContentQuery[_,_] ) =
+      this.find( id.asInstanceOf[ RecordId[TT] ], qry )
+
     private [orm]
     def saveAny( rec: ManagedRecord ): RecordId[_] =
       this.save( rec.asInstanceOf[TT], this )
@@ -141,6 +151,8 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
     def saveAny( rec: ManagedRecord ): RecordId[_]
     private [orm]
     def deleteAny( rec: ManagedRecord ): Unit
+    private [orm]
+    def findAny( recId: RecordId[_], qry: ContentQuery[_,_] ): T
   }
 }
 

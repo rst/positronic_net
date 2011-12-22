@@ -25,28 +25,42 @@ object PeopleDb
           )
           """ )
 
-  val numFixtures = 6
+  // Populate the schema using the raw(er) positronicnet.db API directly...
 
   def setupFixtures = {
-    this("people").delete
-    this("people").insert ("person_type" -> "student",
-                           "name"        -> "Charlie Brown",
-                           "class_year"  -> 2011)
-    this("people").insert ("person_type" -> "student",
-                           "name"        -> "Sally Brown",
-                           "class_year"  -> 2014)
-    this("people").insert ("person_type" -> "student",
-                           "name"        -> "Lucy van Pelt",
-                           "class_year"  -> 2011)
-    this("people").insert ("person_type" -> "student",
-                           "name"        -> "Linus van Pelt",
-                           "class_year"  -> 2014)
-    this("people").insert ("person_type" -> "teacher",
-                           "name"        -> "Mwom wom wom Mwom",
-                           "rating"      -> 6)
-    this("people").insert ("person_type" -> "beagle",
-                           "name"        -> "Snoopy")
+    val pquery = this("people")
+    pquery.delete
+    pquery.insert ("person_type" -> "student",
+                   "name"        -> "Charlie Brown",
+                   "class_year"  -> 2011)
+    pquery.insert ("person_type" -> "student",
+                   "name"        -> "Sally Brown",
+                   "class_year"  -> 2014)
+    pquery.insert ("person_type" -> "student",
+                   "name"        -> "Lucy van Pelt",
+                   "class_year"  -> 2011)
+    pquery.insert ("person_type" -> "student",
+                   "name"        -> "Linus van Pelt",
+                   "class_year"  -> 2014)
+    pquery.insert ("person_type" -> "teacher",
+                   "name"        -> "Mwom wom wom Mwom",
+                   "rating"      -> 6)
+    pquery.insert ("person_type" -> "beagle",
+                   "name"        -> "Snoopy")
+
+    numPeople = pquery.count.asInstanceOf[Int]
+    peopleNames = pquery.order("name").select("name").map{_.getString(0)}
+
+    val studentQuery = pquery.whereEq("person_type"->"student")
+    numStudents = studentQuery.count.asInstanceOf[Int]
+    studentNames = studentQuery.order("name").select("name").map{_.getString(0)}
   }
+
+  var numPeople = 0                // reset by setupFixtures
+  var peopleNames = Seq ("reset by setupFixtures") 
+
+  var numStudents = 0              // reset by setupFixtures
+  var studentNames = Seq ("reset by setupFixtures") 
 }
 
 abstract class Person extends ManagedRecord {
@@ -122,14 +136,14 @@ class FieldMappingSpec
     it ("should find pre-placed records") {
       val students = People.students.order("name").fetchOnThisThread
       students should have size (4)
-      students.map{_.name} should equal (
-        Seq("Charlie Brown", "Linus van Pelt", "Lucy van Pelt", "Sally Brown"))
+      students.map{_.name} should equal (PeopleDb.studentNames)
       students.map{_.classYear} should equal (Seq(2011, 2014, 2011, 2014))
     }
 
     it ("should be able to insert") {
       People.students.onThisThread (Save (Student ("Pigpen", 2010)))
-      People.students.count.fetchOnThisThread should equal (5)
+      People.students.count.fetchOnThisThread should equal (
+        PeopleDb.numStudents + 1)
 
       val pigpens = People.students.whereEq("name"->"Pigpen").fetchOnThisThread
       pigpens should have size (1)
@@ -156,7 +170,7 @@ class FieldMappingSpec
       val students = People.students.order("name").fetchOnThisThread
       students should have size (3)
       students.map{_.name} should equal (
-        Seq("Charlie Brown", "Linus van Pelt", "Sally Brown"))
+        PeopleDb.studentNames.filterNot{_ == lucy.name})
     }
   }
 
@@ -167,11 +181,8 @@ class FieldMappingSpec
       def people = People.order("name").fetchOnThisThread
 
       it ("should get number of records and common fields right") {
-        people should have size (PeopleDb.numFixtures)
-      
-        people.map{_.name} should equal (
-          Seq("Charlie Brown", "Linus van Pelt", "Lucy van Pelt", 
-              "Mwom wom wom Mwom", "Sally Brown", "Snoopy"))
+        people should have size (PeopleDb.numPeople)
+        people.map{_.name} should equal (PeopleDb.peopleNames)
       }
 
       it ("should get specific fields right") {
@@ -194,7 +205,7 @@ class FieldMappingSpec
 
     it ("should be able to insert") {
       People.onThisThread (Save (Student ("Pigpen", 2010)))
-      People.count.fetchOnThisThread should equal (PeopleDb.numFixtures + 1)
+      People.count.fetchOnThisThread should equal (PeopleDb.numPeople + 1)
 
       val pigpens = People.whereEq("name"->"Pigpen").fetchOnThisThread
       pigpens should have size (1)
@@ -217,10 +228,9 @@ class FieldMappingSpec
       People.onThisThread (Delete (lucy))
 
       val people = People.order("name").fetchOnThisThread
-      people should have size (PeopleDb.numFixtures - 1)
+      people should have size (PeopleDb.numPeople - 1)
       people.map{_.name} should equal (
-        Seq("Charlie Brown", "Linus van Pelt", 
-            "Mwom wom wom Mwom", "Sally Brown", "Snoopy"))
+        PeopleDb.peopleNames.filterNot{_ == lucy.name})
     }
   }
 }

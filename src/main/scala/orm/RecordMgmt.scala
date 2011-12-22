@@ -95,11 +95,11 @@ trait ManagedRecord extends Object {
     * corresponding Scala record field.
     */
 
-  class HasMany[T <: ManagedRecord]( src: RecordManager[T], foreignKey: String )
+  class HasMany[T <: ManagedRecord]( src: Scope[T], foreignKey: String )
     extends HasManyAssociation( src, foreignKey, this.id )
   {
-    def this( src: RecordManager[T] ) = 
-      this( src, src.columnNameFor( this.id.mgr.defaultForeignKeyField ))
+    def this( src: Scope[T] ) = 
+      this( src, src.mgr.columnNameFor( this.id.mgr.defaultForeignKeyField ))
   }
 
 }
@@ -133,6 +133,10 @@ case class RecordId[T <: ManagedRecord] private[orm] (mgr: BaseRecordManager[T],
       case _ =>
         false
     }
+}
+
+object RecordId {
+  implicit def toContentValue(id: RecordId[_]):ContentValue = CvLong(id.id)
 }
 
 /** Base class for mapping of [[org.positronicnet.orm.ManagedRecord]]s

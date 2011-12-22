@@ -16,34 +16,59 @@ object PeopleDb
 {
   def schemaUpdates = 
     List( """
+          create table schools (
+            _id int identity,
+            name varchar(100),
+          )
+          """,
+
+          """
           create table people (
             _id int identity,
             person_type varchar(100),
+            school_id int,
             name varchar(100),
             class_year int,
             rating int
           )
           """ )
 
-  // Populate the schema using the raw(er) positronicnet.db API directly...
+  // Populate the schema using the raw(er) positronicnet.db API directly.
+  // (Except for the monomorphic schools table, where I'll permit myself
+  // to assume here that a simple RecordManager works, that being tested
+  // elsewhere.)
 
   def setupFixtures = {
+    val squery = this("schools")
+    squery.delete
+    squery.insert ("name" -> "Rod Blagojevich Junior Academy")
+    squery.insert ("name" -> "Teapot Dome Elementary School")
+
+    val schools = Schools.order("name").fetchOnThisThread
+    blagoSchoolId = (Schools.fetchOnThisThread)(0).id
+    teapoSchoolId = (Schools.fetchOnThisThread)(1).id
+
     val pquery = this("people")
     pquery.delete
     pquery.insert ("person_type" -> "student",
                    "name"        -> "Charlie Brown",
+                   "school_id"   -> blagoSchoolId,
                    "class_year"  -> 2011)
     pquery.insert ("person_type" -> "student",
                    "name"        -> "Sally Brown",
+                   "school_id"   -> teapoSchoolId,
                    "class_year"  -> 2014)
     pquery.insert ("person_type" -> "student",
                    "name"        -> "Lucy van Pelt",
+                   "school_id"   -> blagoSchoolId,
                    "class_year"  -> 2011)
     pquery.insert ("person_type" -> "student",
                    "name"        -> "Linus van Pelt",
+                   "school_id"   -> teapoSchoolId,
                    "class_year"  -> 2014)
     pquery.insert ("person_type" -> "teacher",
                    "name"        -> "Mwom wom wom Mwom",
+                   "school_id"   -> blagoSchoolId,
                    "rating"      -> 6)
     pquery.insert ("person_type" -> "beagle",
                    "name"        -> "Snoopy")
@@ -56,6 +81,9 @@ object PeopleDb
     studentNames = studentQuery.order("name").select("name").map{_.getString(0)}
   }
 
+  var blagoSchoolId: RecordId[School] = null
+  var teapoSchoolId: RecordId[School] = null
+
   var numPeople = 0                // reset by setupFixtures
   var peopleNames = Seq ("reset by setupFixtures") 
 
@@ -63,13 +91,32 @@ object PeopleDb
   var studentNames = Seq ("reset by setupFixtures") 
 }
 
+// Simple "school" model, so our polymorphic people have something to
+// associate with...
+
+case class School (
+  val name: String = null,
+  val id: RecordId[School] = Schools.unsavedId
+)
+extends ManagedRecord
+{
+  lazy val people = new HasMany( People, "school_id" ) // XXX shouldn't need col name
+  lazy val students = new HasMany( People.students )
+}
+
+object Schools extends RecordManager[School]( PeopleDb("schools"))
+
+// People model(s)
+
 abstract class Person extends ManagedRecord {
   val name: String
+  val schoolId: RecordId[School]
 } 
 
 case class Student (
   val name: String = null,
   val classYear: Int = -1,
+  val schoolId: RecordId[School] = Schools.unsavedId,
   val id : RecordId[Student] = People.students.unsavedId
 )
 extends Person
@@ -77,6 +124,7 @@ extends Person
 case class Teacher (
   val name: String = null,
   val rating: Int = -1,
+  val schoolId: RecordId[School] = Schools.unsavedId,
   val id : RecordId[Teacher] = People.teachers.unsavedId
 )
 extends Person
@@ -84,6 +132,7 @@ extends Person
 case class StrangePerson (
   val name: String = null,
   val personType: String = null,
+  val schoolId: RecordId[School] = Schools.unsavedId,
   val id: RecordId[StrangePerson] = People.strange.unsavedId
 )
 extends Person
@@ -117,7 +166,7 @@ class FieldMappingSpec
 
     it ("should collect all fields in base mgr") {
       People.allBaseCursorColumns.sorted.toList should equal (
-        List( "_id", "class_year", "name", "person_type", "rating" ))
+        List( "_id", "class_year", "name", "person_type", "rating", "school_id" ))
     }
 
     it ("should have correct indexes for subtype fields in generic queries") {
@@ -219,6 +268,7 @@ class FieldMappingSpec
       val lucy = (People.whereEq("name"->"Lucy van Pelt").fetchOnThisThread)(0)
       People.onThisThread(Save(lucy.asInstanceOf[Student].copy(classYear=2010)))
 
+      // XXX wart --- ideally shouldn't need the cast here.
       val nucy = People.findOnThisThread (lucy.id.asInstanceOf[RecordId[Person]]) 
       nucy.asInstanceOf[Student].classYear should equal (2010)
     }
@@ -231,6 +281,41 @@ class FieldMappingSpec
       people should have size (PeopleDb.numPeople - 1)
       people.map{_.name} should equal (
         PeopleDb.peopleNames.filterNot{_ == lucy.name})
+    }
+  }
+
+  describe ("HasMany associations with variant targets") {
+
+    def blagoSchool = {
+      val blago = "Rod Blagojevich Junior Academy"
+      (Schools.whereEq( "name" -> blago ).fetchOnThisThread)(0)
+    }
+
+    describe ("single variant target") {
+      it ("should find all the records") {
+        val blagoStudents = blagoSchool.students.order("name").fetchOnThisThread
+        val blagoNames = 
+          PeopleDb("people")
+            .whereEq("school_id"   -> PeopleDb.blagoSchoolId,
+                     "person_type" -> "student")
+            .order("name")
+            .select("name")
+            .map{ _.getString(0) }
+        blagoStudents.map{ _.name } should equal (blagoNames)
+      }
+    }
+
+    describe ("combined target") {
+      it ("should find all the records") {
+        val blagoPeople = blagoSchool.people.order("name").fetchOnThisThread
+        val blagoNames = 
+          PeopleDb("people")
+            .whereEq("school_id" -> PeopleDb.blagoSchoolId)
+            .order("name")
+            .select("name")
+            .map{ _.getString(0) }
+        blagoPeople.map{ _.name } should equal (blagoNames)
+      }
     }
   }
 }

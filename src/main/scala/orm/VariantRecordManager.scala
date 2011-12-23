@@ -112,9 +112,8 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
   }
 
   protected
-  class TaggedVariant[ TT <: T : ClassManifest ]( varTag: String )
+  class BaseTaggedVariant[ TT <: T : ClassManifest ]( varTag: String )
     extends BaseVariant[ TT ]( repository.whereEq(discriminantColumn -> varTag))
-    with AutomaticFieldMappingFromQuery[ TT ]
   {
     taggedVariants += (varTag -> this)
 
@@ -123,9 +122,13 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
       (super.dataPairs( rec )) :+ ( discriminantColumn -> CvString(varTag) )
   }
 
-  protected class CatchAllVariant[ TT <: T : ClassManifest ]
-    extends BaseVariant[ TT ]( repository )
+  protected
+  class TaggedVariant[ TT <: T : ClassManifest ]( varTag: String )
+    extends BaseTaggedVariant[ TT ]( varTag )
     with AutomaticFieldMappingFromQuery[ TT ]
+
+  protected class BaseCatchAllVariant[ TT <: T : ClassManifest ]
+    extends BaseVariant[ TT ]( repository )
   {
     if (catchAllVariant == None)
       catchAllVariant = Some(this)
@@ -133,6 +136,10 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
       throw new RuntimeException( "Can't have more than one catch-all for " +
                                   parentRecordManager.toString )
   }
+
+  protected class CatchAllVariant[ TT <: T : ClassManifest ]
+    extends BaseCatchAllVariant[ TT ]
+    with AutomaticFieldMappingFromQuery[ TT ]
 
   // As of 2.9.1, it's difficult to tell the typechecker that a record of
   // any type X has a RecordManager that can be used to save that type.

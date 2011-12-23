@@ -2,6 +2,7 @@ package org.positronicnet.util
 
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
+import java.lang.reflect.Modifier
 
 object ReflectUtils
 {
@@ -67,6 +68,23 @@ object ReflectUtils
     val fieldList = ancestry( klass ).flatMap( _.getDeclaredFields )
     Map( fieldList.map( f => (f.getName, f )): _* )
   }
+
+  // Extracting public static values of a given Java type from a Java class.
+  // (Android content providers often have column names of static fields
+  // defined as static fields on some class, e.g., CallLog.Calls.  The ORM
+  // uses this to fish out the names and associated values.)
+
+  def publicStaticValues[T]( valueKlass: Class[T], srcKlass: Class[_] ) = {
+
+    val ourFields = srcKlass.getFields.filter { f =>
+      Modifier.isStatic( f.getModifiers ) && f.getType == valueKlass }
+    val pairs = 
+      ourFields map{ f => (f.getName -> f.get(null).asInstanceOf[T])}
+    
+    pairs.toMap
+  }
+
+  // Returns a list of the argument class and all its superclasses
 
   def ancestry( klass: Class[_] ): List[ Class[_]] =
     if (klass == classOf[ AnyRef ]) List( klass )

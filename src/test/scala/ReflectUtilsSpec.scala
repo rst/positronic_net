@@ -100,4 +100,18 @@ class ReflectUtilsSpec
       getter should equal (None)
     }
   }
+
+  describe ("collect public static values") {
+    it ("should collect field values from Calendar") {
+
+      val calendarInts = 
+        ReflectUtils.publicStaticValues( java.lang.Integer.TYPE,
+                                         classOf[ java.util.Calendar] )
+
+      calendarInts("AM")          should equal (java.util.Calendar.AM)
+      calendarInts("JANUARY")     should equal (java.util.Calendar.JANUARY)
+      calendarInts("DAY_OF_WEEK") should equal (java.util.Calendar.DAY_OF_WEEK)
+      calendarInts("FRIDAY")      should equal (java.util.Calendar.FRIDAY)
+    }
+  }
 }

@@ -185,8 +185,8 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   private [orm] val javaFields = 
     ReflectUtils.declaredFieldsByName( managedKlass )
 
-  private [orm] val fieldsBuffer = new mutable.ArrayBuffer[ MappedField ]
-  private [orm] def fieldsSeq: Seq[ MappedField ] = fieldsBuffer
+  protected [orm] val fieldsBuffer = new mutable.ArrayBuffer[ MappedField ]
+  protected [orm] def fieldsSeq: Seq[ MappedField ] = fieldsBuffer
 
   private [orm] var primaryKeyField: MappedIdField = null
 
@@ -272,12 +272,12 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 
   // Dealing with the mappings... internals
 
-  protected [orm] lazy val fields = fieldsSeq
-  protected [orm] lazy val nonKeyFields = 
+  private [orm] lazy val fields = fieldsSeq
+  private [orm] lazy val nonKeyFields = 
     fields.filter{ primaryKeyField == null || 
                    _.dbColumnName != primaryKeyField.dbColumnName }
 
-  protected[orm] lazy val defaultForeignKeyField = {
+  private [orm] lazy val defaultForeignKeyField = {
     val className = managedKlass.getName.split('.').last
     className.head.toLower + className.tail + "Id"
   }
@@ -450,6 +450,7 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
   extends BaseRecordManager[ T ]( repository )
   with AutomaticFieldMappingFromQuery[ T ]
 
+private [orm]
 trait AutomaticFieldMappingFromQuery[ T <: ManagedRecord ]
   extends BaseRecordManager[ T ]
 {
@@ -508,4 +509,62 @@ trait AutomaticFieldMappingFromQuery[ T <: ManagedRecord ]
 
   private 
   def log( s: String ) = Log.d( facility.getLogTag, s )
+}
+
+abstract class RecordManagerForFields[ TRec <: ManagedRecord : ClassManifest,
+                                       TSrc : ClassManifest ]
+                                     ( repository: ContentQuery[_,_] )
+  extends BaseRecordManager[ TRec ]( repository )
+  with FieldMappingFromStaticNames[ TRec ]
+{
+  // Disguised arg to constructor for the FieldMappingFromStaticNames trait
+
+  protected lazy val fieldNamesSrcKlass = classManifest[ TSrc ].erasure
+}
+
+private [orm]
+trait FieldMappingFromStaticNames[ T <: ManagedRecord ]
+  extends BaseRecordManager[ T ]
+{
+  protected val fieldNamesSrcKlass: Class[_]
+
+  // Leave mapping of "possible field names" to "column names" accessible,
+  // since record managers may have other uses for it (e.g., to pull out
+  // discriminant values for a variant from a static MIME_TYPE field, or
+  // some such).
+
+  protected
+  val fieldNamesSrcMap = 
+    ReflectUtils.publicStaticValues( classOf [String], fieldNamesSrcKlass )
+
+  override protected[orm] def fieldsSeq: Seq[ MappedField ] = {
+    for ((name, field) <- javaFields) {
+      if (!fieldsBuffer.exists{ _.recordFieldName == name }) {
+        fieldNamesSrcMap.get( deCamelize( field.getName )).map { colName =>
+          mapField( name, colName )
+        }
+      }
+    }
+    return super.fieldsSeq
+  }
+
+  private def deCamelize( s: String ) = {
+
+    var lastIdx: Int = 0
+    var nextIdx: Int = -1
+    var chunks: Seq[String] = Seq.empty
+
+    while (lastIdx >= 0) {
+      nextIdx = s.indexWhere(_.isUpper, from = lastIdx+1)
+      if (nextIdx > 0) {
+        chunks = chunks :+ (s.subSequence( lastIdx, nextIdx ).toString)
+      }
+      else {
+        chunks = chunks :+ s.substring( lastIdx )
+      }
+      lastIdx = nextIdx
+    }
+
+    chunks.map{_.toUpperCase}.reduce{_+"_"+_}
+  }
 }

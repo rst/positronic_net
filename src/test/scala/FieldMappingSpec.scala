@@ -36,8 +36,6 @@ object TodoItemsWithWrapping
 import org.positronicnet.content.PositronicContentResolver
 import android.provider.CallLog.Calls
 
-object Resolver extends PositronicContentResolver( "call_log_dummy" )
-
 case class CallLogEntry( callType:   Int    = 0, 
                          number:     String = null, 
                          cachedName: String = null, 
@@ -46,7 +44,7 @@ case class CallLogEntry( callType:   Int    = 0,
   extends ManagedRecord
 
 object CallLogEntries
-  extends RecordManagerForFields[ CallLogEntry, Calls ]( Resolver( Calls.CONTENT_URI ))
+  extends RecordManagerForFields[ CallLogEntry, Calls ]( PositronicContentResolver( Calls.CONTENT_URI ))
 {
   mapField( "callType", Calls.TYPE )    // override to avoid reserved word
 }

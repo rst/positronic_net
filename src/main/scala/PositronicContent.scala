@@ -272,27 +272,8 @@ abstract class ContentQuery[SourceType,IdType](
   {
     if (source.getLogTag != null) {
       val b = new StringBuffer(120)
-
-      b.append( "DB: " ); 
-      b.append( stmtType );  b.append( " " )
-      b.append( subSource.toString ); b.append( " " )
-
-      if (whereString != null) {
-        b.append( "where " ); b.append( whereString )
-        if (whereValues != null) {
-          b.append( "[ " )
-          for (v <- whereValues) { 
-            b.append( '"' ); b.append( v ); b.append( "\" " )
-          }
-          b.append( "] ")
-        }
-      }
-      if (orderString != null) { 
-        b.append( "order " ); b.append( orderString ); b.append( " " )
-      }
-      if (limitString != null) { 
-        b.append( "limit " ); b.append( limitString ); b.append( " " )
-      }
+      b.append( stmtType ); b.append( " " )
+      this.describeIntoStringBuffer( b )
       if (contentValues != null) {
         b.append( "values ")
         val it = contentValues.valueSet.iterator
@@ -311,6 +292,35 @@ abstract class ContentQuery[SourceType,IdType](
         for( col <- cols ) { b.append( col ); b.append( " " ) }
       }
       Log.d( source.getLogTag, b.toString )
+    }
+  }
+
+  override def toString = {
+    val b = new StringBuffer(120)
+    b.append( super.toString ); b.append(": ")
+    this.describeIntoStringBuffer( b )
+    b.toString
+  }
+
+  private def describeIntoStringBuffer( b: StringBuffer ): Unit = {
+
+    b.append( subSource.toString ); b.append( " " )
+
+    if (whereString != null) {
+      b.append( "where " ); b.append( whereString )
+      if (whereValues != null) {
+        b.append( "[ " )
+        for (v <- whereValues) { 
+          b.append( '"' ); b.append( v ); b.append( "\" " )
+        }
+        b.append( "] ")
+      }
+    }
+    if (orderString != null) { 
+      b.append( "order " ); b.append( orderString ); b.append( " " )
+    }
+    if (limitString != null) { 
+      b.append( "limit " ); b.append( limitString ); b.append( " " )
     }
   }
 

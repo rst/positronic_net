@@ -16,14 +16,14 @@ import android.widget.TextView
 import java.text.SimpleDateFormat
 import java.util.Date
 
-object Resolver extends PositronicContentResolver( "call_log_app" )
-
-case class CallLogEntry( callType:   Int    = 0, 
-                         number:     String = null, 
-                         cachedName: String = null, 
-                         whenRaw:    Long   = 0,
-                         id:         Long   = -1 )
-  extends ManagedRecord( CallLogEntries )
+case class CallLogEntry( 
+  callType:   Int    = 0, 
+  number:     String = null, 
+  cachedName: String = null, 
+  whenRaw:    Long   = 0,
+  id:         RecordId[CallLogEntry] = CallLogEntries.unsavedId 
+  )
+  extends ManagedRecord
 {
   def callTypeName = callType match {
     case Calls.INCOMING_TYPE => "incoming"
@@ -37,13 +37,10 @@ case class CallLogEntry( callType:   Int    = 0,
 }
 
 object CallLogEntries
-  extends BaseRecordManager[ CallLogEntry ]( 
-    Resolver( Calls.CONTENT_URI ).order( Calls.DEFAULT_SORT_ORDER ))
+  extends RecordManagerForFields[ CallLogEntry, Calls ]( 
+    PositronicContentResolver( Calls.CONTENT_URI ).order( Calls.DEFAULT_SORT_ORDER ))
 {
-  mapField( "callType",   Calls.TYPE )
-  mapField( "number",     Calls.NUMBER )
-  mapField( "cachedName", Calls.CACHED_NAME )
-  mapField( "whenRaw",    Calls.DATE )
+  mapField( "callType", Calls.TYPE ) // override to avoid reserved word 'type'
 
   // Start with last ten days worth of calls.  (Roughly.)
 
@@ -78,7 +75,7 @@ class CallLogActivity extends ListActivity with PositronicActivityHelpers
   lazy val daysDialog = new GetDaysDialog( this )
 
   onCreate {
-    useAppFacility( Resolver )
+    useAppFacility( PositronicContentResolver )
     setContentView( R.layout.call_log_entries )
     setListAdapter( new CallLogsAdapter( this, CallLogEntries.callsWithinLimit))
 

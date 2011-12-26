@@ -127,6 +127,16 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
     extends BaseTaggedVariant[ TT ]( varTag )
     with AutomaticFieldMappingFromQuery[ TT ]
 
+  protected
+  class TaggedVariantForFieldsMap[ TT <: T : ClassManifest ](
+       varTag: String,
+       fieldNamesMap: Map[String,String])
+    extends BaseTaggedVariant[ TT ]( varTag )
+    with FieldMappingFromStaticNames[ TT ]
+  {
+    protected lazy val fieldNamesSrcMap = fieldNamesMap
+  }
+
   protected class BaseCatchAllVariant[ TT <: T : ClassManifest ]
     extends BaseVariant[ TT ]( repository )
   {
@@ -140,6 +150,15 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
   protected class CatchAllVariant[ TT <: T : ClassManifest ]
     extends BaseCatchAllVariant[ TT ]
     with AutomaticFieldMappingFromQuery[ TT ]
+
+  protected
+  class CatchAllVariantForFieldsMap[ TT <: T : ClassManifest ](
+       fieldNamesMap: Map[String,String])
+    extends BaseCatchAllVariant[ TT ]
+    with FieldMappingFromStaticNames[ TT ]
+  {
+    protected lazy val fieldNamesSrcMap = fieldNamesMap
+  }
 
   // As of 2.9.1, it's difficult to tell the typechecker that a record of
   // any type X has a RecordManager that can be used to save that type.

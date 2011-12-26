@@ -80,7 +80,7 @@ object PositronicContentResolver
     * convention, as described above.
     */
 
-  def apply( uri: Uri ) = 
+  def apply( uri: Uri ) =
     new ContentProviderQuery( new LongIdContentResolverRepository(realResolver,
                                                                   this ),
                               uri )

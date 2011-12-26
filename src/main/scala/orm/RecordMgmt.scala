@@ -454,12 +454,16 @@ private [orm]
 trait AutomaticFieldMappingFromQuery[ T <: ManagedRecord ]
   extends BaseRecordManager[ T ]
 {
-  override protected[orm] def fieldsSeq: Seq[ MappedField ] = {
+  // Take explicit mappings, and add them to mappings for like-named
+  // columns available from our repository.  For that, we have to do a
+  // dummy query which will (hopefully) return no rows.
+  //
+  // (Which, in turn, means that we can't compute the mappings in the
+  // constructor; we need to wait until the DB is open.  Which may
+  // help explain some of the pretzel logic by which this code gets
+  // invoked...)
 
-    // Take explicit mappings, and add them to mappings for
-    // like-named columns available from our repository.
-    // For that, we have to do a dummy query which will
-    // (hopefully) return no rows...
+  override protected[orm] def fieldsSeq: Seq[ MappedField ] = {
 
     val dummyCursor = baseQuery.where( "2 + 2 = 5" ).selectDefaultColumns
     val dbColNames  = dummyCursor.getColumnNames
@@ -513,42 +517,45 @@ trait AutomaticFieldMappingFromQuery[ T <: ManagedRecord ]
 
 abstract class RecordManagerForFields[ TRec <: ManagedRecord : ClassManifest,
                                        TSrc : ClassManifest ]
-                                     ( repository: ContentQuery[_,_] )
+    ( repository: ContentQuery[_,_] )
   extends BaseRecordManager[ TRec ]( repository )
   with FieldMappingFromStaticNames[ TRec ]
 {
+  def this() =
+    this(
+      PositronicContentResolver(
+        ReflectUtils.getStatic[ android.net.Uri, TSrc ]( "CONTENT_URI" )))
+
   // Disguised arg to constructor for the FieldMappingFromStaticNames trait
 
-  protected lazy val fieldNamesSrcKlass = classManifest[ TSrc ].erasure
+  protected lazy val fieldNamesSrcMap = 
+    ReflectUtils.publicStaticValues( classOf [String], 
+                                     classManifest[ TSrc ].erasure )
 }
 
 private [orm]
 trait FieldMappingFromStaticNames[ T <: ManagedRecord ]
   extends BaseRecordManager[ T ]
 {
-  protected val fieldNamesSrcKlass: Class[_]
+  // Disguised argument to constructor for the trait...
 
-  // Leave mapping of "possible field names" to "column names" accessible,
-  // since record managers may have other uses for it (e.g., to pull out
-  // discriminant values for a variant from a static MIME_TYPE field, or
-  // some such).
+  protected val fieldNamesSrcMap: Map[ String, String ]
 
-  protected
-  val fieldNamesSrcMap = 
-    ReflectUtils.publicStaticValues( classOf [String], fieldNamesSrcKlass )
+  // We don't have to delay field mapping until the DB is open, since
+  // we're not introspecting from a query result.  (Or at least, not here.)
+  // So...
 
-  override protected[orm] def fieldsSeq: Seq[ MappedField ] = {
-    for ((name, field) <- javaFields) {
-      if (!fieldsBuffer.exists{ _.recordFieldName == name }) {
-        fieldNamesSrcMap.get( deCamelize( field.getName )).map { colName =>
-          mapField( name, colName )
-        }
+  for ((name, field) <- javaFields) {
+    if (!fieldsBuffer.exists{ _.recordFieldName == name }) {
+      fieldNamesSrcMap.get( deCamelize( field.getName )).map { colName =>
+        mapField( name, colName )
       }
     }
-    return super.fieldsSeq
   }
 
-  private def deCamelize( s: String ) = {
+  private def deCamelize( s: String ): String = {
+
+    if (s == "id") return "_ID"         // special case to bridge conventions
 
     var lastIdx: Int = 0
     var nextIdx: Int = -1
@@ -565,6 +572,6 @@ trait FieldMappingFromStaticNames[ T <: ManagedRecord ]
       lastIdx = nextIdx
     }
 
-    chunks.map{_.toUpperCase}.reduce{_+"_"+_}
+    return chunks.map{_.toUpperCase}.reduce{_+"_"+_}
   }
 }

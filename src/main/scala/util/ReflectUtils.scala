@@ -84,6 +84,19 @@ object ReflectUtils
     pairs.toMap
   }
 
+  // Extracting value of a single public static field
+
+  def getStatic[ TVal: ClassManifest, TSrc: ClassManifest ](fieldName: String)={
+    val srcKlass = classManifest[ TSrc ].erasure
+    val valKlass = classManifest[ TVal ].erasure
+    val fld = srcKlass.getField( fieldName )
+    if ( Modifier.isStatic( fld.getModifiers ) && fld.getType == valKlass )
+      fld.get(null).asInstanceOf[ TVal ]
+    else
+      throw new RuntimeException( srcKlass.toString + " has no public static "+ 
+                                  valKlass.toString + " " + fieldName )
+  }
+
   // Returns a list of the argument class and all its superclasses
 
   def ancestry( klass: Class[_] ): List[ Class[_]] =

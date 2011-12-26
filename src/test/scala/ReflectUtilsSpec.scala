@@ -114,4 +114,24 @@ class ReflectUtilsSpec
       calendarInts("FRIDAY")      should equal (java.util.Calendar.FRIDAY)
     }
   }
+
+  describe ("get single public static value") {
+    it ("should get the value if available") {
+      val friday = ReflectUtils.getStatic[ Int, java.util.Calendar ]("FRIDAY") 
+      friday should equal (java.util.Calendar.FRIDAY)
+    }
+    it ("should signal on wrong type") {
+      val exc = intercept[ RuntimeException ]{
+        ReflectUtils.getStatic[ String, java.util.Calendar ]("FRIDAY")
+      }
+      exc.getMessage should (
+        include ("String") and include ("Calendar") and include ("FRIDAY"))
+    }
+    it ("should signal on bad field") {
+      val exc = intercept[ NoSuchFieldException ]{
+        ReflectUtils.getStatic[ String, java.util.Calendar ]("FREAKY_FRIDAY")
+      }
+      exc.getMessage should include ("FREAKY")
+    }
+  }
 }

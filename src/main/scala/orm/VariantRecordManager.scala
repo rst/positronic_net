@@ -128,12 +128,15 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
     with AutomaticFieldMappingFromQuery[ TT ]
 
   protected
-  class TaggedVariantForFieldsMap[ TT <: T : ClassManifest ](
+  class TaggedVariantForFields[ TT <: T : ClassManifest, TSrc: ClassManifest ](
        varTag: String,
        fieldNamesMap: Map[String,String])
     extends BaseTaggedVariant[ TT ]( varTag )
     with FieldMappingFromStaticNames[ TT ]
   {
+    def this( varTag: String ) = 
+      this( varTag, ReflectUtils.getStatics[ String, TSrc ] )
+
     protected lazy val fieldNamesSrcMap = fieldNamesMap
   }
 
@@ -152,11 +155,13 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
     with AutomaticFieldMappingFromQuery[ TT ]
 
   protected
-  class CatchAllVariantForFieldsMap[ TT <: T : ClassManifest ](
+  class CatchAllVariantForFields[ TT <: T : ClassManifest, TSrc: ClassManifest](
        fieldNamesMap: Map[String,String])
     extends BaseCatchAllVariant[ TT ]
     with FieldMappingFromStaticNames[ TT ]
   {
+    def this() = this( ReflectUtils.getStatics[ String, TSrc ] )
+
     protected lazy val fieldNamesSrcMap = fieldNamesMap
   }
 

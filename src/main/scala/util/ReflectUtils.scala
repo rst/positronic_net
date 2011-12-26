@@ -84,6 +84,18 @@ object ReflectUtils
     pairs.toMap
   }
 
+  // Extracting public static values of a given Java type from a Java class,
+  // expressed using Scala type notation.
+  //
+  // (Android content providers often have column names of static fields
+  // defined as static fields on some class, e.g., CallLog.Calls.  The ORM
+  // uses this to fish out the names and associated values.)
+
+  def getStatics[ TVal: ClassManifest, TSrc: ClassManifest ] = 
+    publicStaticValues[ TVal ]( 
+      classManifest[ TVal ].erasure.asInstanceOf[ Class[ TVal ]],
+      classManifest[ TSrc ].erasure )
+
   // Extracting value of a single public static field
 
   def getStatic[ TVal: ClassManifest, TSrc: ClassManifest ](fieldName: String)={

@@ -100,15 +100,14 @@ object ContactData
 {
   def dataKindMapper[ TRec <: LabeledData : ClassManifest,
                       TKind : ClassManifest ] = 
-    new TaggedVariantForFieldsMap[ TRec ](
-      ReflectUtils.getStatic[ String, TKind ]("MIMETYPE"),
-      ReflectUtils.publicStaticValues( classOf[ String ],
-                                       classManifest[ TKind ].erasure )
+    new TaggedVariantForFields[ TRec, TKind ](
+      ReflectUtils.getStatic[ String, TKind ]("MIMETYPE")
     ) {
       // Need to special-case the "type" field, since that's a reserved
       // word in Scala.  And since we have trouble accessing the value of
       // ContactsContract.Data.TYPE here (due to "protected static" confusion),
-      // we just type it in...
+      // we just type it in.  (It is documented, and they're hardly likely
+      // changing it would break deployed apps, so it's not likely to happen.)
       mapField( "labelType", "data2" ) 
     }
 
@@ -116,9 +115,7 @@ object ContactData
   val emails = dataKindMapper[ Email, CommonDataKinds.Email ] 
 
   val unknowns = 
-    new CatchAllVariantForFieldsMap[ UnknownData ](
-      ReflectUtils.publicStaticValues( classOf[ String ],
-                                       classOf[ ContactsContract.Data ]))
+    new CatchAllVariantForFields[ UnknownData, ContactsContract.Data ]
 }
 
 // The actual spec
@@ -181,6 +178,7 @@ class FieldMappingSpec
       // Hideous way to write this... but gaining access to the underlying
       // state would get us into access to org.positronicnet.content-private
       // fields.  Sigh...
+
       val baseQueryToString = CallLogEntries.baseQuery.toString 
       baseQueryToString should include (Calls.CONTENT_URI.toString)
     }

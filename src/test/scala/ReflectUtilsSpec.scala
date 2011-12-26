@@ -102,16 +102,29 @@ class ReflectUtilsSpec
   }
 
   describe ("collect public static values") {
-    it ("should collect field values from Calendar") {
 
-      val calendarInts = 
-        ReflectUtils.publicStaticValues( java.lang.Integer.TYPE,
-                                         classOf[ java.util.Calendar] )
-
+    def checkCalendarInts( calendarInts: String => Int ) = {
       calendarInts("AM")          should equal (java.util.Calendar.AM)
       calendarInts("JANUARY")     should equal (java.util.Calendar.JANUARY)
       calendarInts("DAY_OF_WEEK") should equal (java.util.Calendar.DAY_OF_WEEK)
       calendarInts("FRIDAY")      should equal (java.util.Calendar.FRIDAY)
+    }
+
+    describe( "from class objects" ) {
+      it ("should collect field values from Calendar") {
+        val map =
+          ReflectUtils.publicStaticValues( java.lang.Integer.TYPE,
+                                           classOf[ java.util.Calendar] )
+        checkCalendarInts( map(_) )
+      }
+    }
+
+    describe( "from class manifests" ) {
+      it ("should collect field values from Calendar") {
+        // Reflection gets confused here about primitives.  I can live with it.
+        val map = ReflectUtils.getStatics[ Int, java.util.Calendar ]
+        checkCalendarInts( map(_).intValue )
+      }
     }
   }
 

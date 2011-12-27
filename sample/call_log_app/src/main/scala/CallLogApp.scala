@@ -6,6 +6,9 @@ import org.positronicnet.ui._
 import org.positronicnet.notifications._
 import org.positronicnet.notifications.Actions._
 
+import android.content.Context
+import android.util.AttributeSet
+
 import android.app.ListActivity
 import android.provider.CallLog.Calls
 import android.util.Log
@@ -32,8 +35,18 @@ case class CallLogEntry(
     case _                   => "???"
   }
 
+  def callTypeName_:=( s: String ) = 
+    this.copy( callType = s match {
+      case "incoming" => Calls.INCOMING_TYPE
+      case "outgoing" => Calls.OUTGOING_TYPE
+      case "missed"   => Calls.MISSED_TYPE
+    })
+
   lazy val caller = if (cachedName == null) number else cachedName
-  lazy val when   = new Date( whenRaw )
+  def caller_:=( s: String ) = copy( cachedName = s )
+
+  lazy val when = new Date( whenRaw )
+  def when_:=( d: Date ) = this.copy( whenRaw = d.getTime )
 }
 
 object CallLogEntries
@@ -41,6 +54,7 @@ object CallLogEntries
     PositronicContentResolver( Calls.CONTENT_URI ).order( Calls.DEFAULT_SORT_ORDER ))
 {
   mapField( "callType", Calls.TYPE ) // override to avoid reserved word 'type'
+  mapField( "whenRaw",  Calls.DATE ) // here we're just being different
 
   // Start with last ten days worth of calls.  (Roughly.)
 
@@ -53,21 +67,16 @@ object CallLogEntries
   }}
 }
 
-class CallLogsAdapter( activity: PositronicActivityHelpers,
-                       source: Notifier[IndexedSeq[CallLogEntry]] )
-  extends IndexedSeqSourceAdapter( activity, source,
-                                   itemViewResourceId = R.layout.call_log_entry)
+class DateTextView( ctx: Context, attrs: AttributeSet )
+  extends PositronicTextView( ctx, attrs )
+
+object CallLogsUiBinder extends UiBinder
 {
-  val dateFormat = new SimpleDateFormat( "yyyy/mm/dd kk:mm" )
+  val dateFormat = new SimpleDateFormat( "yyyy/MM/dd kk:mm" )
 
-  override def bindView( view:View, entry: CallLogEntry ) = {
-
-    def v[ Type ]( id: Int ) = view.findViewById( id ).asInstanceOf[ Type ]
-
-    v[ TextView ]( R.id.call_type ).setText( entry.callTypeName )
-    v[ TextView ]( R.id.caller    ).setText( entry.caller )
-    v[ TextView ]( R.id.when      ).setText( dateFormat.format( entry.when ))
-  }
+  bindProperties[ DateTextView, Date ](
+    (view => dateFormat.parse( view.getText.toString )), 
+    ((view, date) => view.setText( dateFormat.format( date ))))
 }
 
 class CallLogActivity extends ListActivity with PositronicActivityHelpers
@@ -77,7 +86,11 @@ class CallLogActivity extends ListActivity with PositronicActivityHelpers
   onCreate {
     useAppFacility( PositronicContentResolver )
     setContentView( R.layout.call_log_entries )
-    setListAdapter( new CallLogsAdapter( this, CallLogEntries.callsWithinLimit))
+    setListAdapter( 
+      new IndexedSeqSourceAdapter( this, 
+                                   CallLogEntries.callsWithinLimit,
+                                   R.layout.call_log_entry,
+                                   CallLogsUiBinder ))
 
     useOptionsMenuResource( R.menu.options_menu )
     onOptionsItemSelected( R.id.set_num_days ) { daysDialog.show }

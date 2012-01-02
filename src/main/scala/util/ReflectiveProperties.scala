@@ -84,25 +84,37 @@ abstract class PropertyLensFactory[ V : ClassManifest ] {
 
     val fieldOpt = ReflectUtils.declaredFieldsByName( klass ).get( prop )
     
-    if (fieldOpt == None) return None   // no luck
+    if (fieldOpt != None) {
 
-    val field = fieldOpt.get
+      val field = fieldOpt.get
 
-    if (field.getType.equals( valueKlass )) {
-      field.setAccessible( true ) // might want some annotation checks...
-      return Some( PropertyLens[T,V]((t) => vFromField( t, field ),
-                                     (t,v) => {
-                                       val newT = PropertyLensFactory.klone( t )
-                                       vIntoField( newT, field, v )
-                                       newT.asInstanceOf[T]
-                                     },
-                                     klass,
-                                     valueKlass
-                                   ))
+      if (field.getType.equals( valueKlass )) {
+        field.setAccessible( true ) // might want some annotation checks...
+        return Some( PropertyLens[T,V]((t) => vFromField( t, field ),
+                                       (t,v) => {
+                                         val newT = PropertyLensFactory.klone(t)
+                                         vIntoField( newT, field, v )
+                                         newT.asInstanceOf[T]
+                                       },
+                                       klass,
+                                       valueKlass
+                                     ))
+      }
     }
       
+    // Failing *that*, if we managed to extract a correctly-typed 'getter',
+    // treat as a read-only property.
+
+    if (getter != null && getter.getReturnType.equals( valueKlass )) {
+      return Some( PropertyLens[T,V]((t) => vFromObject( getter.invoke(t) ),
+                                     (t, v) => 
+                                       throw new ReadOnlyProperty(klass,prop),
+                                     klass,
+                                     valueKlass
+                                    ))
+    }
                   
-    // Wrong type; still no luck.
+    // Nope, got nothing.
 
     return None
   }
@@ -252,4 +264,6 @@ object BooleanLensFactory extends PropertyLensFactory[ Boolean ] {
     f.setBoolean( obj, value )
 }
 
-
+class ReadOnlyProperty( klass: Class[_], prop: String )
+  extends RuntimeException( "Attempt to set read-only property " + prop + 
+                            " of class " + klass.toString )

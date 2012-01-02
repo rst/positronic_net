@@ -6,6 +6,7 @@ import org.scalatest.matchers.ShouldMatchers
 import org.positronicnet.util.ReflectiveProperties
 import org.positronicnet.util.PropertyLens
 import org.positronicnet.util.PropertyLensFactory
+import org.positronicnet.util.ReadOnlyProperty
 
 case class Canary( intProp: Int = 17,
                    byteProp: Byte = 8,
@@ -31,6 +32,12 @@ case class Canary( intProp: Int = 17,
                  )
   extends ReflectiveProperties
 {
+  // Sample read-only properties, so we can check that those are
+  // handled properly...
+
+  def readOnlyString = "ro"
+  def readOnlyInt = 323423
+
   // Define some pseudoproperties, so we can test how they're handled.
   // The intent of this feature is to support cases where, say, a Date
   // (as far as the UI is concerned) is stored as a Long internally.
@@ -112,6 +119,28 @@ class ReflectivePropertiesSpec
     
     testLens( lens, defaultVal, otherVal )
     testPropApi( propName, defaultVal, otherVal )
+  }
+
+  describe( "read-only property" ) {
+    val testCanary = Canary( otherThing = "coalmine" )
+    val factory = PropertyLensFactory.forPropertyType[String]
+    it ("the method should be there") {
+      classOf[Canary].getMethod("readOnlyString").getReturnType should equal (classOf[String])
+    }
+    it ("should be able to read") {
+      testCanary.getProperty[String]("readOnlyString") should equal ("ro")
+    }
+    it ("should fail on write") {
+      intercept [ReadOnlyProperty] {
+        testCanary.setProperty[String]( "readOnlyString", "bogon" )
+      }
+    }
+    it ("should not find properties of the wrong type") {
+      factory.forProperty[ Canary ]("readOnlyInt") should equal (None)
+    }
+    it ("should not find nonexistent properties") {
+      factory.forProperty[ Canary ]("readOnlydflkdlsfkjl") should equal (None)
+    }
   }
 
   describe( "int lens factory" ) {

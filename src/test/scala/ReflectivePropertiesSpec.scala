@@ -38,6 +38,9 @@ case class Canary( intProp: Int = 17,
   def readOnlyString = "ro"
   def readOnlyInt = 323423
 
+  lazy val lazyString = computeLazyString
+  def computeLazyString = "boogabooga"
+
   // Define some pseudoproperties, so we can test how they're handled.
   // The intent of this feature is to support cases where, say, a Date
   // (as far as the UI is concerned) is stored as a Long internally.
@@ -176,6 +179,14 @@ class ReflectivePropertiesSpec
       fac.forProperty[ Canary ]( "intProp" ) should equal (None)
       fac.forProperty[ Canary ]( "massagedInt" ) should equal (None)
       fac.forProperty[ Canary ]( "quux" ) should equal (None)
+    }
+  }
+
+  describe( "lazy fields as properties" ) {
+    val fac: PropertyLensFactory[ String ] = 
+      PropertyLensFactory.forPropertyType[ String ]
+    it ("should work correctly") {
+      testProperty( fac, "lazyString", "boogabooga", "boogie" )
     }
   }
 

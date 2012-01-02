@@ -99,7 +99,7 @@ class ReflectivePropertiesSpec
     
     testCanary.getProperty[V]( propName )     should equal ( defaultVal )
     setCanary.getProperty[V](  propName )     should equal ( otherVal )
-    setCanary.asInstanceOf[Canary].otherThing should equal ( "coalmine" )
+    setCanary.otherThing                      should equal ( "coalmine" )
   }
 
   def testProperty[V:ClassManifest]( factory: PropertyLensFactory[V], propName: String, 

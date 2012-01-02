@@ -11,12 +11,8 @@ trait ReflectiveProperties {
   def getProperty[T : ClassManifest]( prop: String ): T =
     PropertyLensFactory.forPropertyType[T].forProperty( selfKlass, prop ).get.getter( this )
 
-  // Note glitch --- return type is ReflectiveProperties, not anything more
-  // specific.  So, if you need a more specific type, you either need a cast
-  // (as in testPropApi in the specs), or to use lenses directly.
-
-  def setProperty[T : ClassManifest]( prop: String, value: T ): ReflectiveProperties =
-    PropertyLensFactory.forPropertyType[T].forProperty( selfKlass, prop ).get.setter( this, value ).asInstanceOf[ ReflectiveProperties ]
+  def setProperty[T : ClassManifest]( prop: String, value: T ): this.type =
+    PropertyLensFactory.forPropertyType[T].forProperty( selfKlass, prop ).get.setter( this, value ).asInstanceOf[ this.type ]
     
 }
 

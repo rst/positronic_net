@@ -16,40 +16,71 @@ import scala.collection._
 // the build system, and there just *might* be someone out there who
 // feels the same way about sbt as I feel about Eclipse.
 
+/** Some content providers have fields in their pseudo-tables which
+  * are effectively read-only, or write-once.  (They may, for instance,
+  * be produced by joins on underlying tables, or export state that is
+  * managed by the content provider itself.  Or, as in the case of
+  * references to aggregated contacts from the ContactsContract stuff,
+  * both.)  The ORM can be asked to request these constraints when
+  * setting up a [[org.positronicnet.orm.RecordManager]], by calling
+  * `mapField` with a non-default value of the `how` argument, chosen
+  * from this enumeration...
+  */
+
+object MapAs extends Enumeration {
+  type How = Value
+
+  /** Normal case of an update-able field */
+  val ReadWrite = Value
+
+  /** Field is read, but never set.
+    * 
+    * Default for primary key/'id' fields, which we expect the DB to
+    * assign on its own.
+    */
+  val ReadOnly = Value
+
+  /** Field is set once, at insert, but untouched by updates. */
+
+  val WriteOnce = Value
+}
+
 private [orm]
 object MappedField {
 
   private [orm]
   val declaredMappers = 
     new mutable.HashMap[ java.lang.Class[_], 
-                         (( String, Int, java.lang.reflect.Field ) => 
+                         (( String, Int, MapAs.How, java.lang.reflect.Field ) =>
                            MappedField) ]
 
   def declareMapper( klass: java.lang.Class[_], 
-                     builder: (( String, Int, java.lang.reflect.Field ) =>
+                     builder: (( String, Int, MapAs.How,
+                                 java.lang.reflect.Field ) =>
                                MappedField )) =
     declaredMappers( klass ) = builder
 
   declareMapper( java.lang.Boolean.TYPE,
-                 ( s, n, f ) => new MappedBooleanField( s, n, f ))
+                 ( s, n, r, f ) => new MappedBooleanField( s, n, r, f ))
   declareMapper( java.lang.Integer.TYPE,
-                 ( s, n, f ) => new MappedIntField( s, n, f ))
+                 ( s, n, r, f ) => new MappedIntField( s, n, r, f ))
   declareMapper( java.lang.Long.TYPE,
-                 ( s, n, f ) => new MappedLongField( s, n, f ))
+                 ( s, n, r, f ) => new MappedLongField( s, n, r, f ))
   declareMapper( java.lang.Float.TYPE,
-                 ( s, n, f ) => new MappedFloatField( s, n, f ))
+                 ( s, n, r, f ) => new MappedFloatField( s, n, r, f ))
   declareMapper( java.lang.Double.TYPE,
-                 ( s, n, f ) => new MappedDoubleField( s, n, f ))
+                 ( s, n, r, f ) => new MappedDoubleField( s, n, r, f ))
   declareMapper( classOf[ String ], 
-                 ( s, n, f ) => new MappedStringField( s, n, f ))
+                 ( s, n, r, f ) => new MappedStringField( s, n, r, f ))
   declareMapper( classOf[ RecordId[_] ],
-                 ( s, n, f ) => new MappedIdField( s, n, f ))
+                 ( s, n, r, f ) => new MappedIdField( s, n, r, f ))
 
-  def create( colName: String, colNumber: Int, rfield: java.lang.reflect.Field )
+  def create( colName: String, colNumber: Int, how: MapAs.How,
+              rfield: java.lang.reflect.Field )
     : MappedField =
   {
     declaredMappers.get( rfield.getType ) match {
-      case Some( mapBuilder ) => mapBuilder( colName, colNumber, rfield )
+      case Some( mapBuilder ) => mapBuilder( colName, colNumber, how, rfield )
       case None =>
         throw new IllegalArgumentException( "Don't know how to map " 
                                            + rfield.getName
@@ -63,6 +94,7 @@ object MappedField {
 private [orm]
 abstract class MappedField( colName: String, 
                             colNumber: Int,
+                            how: MapAs.How,
                             rfield: java.lang.reflect.Field )
 {
   // serializers, ORMs, etc., can use "setAccessible( true )" to
@@ -72,7 +104,8 @@ abstract class MappedField( colName: String,
 
   val dbColumnName    = colName
   val recordFieldName = rfield.getName
-  var realColNumber   = colNumber       // reset by atIndex...
+  var realColNumber   = colNumber       // may be reset by atIndex...
+  val mappedHow       = how
 
   def atIndex( newColNumber: Int ) = {
     val result = this.clone.asInstanceOf[ MappedField ]
@@ -92,8 +125,9 @@ abstract class MappedField( colName: String,
 private [orm]
 class MappedIntField( colName: String, 
                       colNumber: Int,
+                      how: MapAs.How,
                       rfield: java.lang.reflect.Field )
-  extends MappedField( colName, colNumber, rfield )
+  extends MappedField( colName, colNumber, how, rfield )
 {
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = 
     rfield.setInt( o, c.getInt( realColNumber ))
@@ -108,8 +142,9 @@ class MappedIntField( colName: String,
 private [orm]
 class MappedLongField( colName: String, 
                        colNumber: Int,
+                       how: MapAs.How,
                        rfield: java.lang.reflect.Field )
-  extends MappedField( colName, colNumber, rfield )
+  extends MappedField( colName, colNumber, how, rfield )
 {
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = 
     rfield.setLong( o, c.getLong( realColNumber ))
@@ -124,8 +159,9 @@ class MappedLongField( colName: String,
 private [orm]
 class MappedFloatField( colName: String, 
                         colNumber: Int,
+                        how: MapAs.How,
                         rfield: java.lang.reflect.Field )
-  extends MappedField( colName, colNumber, rfield )
+  extends MappedField( colName, colNumber, how, rfield )
 {
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = 
     rfield.setFloat( o, c.getFloat( realColNumber ))
@@ -140,8 +176,9 @@ class MappedFloatField( colName: String,
 private [orm]
 class MappedDoubleField( colName: String, 
                          colNumber: Int,
+                         how: MapAs.How,
                          rfield: java.lang.reflect.Field )
-  extends MappedField( colName, colNumber, rfield )
+  extends MappedField( colName, colNumber, how, rfield )
 {
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = 
     rfield.setDouble( o, c.getDouble( realColNumber ))
@@ -156,8 +193,9 @@ class MappedDoubleField( colName: String,
 private [orm]
 class MappedStringField( colName: String, 
                          colNumber: Int,
+                         how: MapAs.How,
                          rfield: java.lang.reflect.Field )
-  extends MappedField( colName, colNumber, rfield )
+  extends MappedField( colName, colNumber, how, rfield )
 {
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = 
     rfield.set( o, c.getString( realColNumber ))
@@ -172,8 +210,9 @@ class MappedStringField( colName: String,
 private [orm]
 class MappedBooleanField( colName: String, 
                           colNumber: Int,
+                          how: MapAs.How,
                           rfield: java.lang.reflect.Field )
-  extends MappedField( colName, colNumber, rfield )
+  extends MappedField( colName, colNumber, how, rfield )
 {
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = 
     rfield.setBoolean( o, c.getInt( realColNumber ) != 0 )
@@ -194,8 +233,9 @@ object MappedIdField {
 private [orm]
 class MappedIdField( colName: String, 
                      colNumber: Int,
+                     how: MapAs.How,
                      rfield: java.lang.reflect.Field )
-  extends MappedField( colName, colNumber, rfield )
+  extends MappedField( colName, colNumber, how, rfield )
 {
   // Wrapping up Longs in our RecordId objects.
   //

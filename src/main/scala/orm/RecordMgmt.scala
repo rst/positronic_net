@@ -121,10 +121,7 @@ case class RecordId[T <: ManagedRecord] private[orm] (mgr: BaseRecordManager[T],
   private[orm] var savedId = id
   private[orm] def markedSaved( savedId: Long ) = { this.savedId = savedId }
 
-  protected def currentValue = {
-    val scope = mgr.whereEq( mgr.primaryKeyField.dbColumnName -> this.id )
-    (scope.records.fetchOnThisThread)(0)
-  }
+  protected def currentValue = mgr.find( this, mgr.baseQuery )
 
   override def equals( other: Any ) =
     other match {
@@ -223,19 +220,21 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     * everything explicitly.
     */
 
-  def mapField( fieldName: String, columnName: String ) =
-    mapFieldInternal( fieldName, columnName, false )
+  def mapField( fieldName: String, columnName: String, 
+                how: MapAs.How = MapAs.ReadWrite ) =
+    mapFieldInternal( fieldName, columnName, how, false )
 
   /** Declare a mapping, as with `mapField`, for a field to be
     * designated as the primary key.
     */
 
   def primaryKey( fieldName: String, columnName: String ) =
-    mapFieldInternal( fieldName, columnName, true )
+    mapFieldInternal( fieldName, columnName, MapAs.ReadOnly, true )
 
   private[orm]
   def mapFieldInternal( fieldName: String, 
                         columnName: String,
+                        how: MapAs.How = MapAs.ReadWrite,
                         primaryKey: Boolean = false ): Unit = 
   {
     val javaField = javaFields( fieldName )
@@ -246,7 +245,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     }
 
     val idx = fieldsBuffer.size
-    val mappedField = MappedField.create( columnName, idx, javaField )
+    val mappedField = MappedField.create( columnName, idx, how, javaField )
 
     fieldsBuffer += mappedField
     
@@ -273,9 +272,12 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   // Dealing with the mappings... internals
 
   private [orm] lazy val fields = fieldsSeq
-  private [orm] lazy val nonKeyFields = 
-    fields.filter{ primaryKeyField == null || 
-                   _.dbColumnName != primaryKeyField.dbColumnName }
+  private [orm] lazy val fieldsForUpdate =
+    fields.filter{ _.mappedHow == MapAs.ReadWrite }
+  private [orm] lazy val fieldsForInsert =
+    fields.filter{ f => 
+      (f.mappedHow == MapAs.ReadWrite) || 
+      (f.mappedHow == MapAs.WriteOnce) }
 
   private [orm] lazy val defaultForeignKeyField = {
     val className = managedKlass.getName.split('.').last
@@ -376,8 +378,10 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   // whatever.
 
   protected [orm]
-  def queryForRecord( rec: T ) =
+  def queryForRecord( rec: T ) = {
+    this.fields                         // make sure PK is set!
     repository.whereEq( primaryKeyField.valPair ( rec ))
+  }
 
   protected [orm]
   def queryForAll( qry: ContentQuery[_,_] ) = qry
@@ -394,7 +398,10 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   }
 
   protected [orm]
-  def dataPairs( rec: T ) = nonKeyFields.map{ f => f.valPair( rec ) }
+  def dataPairs( rec: T ) = {
+    val fieldsToSave = if (rec.isNewRecord) fieldsForInsert else fieldsForUpdate
+    fieldsToSave.map{ _.valPair( rec ) }
+  }
 
   private
   def insert( vals: Seq[(String, ContentValue)] ) = repository.insert( vals:_* )
@@ -413,8 +420,10 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   def deleteAll( scope: Scope[T] ): Unit = deleteAll( scope.baseQuery, scope )
 
   protected [orm]
-  def find( id: RecordId[T], qry: ContentQuery[_,_] ) =
+  def find( id: RecordId[T], qry: ContentQuery[_,_] ) = {
+    this.fields                         // make sure PK is set!
     fetchRecords( qry.whereEq( primaryKeyField.dbColumnName -> id.id ))(0)
+  }
 
   protected [orm]
   def delete( rec: T, scope: Scope[T] ):Unit = 
@@ -498,7 +507,10 @@ trait AutomaticFieldMappingFromQuery[ T <: ManagedRecord ]
                    " attempting to map " + dbColName + " to " +
                    recordFieldName )
 
-              mapFieldInternal( recordFieldName, dbColName, dbColName == "_id" )
+              if (dbColName == "_id")
+                primaryKey( recordFieldName, dbColName )
+              else                                                              
+                mapField( recordFieldName, dbColName )
           }
         }
       }
@@ -548,7 +560,10 @@ trait FieldMappingFromStaticNames[ T <: ManagedRecord ]
   for ((name, field) <- javaFields) {
     if (!fieldsBuffer.exists{ _.recordFieldName == name }) {
       fieldNamesSrcMap.get( deCamelize( field.getName )).map { colName =>
-        mapField( name, colName )
+        if (colName == "_id")
+          primaryKey( name, colName )
+        else                                                              
+          mapField( name, colName )
       }
     }
   }

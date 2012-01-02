@@ -147,7 +147,7 @@ object People
 
 // The actual spec
 
-class FieldMappingSpec
+class VariantSpec
   extends Spec 
   with ShouldMatchers
   with BeforeAndAfterEach

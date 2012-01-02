@@ -5,6 +5,8 @@ import org.positronicnet.orm.Actions._
 import org.positronicnet.test.{DbTestFixtures,TodoDb}
 import org.positronicnet.util.ReflectUtils
 
+import com.xtremelabs.robolectric.Robolectric
+
 // Variant mapping for TodoItems which "wraps" description.
 // (A stand-in for more useful types of transformations...)
 
@@ -28,6 +30,27 @@ object TodoItemsWithWrapping
   extends RecordManager[ TodoItemWithWrapping ]( TodoDb("todo_items") )
 {
   mapField( "rawDescription", "description" )
+}
+
+// Fixtures for testing mapping 'how's (ReadOnly, WriteOnce)...
+
+import org.positronicnet.test.{TodoList,TodoLists}
+
+case class TodoItemSafed( 
+  description: String  = null, 
+  isDone:      Boolean = false,
+  todoListId:  RecordId[TodoList] = TodoLists.unsavedId,
+  id:          RecordId[TodoItemSafed] = TodoItemsSafed.unsavedId
+)
+extends ManagedRecord
+
+object TodoItemsSafed extends RecordManager[ TodoItemSafed ]( TodoDb("todo_items") ){
+
+  // For the sake of testing here, we set up mappings to allow
+  // todo_list_id to be set on first save, but to silently ignore
+  // attempts to move an existing item from one todo list to another...
+
+  mapField( "todoListId", "todo_list_id", MapAs.WriteOnce )
 }
 
 // Test of automatic mapping of tables whose columns are named in
@@ -125,9 +148,32 @@ import org.scalatest.matchers.ShouldMatchers
 
 class FieldMappingSpec
   extends Spec 
+  with BeforeAndAfterEach
   with ShouldMatchers
   with DbTestFixtures
 {
+  override def beforeEach = {
+    TodoDb.openInContext( Robolectric.application )
+    TodoDb.setupFixturesForAssociationTest
+  }
+
+  def checkFieldFrom( mgr: BaseRecordManager[_])( javaName: String, 
+                                                  colName: String,
+                                                  how: MapAs.How
+                                                ) = 
+  {
+    javaName should not equal (null)    // sanity-check args
+    colName  should not equal (null)
+
+    val fieldOpt = 
+      mgr.fields.find{ f => 
+        f.recordFieldName == javaName && 
+        f.dbColumnName    == colName }
+
+    fieldOpt should not equal (None)
+    fieldOpt.map { _.mappedHow should equal (how) }
+  }
+
   describe( "record with \"wrapped\" column" ) {
 
     def feedDogItem = {
@@ -154,20 +200,77 @@ class FieldMappingSpec
     }
   }
 
+  describe( "read-only mappings" ) {
+
+    def fetchIt = {
+      (TodoItemsSafed.whereEq("description"->"wash dog").fetchOnThisThread)(0)
+    }
+
+    // primary key is read-only, so we just use that.
+
+    it ("should be fetched on a read") {
+      assert( !fetchIt.id.isNewRecord )
+    }
+    it ("should not be saved from a new record") {
+      val pairs = TodoItemsSafed.dataPairs( new TodoItemSafed )
+      pairs.filter{ _._1 == "_id" } should have size (0)
+    }
+    it ("should not be saved from a fetched record") {
+      val pairs = TodoItemsSafed.dataPairs( new TodoItemSafed )
+      pairs.filter{ _._1 == "_id" } should have size (0)
+    }
+  }
+
+  describe( "write-once mappings" ) {
+
+    def fetchIt = 
+      (TodoItemsSafed.whereEq("description"->"wash dog").fetchOnThisThread)(0)
+
+    // TodoListId is write-once here...
+
+    it ("should be fetched on a read") {
+      val list = fetchIt.todoListId.fetchOnThisThread
+      list.name should equal ("dog list")
+    }
+    it ("*should* be saved from a new record") {
+      val pairs = TodoItemsSafed.dataPairs( new TodoItemSafed )
+      pairs.filter{ _._1 == "todo_list_id" } should have size (1)
+    }
+    it ("should not be saved from a fetched record") {
+      val pairs = TodoItemsSafed.dataPairs( fetchIt )
+      pairs.filter{ _._1 == "todo_list_id" } should have size (0)
+    }
+  }
+
+  describe( "field mapping to column names from an empty query result" ) {
+
+    val checkField = checkFieldFrom( TodoItemsSafed )_
+
+    it ( "should automatically map matching fields" ) {
+      checkField( "description", "description", MapAs.ReadWrite )
+    }
+
+    it ( "should respect overrides" ) {
+      checkField( "todoListId", "todo_list_id", MapAs.WriteOnce )
+    }
+
+    it ( "should handle the primary key" ) {
+      checkField( "id", "_id", MapAs.ReadOnly )
+    }
+
+  }
+
   describe( "field mapping to column names from a static class" ) {
 
-    def findField( javaName: String, colName: String ) =
-      CallLogEntries.fieldsSeq.find{ f => 
-        f.recordFieldName == javaName && 
-        f.dbColumnName    == colName }
+    val checkField = checkFieldFrom( CallLogEntries )_
 
     it( "should automatically map matching fields" ) {
-      findField( "number",     Calls.NUMBER      ) should not equal (None)
-      findField( "cachedName", Calls.CACHED_NAME ) should not equal (None)
-      findField( "date",       Calls.DATE        ) should not equal (None)
+      checkField( "number",     Calls.NUMBER,      MapAs.ReadWrite )
+      checkField( "cachedName", Calls.CACHED_NAME, MapAs.ReadWrite )
+      checkField( "date",       Calls.DATE,        MapAs.ReadWrite )
     }
     it( "should support overrides" ) {
-      findField( "callType",   Calls.TYPE        ) should not equal (None)
+      checkField( "callType",   Calls.TYPE,        MapAs.ReadWrite )
     }
     it( "should correctly default the URI" ) {
 
@@ -183,11 +286,7 @@ class FieldMappingSpec
       baseQueryToString should include (Calls.CONTENT_URI.toString)
     }
     it( "should map the ID field, if present" ) {
-      val idField = Contacts.fieldsSeq.find{ f =>
-        f.recordFieldName == "id" &&
-        f.dbColumnName    == android.provider.BaseColumns._ID
-      }
-      idField should not equal (None)
+      checkField( "id", android.provider.BaseColumns._ID, MapAs.ReadOnly )
     }
   }
 
@@ -204,39 +303,29 @@ class FieldMappingSpec
 
     describe ("a recognized variant") {
 
-      def checkField( javaName: String, colName: String ) = {
-        colName should not equal (None)
-        ContactData.phones.fieldsSeq.find{ f => 
-          f.recordFieldName == javaName && 
-          f.dbColumnName    == colName } should not equal (None)
-      }
+      val checkField = checkFieldFrom( ContactData.phones )_
 
       it( "should automatically map matching fields" ) {
-        checkField( "number",    CommonDataKinds.Phone.NUMBER )
-        checkField( "label",     "data3"                      )
-        checkField( "labelType", "data2"                      )
-        checkField( "contactId", "contact_id"                 )
+        checkField( "number",    CommonDataKinds.Phone.NUMBER, MapAs.ReadWrite )
+        checkField( "label",     "data3",                      MapAs.ReadWrite )
+        checkField( "labelType", "data2",                      MapAs.ReadWrite )
+        checkField( "contactId", "contact_id",                 MapAs.ReadWrite )
       }
       it( "should map the ID field, if present" ) {
-        checkField( "id",     android.provider.BaseColumns._ID )
+        checkField( "id", android.provider.BaseColumns._ID, MapAs.ReadOnly )
       }
     }
 
     describe ("catchall") {
 
-      def checkField( javaName: String, colName: String ) = {
-        colName should not equal (None)
-        ContactData.unknowns.fieldsSeq.find{ f => 
-          f.recordFieldName == javaName && 
-          f.dbColumnName    == colName } should not equal (None)
-      }
+      val checkField = checkFieldFrom( ContactData.unknowns )_
 
       it( "should automatically map matching fields" ) {
-        checkField( "mimetype", "mimetype" )
-        checkField( "contactId", "contact_id" )
+        checkField( "mimetype",  "mimetype",   MapAs.ReadWrite )
+        checkField( "contactId", "contact_id", MapAs.ReadWrite )
       }
       it( "should map the ID field, if present" ) {
-        checkField( "id", android.provider.BaseColumns._ID )
+        checkField( "id", android.provider.BaseColumns._ID, MapAs.ReadOnly )
       }
     }
   }

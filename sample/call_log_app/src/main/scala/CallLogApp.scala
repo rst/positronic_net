@@ -35,18 +35,8 @@ case class CallLogEntry(
     case _                   => "???"
   }
 
-  def callTypeName_:=( s: String ) = 
-    this.copy( callType = s match {
-      case "incoming" => Calls.INCOMING_TYPE
-      case "outgoing" => Calls.OUTGOING_TYPE
-      case "missed"   => Calls.MISSED_TYPE
-    })
-
   lazy val caller = if (cachedName == null) number else cachedName
-  def caller_:=( s: String ) = copy( cachedName = s )
-
-  lazy val when = new Date( whenRaw )
-  def when_:=( d: Date ) = this.copy( whenRaw = d.getTime )
+  lazy val when   = new Date( whenRaw )
 }
 
 object CallLogEntries

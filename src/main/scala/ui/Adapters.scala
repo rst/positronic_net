@@ -158,7 +158,7 @@ class IndexedSeqAdapter[T <: Object](protected var seq:IndexedSeq[T] = new Array
 
   /** Get the id of the n'th item from the current sequence */
 
-  def getItemId(position: Int) = getItem(position).hashCode()
+  def getItemId(position: Int) = position
 
   /** Get number of items in the current sequence */
 

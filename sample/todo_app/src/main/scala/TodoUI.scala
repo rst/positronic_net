@@ -116,7 +116,7 @@ class TodosActivity
   def viewListAt( posn: Int ) {
     val intent = new Intent( this, classOf[TodoActivity] )
     val theList = listsView.getAdapter.getItem( posn ).asInstanceOf[ TodoList ]
-    intent.putExtra( "todo_list_id", theList.id )
+    intent.putExtra( "todo_list_id", theList.id.pickle )
     startActivity( intent )
   }
 }
@@ -167,11 +167,13 @@ class TodoActivity
     // background, and then runs the body back on the caller's thread,
     // as if by runOnUiThread.)
 
-    val listId = getIntent.getLongExtra( "todo_list_id", -1 )
+    val extra = getIntent.getSerializableExtra( "todo_list_id" )
+    val pickle = extra.asInstanceOf[ PickledId ]
+    val listId = pickle.unpickle.asInstanceOf[ RecordId[ TodoList]]
 
-    TodoLists.whereEq( "_id" -> listId ) ! Fetch{
-      lists => {
-        theList = lists(0)
+    listId ! Fetch{
+      list => {
+        theList = list
         setTitle( "Todo for: " + theList.name )
         listItemsView.setAdapter( new TodoItemsAdapter( this, theList.items ))
       }

@@ -11,8 +11,10 @@ object ReflectUtils
   // *one* constructor declared, and we can get defaults for *all*
   // its arguments, we try for that.
 
-  def getObjectBuilder[T](implicit manifest: ClassManifest[T]) = {
-    val klass = manifest.erasure
+  def getObjectBuilder[T](implicit manifest: ClassManifest[T]) = 
+    getObjectBuilderForClass( manifest.erasure ).asInstanceOf[(() => T)]
+
+  def getObjectBuilderForClass[T](klass: Class[T]) = {
     val constructors = klass.getConstructors
     constructors.find{ _.getParameterTypes.size == 0 } match {
       case Some( constructor ) => 

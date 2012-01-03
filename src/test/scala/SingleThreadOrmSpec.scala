@@ -14,6 +14,7 @@ class SingleThreadOrmSpec
   extends Spec 
   with ShouldMatchers
   with DbTestFixtures
+  with SerializationTestHelpers
 {
   describe( "Single-thread ORM queries" ){
 
@@ -216,6 +217,33 @@ class SingleThreadOrmSpec
 
       qry.onThisThread( Requery( "% dog" ))
       qry.fetchOnThisThread should equal (3)
+    }
+  }
+
+  describe( "serialization and deserialization of records and IDs" ) {
+    it ("should be able to handle IDs") {
+      val undoneItems = TodoItems.whereEq( "is_done" -> false).fetchOnThisThread
+      val tuple = (undoneItems(0).id, undoneItems(1).id)
+      assertSerializationPreservesEquality( tuple )
+    }
+    it ("should be able to handle whole records") {
+      val undoneItems = TodoItems.whereEq( "is_done" -> false).fetchOnThisThread
+      val tuple = (undoneItems(0), undoneItems(1))
+      assertSerializationPreservesEquality( tuple )
+    }
+    it ("should be able to use a deserialized ID in a find") {
+      val undoneItems = TodoItems.whereEq( "is_done" -> false).fetchOnThisThread
+      val roundtripIdObj = serializationRoundTrip( undoneItems(0).id )
+      val roundtripId = roundtripIdObj.asInstanceOf[ RecordId[ TodoItem ]]
+      val item = roundtripId.fetchOnThisThread
+      item should equal (undoneItems(0))
+    }
+    it ("should abe able to pickle and unpickle IDs") {
+      val undoneItems = TodoItems.whereEq( "is_done" -> false).fetchOnThisThread
+      val pickle = undoneItems(0).id.pickle
+      val unpickle = pickle.unpickle
+      val refoundItem = unpickle.fetchOnThisThread
+      refoundItem should equal (undoneItems(0))
     }
   }
 

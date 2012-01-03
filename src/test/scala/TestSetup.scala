@@ -121,6 +121,26 @@ trait CommonDbTestHelpers
     items.exists{ it => it.description == description && it.isDone == isDone }
 }
 
+trait SerializationTestHelpers
+  extends org.scalatest.matchers.ShouldMatchers
+{
+  def assertSerializationPreservesEquality( stuff: Object ) = {
+    serializationRoundTrip( stuff ) should equal (stuff)
+  }
+
+  def serializationRoundTrip( stuff: Object ): Object = {
+    val bytesout   = new java.io.ByteArrayOutputStream( 1024 )
+    val objectsout = new java.io.ObjectOutputStream( bytesout )
+
+    objectsout.writeObject( stuff )
+
+    val bytesin    = new java.io.ByteArrayInputStream( bytesout.toByteArray )
+    val objectsin  = new java.io.ObjectInputStream( bytesin )
+
+    objectsin.readObject
+  }
+}
+
 trait DbTestFixtures 
   extends BeforeAndAfterEach
   with RobolectricTests

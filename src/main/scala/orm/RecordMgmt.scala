@@ -3,6 +3,7 @@ package org.positronicnet.orm
 import org.positronicnet.content._
 import org.positronicnet.notifications._
 import org.positronicnet.util._
+import org.positronicnet.facility._
 
 import android.database.Cursor
 import android.util.Log
@@ -98,7 +99,7 @@ trait ManagedRecord extends Object {
   class HasMany[T <: ManagedRecord]( src: Scope[T], foreignKey: String )
     extends HasManyAssociation( src, foreignKey, this.id )
   {
-    def this( src: Scope[T] ) = 
+    def this( src: Scope[T] ) =
       this( src, src.mgr.columnNameFor( this.id.mgr.defaultForeignKeyField ))
   }
 
@@ -111,10 +112,11 @@ trait ManagedRecord extends Object {
   * and several dependent records (e.g., TodoItem) in one go.
   */
 
-case class RecordId[T <: ManagedRecord] private[orm] (mgr: BaseRecordManager[T],
-                                                      id: Long)
-  extends BaseNotifier( mgr.facility )
-  with NonSharedNotifier[T]
+class RecordId[T <: ManagedRecord] private[orm] (
+    @transient val mgr: BaseRecordManager[T],
+    val id: Long)
+  extends NonSharedNotifier[T]
+  with Serializable
 {
   def isNewRecord = id < 0
 
@@ -130,10 +132,87 @@ case class RecordId[T <: ManagedRecord] private[orm] (mgr: BaseRecordManager[T],
       case _ =>
         false
     }
+
+  def onThread( thunk: => Unit ) = { 
+    mgr.facility match {
+      case w: WorkerThread => w.runOnThread{ thunk }
+      case _ => thunk
+    }
+  }
+
+  /** Produce a 'pickled' version of this RecordId, which may be easier
+    * to serialize...
+    */
+
+  def pickle = PickledId( id, mgr.managedKlass.getName )
+
+  // Serialization.  We need a niladic constructor for it to work...
+
+  private def writeObject(out: java.io.ObjectOutputStream): Unit = {
+
+    // We don't want to try to serialize the record manager to which we're
+    // holding a reference.  (For one thing, it would be a mess; for another,
+    // we don't want the deserializer creating a second record manager for
+    // the same managed class at the other end.)  So, instead, we write out
+    // the name of the managed class, and then do black magic on the other
+    // end to get the appropriate manager there.
+
+    out.defaultWriteObject
+    out.writeObject( mgr.managedKlass.getName )
+  }
+
+  private def readObject(in: java.io.ObjectInputStream): Unit = {
+
+    in.defaultReadObject
+
+    // Get name of the class we're managing...
+
+    val managedKlassName = in.readObject.asInstanceOf[String]
+
+    // Set the read-only 'mgr' field of *this* RecordId.
+    // Serializers at least nominally have permission to do this sort
+    // of ugly black magic...
+
+    val fld = this.getClass.getDeclaredField( "mgr" )
+    fld.setAccessible( true )
+    fld.set( this, BaseRecordManager.forClassNamed( managedKlassName ))
+  }
 }
 
 object RecordId {
   implicit def toContentValue(id: RecordId[_]):ContentValue = CvLong(id.id)
+}
+
+/** Pickled version of a Record ID, for when Serialization seems like
+  * overkill, or just flaky.  Constructed by asking a full RecordId
+  * to pickle itself...
+  */
+
+case class PickledId private[orm] (idVal: Long, className: String) {
+  def unpickle: RecordId[_] = {
+    val mgr = BaseRecordManager.forClassNamed( className )
+    new RecordId( mgr.asInstanceOf[ BaseRecordManager[T] 
+                                    forSome {type T <: ManagedRecord}], 
+                  idVal )
+  }
+}
+
+private [orm]
+object BaseRecordManager {
+
+  private [orm] def forClassNamed( name: String ): BaseRecordManager[_] = {
+
+    // We have the name of the managed class.  We need to get the
+    // record manager, which we do by a somewhat convoluted path...
+    // creating a dummy object, and asking *it* what it thinks its
+    // manager ought to be.
+
+    val managedKlass = Class.forName( name )
+    val builder = ReflectUtils.getObjectBuilderForClass( managedKlass )
+    val dummyObject = builder().asInstanceOf[ ManagedRecord ]
+
+    dummyObject.id.mgr
+  }
 }
 
 /** Base class for mapping of [[org.positronicnet.orm.ManagedRecord]]s
@@ -154,7 +233,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 
   def unsavedId = {
     nextUnsavedId -= 1
-    RecordId( this, nextUnsavedId )
+    new RecordId( this, nextUnsavedId )
   }
 
   /**
@@ -164,7 +243,11 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     * if there is one constructor, and defaults for all its arguments,
     * we'll use that.  
     *
-    * In other cases, RecordManagers can override.
+    * Note that if you override this, you might want to provide a niladic
+    * constructor anyway on the class itself, or strange and unuseuful things
+    * will happen when attempting to serialize and deserialize our
+    * [[org.positronicnet.orm.RecordId]]s, e.g., when putting them into the
+    * extras of an android `Intent`.
     */
 
   def newRecord = builder()
@@ -390,7 +473,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   def save( rec: T, scope: Scope[T] ): RecordId[T] = {
     val data = dataPairs( rec )
     if (rec.isNewRecord) 
-      return RecordId( this, insert( data ).asInstanceOf[Long] )
+      return new RecordId( this, insert( data ).asInstanceOf[Long] )
     else {
       update( rec, data )
       return rec.id.asInstanceOf[RecordId[T]]

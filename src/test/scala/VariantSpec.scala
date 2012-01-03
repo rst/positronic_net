@@ -6,7 +6,7 @@ import org.positronicnet.db._
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
-import org.positronicnet.test.RobolectricTests
+import org.positronicnet.test.{RobolectricTests,SerializationTestHelpers}
 import com.xtremelabs.robolectric.Robolectric
 
 // Simple single-template inheritance schema
@@ -152,6 +152,7 @@ class VariantSpec
   with ShouldMatchers
   with BeforeAndAfterEach
   with RobolectricTests
+  with SerializationTestHelpers
 {
   override def beforeEach = {
     PeopleDb.openInContext( Robolectric.application )
@@ -316,6 +317,26 @@ class VariantSpec
             .map{ _.getString(0) }
         blagoPeople.map{ _.name } should equal (blagoNames)
       }
+    }
+  }
+
+  describe("serialization and deserialization of records and IDs") {
+    it ("should be able to handle IDs") {
+      val students = People.students.order("name").fetchOnThisThread
+      val tuple = (students(0).id, students(1).id)
+      assertSerializationPreservesEquality( tuple )
+    }
+    it ("should be able to handle whole records") {
+      val students = People.students.order("name").fetchOnThisThread
+      val tuple = (students(0), students(1))
+      assertSerializationPreservesEquality( tuple )
+    }
+    it ("should be able to use a deserialized ID in a find") {
+      val undoneItems = People.students.order("name").fetchOnThisThread
+      val roundtripIdObj = serializationRoundTrip( undoneItems(0).id )
+      val roundtripId = roundtripIdObj.asInstanceOf[ RecordId[ Student ]]
+      val item = roundtripId.fetchOnThisThread
+      item should equal (undoneItems(0))
     }
   }
 }

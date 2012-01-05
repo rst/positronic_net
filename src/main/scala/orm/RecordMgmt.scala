@@ -113,12 +113,33 @@ trait ManagedRecord extends Object {
   */
 
 class RecordId[T <: ManagedRecord] private[orm] (
-    @transient val mgr: BaseRecordManager[T],
+    @transient val mgrArg: BaseRecordManager[T],
     val id: Long)
   extends NonSharedNotifier[T]
   with Serializable
 {
   def isNewRecord = id < 0
+
+  // Bookkeeping to keep track of record manager across serialization.
+  // (Doing this with custom readObject and writeObject methods
+  // was... glitchy when attaching serialized RecordIds as extras to
+  // Intents, so instead we do this.)
+
+  @transient private var mgrCache = mgrArg
+  private val className: String = mgrArg.managedKlass.getName
+  
+  /** Record manager for this ID.  Ordinarily it's just a reference to
+    * the record manager that constructed us, but if we got serialized and
+    * deserialized, the 
+    */
+
+  def mgr = {
+    if (mgrCache == null) {
+      val retrievedMgr = BaseRecordManager.forClassNamed( className )
+      mgrCache = retrievedMgr.asInstanceOf[ BaseRecordManager[ T ]]
+    }
+    mgrCache
+  }
 
   private[orm] var savedId = id
   private[orm] def markedSaved( savedId: Long ) = { this.savedId = savedId }
@@ -139,62 +160,10 @@ class RecordId[T <: ManagedRecord] private[orm] (
       case _ => thunk
     }
   }
-
-  /** Produce a 'pickled' version of this RecordId, which may be easier
-    * to serialize...
-    */
-
-  def pickle = PickledId( id, mgr.managedKlass.getName )
-
-  // Serialization.  We need a niladic constructor for it to work...
-
-  private def writeObject(out: java.io.ObjectOutputStream): Unit = {
-
-    // We don't want to try to serialize the record manager to which we're
-    // holding a reference.  (For one thing, it would be a mess; for another,
-    // we don't want the deserializer creating a second record manager for
-    // the same managed class at the other end.)  So, instead, we write out
-    // the name of the managed class, and then do black magic on the other
-    // end to get the appropriate manager there.
-
-    out.defaultWriteObject
-    out.writeObject( mgr.managedKlass.getName )
-  }
-
-  private def readObject(in: java.io.ObjectInputStream): Unit = {
-
-    in.defaultReadObject
-
-    // Get name of the class we're managing...
-
-    val managedKlassName = in.readObject.asInstanceOf[String]
-
-    // Set the read-only 'mgr' field of *this* RecordId.
-    // Serializers at least nominally have permission to do this sort
-    // of ugly black magic...
-
-    val fld = this.getClass.getDeclaredField( "mgr" )
-    fld.setAccessible( true )
-    fld.set( this, BaseRecordManager.forClassNamed( managedKlassName ))
-  }
 }
 
 object RecordId {
   implicit def toContentValue(id: RecordId[_]):ContentValue = CvLong(id.id)
-}
-
-/** Pickled version of a Record ID, for when Serialization seems like
-  * overkill, or just flaky.  Constructed by asking a full RecordId
-  * to pickle itself...
-  */
-
-case class PickledId private[orm] (idVal: Long, className: String) {
-  def unpickle: RecordId[_] = {
-    val mgr = BaseRecordManager.forClassNamed( className )
-    new RecordId( mgr.asInstanceOf[ BaseRecordManager[T] 
-                                    forSome {type T <: ManagedRecord}], 
-                  idVal )
-  }
 }
 
 private [orm]

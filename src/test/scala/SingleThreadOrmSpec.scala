@@ -238,13 +238,6 @@ class SingleThreadOrmSpec
       val item = roundtripId.fetchOnThisThread
       item should equal (undoneItems(0))
     }
-    it ("should abe able to pickle and unpickle IDs") {
-      val undoneItems = TodoItems.whereEq( "is_done" -> false).fetchOnThisThread
-      val pickle = undoneItems(0).id.pickle
-      val unpickle = pickle.unpickle
-      val refoundItem = unpickle.fetchOnThisThread
-      refoundItem should equal (undoneItems(0))
-    }
   }
 
   // Have access to internals, since the test is in a subpackage

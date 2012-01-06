@@ -24,7 +24,7 @@ object ResourceId {
       val numPkgComponents = components.size - 1
 
       def pkgName( numComponents: Int ) = 
-        components.slice(0, numComponents).reduce(_ + "." + _)
+        components.slice(0, numComponents).reduceLeft(_ + "." + _)
 
       val pkg = pkgName( numPkgComponents )
 

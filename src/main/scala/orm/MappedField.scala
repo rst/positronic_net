@@ -107,6 +107,9 @@ abstract class MappedField( colName: String,
   var realColNumber   = colNumber       // may be reset by atIndex...
   val mappedHow       = how
 
+  override def toString = 
+    super.toString + "(" + colName + "," + realColNumber + "," + how + ")"
+
   def atIndex( newColNumber: Int ) = {
     val result = this.clone.asInstanceOf[ MappedField ]
     result.realColNumber = newColNumber

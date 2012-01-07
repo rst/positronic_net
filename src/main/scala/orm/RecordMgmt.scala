@@ -154,6 +154,8 @@ class RecordId[T <: ManagedRecord] private[orm] (
         false
     }
 
+  override def toString = "RecordId(" + className + ", " + id.toString + ")"
+
   def onThread( thunk: => Unit ) = { 
     mgr.facility match {
       case w: WorkerThread => w.runOnThread{ thunk }

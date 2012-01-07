@@ -93,11 +93,12 @@ class AssociationSpec
     }
   }
 
-  describe( "join support" ) {
+  describe( "one-to-many join support" ) {
     it ("should fetch appropriate values, including outer join handling") {
 
-      // This is a mess, but adequate to model implicit joins in content
-      // providers, which is most of what we want this for right now.
+      // This declaration is a mess, but adequate to model implicit
+      // joins in content providers, which is most of what we want
+      // this for right now.
       //
       // We'll probably want something later which computes the column
       // names and queries, assuming that we have simple mappings to tables
@@ -107,26 +108,29 @@ class AssociationSpec
 
       object myJoin  extends OneToManyJoin( 
         TodoLists, TodoItems,
-        Seq("name", "todo_items._id", "todo_list_id", "description", "is_done"),
+        Seq("todo_lists._id", "name", 
+            "todo_items._id", "todo_list_id", "description", "is_done"),
         TodoDb( "todo_lists left join todo_items on" +
                 " todo_lists._id = todo_items.todo_list_id" ).
           order ("name, description")
       ) {
-        remap( LeftCol("_id"),  "todo_list_id"   )
+        remap( LeftCol("_id"),  "todo_lists._id" )
         remap( RightCol("_id"), "todo_items._id" )
       }
 
       // Toss in an empty list, for the outer join.
 
       TodoLists.onThisThread( Save (TodoList( "empty list" )))
+      val emptyList = 
+        (TodoLists.whereEq( "name" -> "empty list" ).fetchOnThisThread)(0)
 
       // Run a query, and see what happens...
 
       val theGoods = myJoin.fetchOnThisThread
 
-      theGoods(0)._1      should equal (catList)
-      theGoods(1)._1      should equal (dogList)
-      theGoods(2)._1.name should equal ("empty list")
+      theGoods(0)._1 should equal (catList)
+      theGoods(1)._1 should equal (dogList)
+      theGoods(2)._1 should equal (emptyList)
 
       for ( (list, items) <- theGoods ) {
         items.toSeq should equal (

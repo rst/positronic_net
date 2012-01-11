@@ -89,6 +89,7 @@ case class TodoItem( description: String  = null,
                    )
   extends ManagedRecord
 {
+  def description_:=( s: String ) = copy( description = s )
   def isDone( newVal: Boolean ) = copy( isDone = newVal )
 }
 

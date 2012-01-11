@@ -142,6 +142,65 @@ class SingleThreadOrmSpec
         _.id should not equal( -1 )
       }
     }
+
+    describe ("IDs on insert") {
+
+      def testSetup = {
+        val record = TodoItem( "train dog", false )
+        TodoItems.onThisThread( Save( record ))
+        record
+      }
+
+      it ("should record saved ID") {
+        val record = testSetup
+        assert (record.id.id < 0)
+        assert (record.id.savedId > 0)
+      }
+
+      it ("should be able to re-find") {
+        val record = testSetup
+        val newRec = record.id.fetchOnThisThread
+
+        newRec.description should be ("train dog")
+        newRec.isDone should be (false)
+
+        // Note that the original record still has its notionally-immutable
+        // unsaved ID, with its exposed long 'id' variable, so it shouldn't
+        // compare equal to a query result.  Then again, contents may "shift
+        // in transit" for a variety of reasons --- canonicalization of data
+        // rows by complex content providers, etc. ...
+
+        newRec.id should not equal (record.id)
+        newRec should not equal (record)
+      }
+      
+      it ("should preserve equality of IDs") {
+        val record = testSetup
+        record.id should equal (new RecordId(TodoItems, record.id.id))
+      }
+
+      // ... and, the whole *point* of this rigamarole...
+
+      it ("should enable saves of structures of related records") {
+
+        val newList = TodoList( "fish list" )
+        val newItem1 = TodoItem( "feed fish", true, newList.id )
+        val newItem2 = newList.items.create.description_:=( "clean bowl" )
+
+        TodoLists.onThisThread( Save (newList)  )
+        TodoItems.onThisThread( Save (newItem1) )
+        TodoItems.onThisThread( Save (newItem2) )
+        
+        val savedList = 
+          (TodoLists.whereEq("name"->"fish list").fetchOnThisThread)(0)
+        val savedItems = savedList.items.order("description").fetchOnThisThread
+
+        savedItems.map(it=>(it.description, it.isDone)).toList should equal (
+          List(("clean bowl",false),("feed fish", true)))
+      }
+
+    }
+
   }
 
   describe( "ORM .order(...) subscopes" ) {

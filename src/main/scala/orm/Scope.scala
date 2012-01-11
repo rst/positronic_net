@@ -390,14 +390,14 @@ class HasManyAssociation[ T <: ManagedRecord ]( base:       Scope[ T ],
 {
   override def toString = "HasMany: " + notificationManagerDelegate.toString
 
-  lazy val foreignKeyField = mgr.fieldByDbName( foreignKey )
+  lazy val foreignKeyField = mgr.fieldByDbName( foreignKey ).recordField
 
   /** Create a new child record, with the foreign key field pre-populated.
     */
 
   def create: T = {
     val target = mgr.newRecord
-    foreignKeyField.setValue( target, idVal.id )
+    foreignKeyField.set( target, idVal )
     target
   }
 

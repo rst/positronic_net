@@ -142,7 +142,7 @@ class RecordId[T <: ManagedRecord] private[orm] (
   }
 
   private[orm] var savedId = id
-  private[orm] def markedSaved( savedId: Long ) = { this.savedId = savedId }
+  private[orm] def markSaved( savedId: Long ) = { this.savedId = savedId }
 
   protected def currentValue = mgr.find( this, mgr.baseQuery )
 
@@ -153,6 +153,9 @@ class RecordId[T <: ManagedRecord] private[orm] (
       case _ =>
         false
     }
+
+  // hashCode --- equals doesn't check savedId; nor should this
+  override def hashCode = id.asInstanceOf[Int]
 
   override def toString = "RecordId(" + className + ", " + id.toString + ")"
 
@@ -443,12 +446,14 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   protected [orm]
   def save( rec: T, scope: Scope[T] ): RecordId[T] = {
     val data = dataPairs( rec )
-    if (rec.isNewRecord) 
-      return new RecordId( this, insert( data ).asInstanceOf[Long] )
+    if (rec.isNewRecord) {
+      rec.id.markSaved( this.insert( data ) )
+    }
     else {
       update( rec, data )
-      return rec.id.asInstanceOf[RecordId[T]]
     }
+      
+    return rec.id.asInstanceOf[RecordId[T]]
   }
 
   protected [orm]
@@ -458,7 +463,8 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   }
 
   private
-  def insert( vals: Seq[(String, ContentValue)] ) = repository.insert( vals:_* )
+  def insert( vals: Seq[(String, ContentValue)] ) = 
+    repository.insert( vals:_* ).asInstanceOf[Long]
 
   private
   def update( rec: T, vals: Seq[(String, ContentValue)] ) =
@@ -476,7 +482,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   protected [orm]
   def find( id: RecordId[T], qry: ContentQuery[_,_] ) = {
     this.fields                         // make sure PK is set!
-    fetchRecords( qry.whereEq( primaryKeyField.dbColumnName -> id.id ))(0)
+    fetchRecords( qry.whereEq( primaryKeyField.dbColumnName -> id.savedId ))(0)
   }
 
   protected [orm]

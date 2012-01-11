@@ -104,6 +104,7 @@ abstract class MappedField( colName: String,
 
   val dbColumnName    = colName
   val recordFieldName = rfield.getName
+  val recordField     = rfield
   var realColNumber   = colNumber       // may be reset by atIndex...
   val mappedHow       = how
 
@@ -230,7 +231,9 @@ class MappedBooleanField( colName: String,
 private [orm]
 object MappedIdField {
   val idField = classOf[RecordId[_]].getDeclaredField("id")
+  val savedIdField = classOf[RecordId[_]].getDeclaredField("savedId")
   idField.setAccessible( true )
+  savedIdField.setAccessible( true )
 }
 
 private [orm]
@@ -246,13 +249,19 @@ class MappedIdField( colName: String,
   // object, and just dink that.
 
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = {
-    val recordIdObj = rfield.get( o )
-    MappedIdField.idField.set( recordIdObj, c.getLong( realColNumber ))
+    val recordIdObj = rfield.get( o ).asInstanceOf[ RecordId[_] ]
+    val newId = c.getLong( realColNumber )
+
+    // Set both 'id' and 'savedId' fields.  What I get for having them both,
+    // I guess...
+
+    MappedIdField.idField.set( recordIdObj, newId )
+    recordIdObj.markSaved( newId )
   }
   
   def getValue( o: AnyRef ): ContentValue = {
     val recordIdObj = rfield.get( o )
-    new CvLong( MappedIdField.idField.getLong( recordIdObj ) )
+    new CvLong( MappedIdField.savedIdField.getLong( recordIdObj ) )
   }
 
   def setValue( o: AnyRef, l: ContentValue ): Unit = {

@@ -51,6 +51,10 @@ object TodoItemsSafed extends RecordManager[ TodoItemSafed ]( TodoDb("todo_items
   // attempts to move an existing item from one todo list to another...
 
   mapField( "todoListId", "todo_list_id", MapAs.WriteOnce )
+
+  // Expose 'dataPairs' for testing...
+
+  override def dataPairs( rec: TodoItemSafed ) = super.dataPairs( rec )
 }
 
 // Test of automatic mapping of tables whose columns are named in

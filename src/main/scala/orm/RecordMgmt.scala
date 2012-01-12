@@ -456,7 +456,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     return rec.id.asInstanceOf[RecordId[T]]
   }
 
-  protected [orm]
+  protected
   def dataPairs( rec: T ) = {
     val fieldsToSave = if (rec.isNewRecord) fieldsForInsert else fieldsForUpdate
     fieldsToSave.map{ _.valPair( rec ) }

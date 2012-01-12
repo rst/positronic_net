@@ -613,19 +613,23 @@ trait FieldMappingFromStaticNames[ T <: ManagedRecord ]
 
   protected val fieldNamesSrcMap: Map[ String, String ]
 
-  // We don't have to delay field mapping until the DB is open, since
-  // we're not introspecting from a query result.  (Or at least, not here.)
-  // So...
+  override protected[orm] def fieldsSeq: Seq[ MappedField ] = {
 
-  for ((name, field) <- javaFields) {
-    if (!fieldsBuffer.exists{ _.recordFieldName == name }) {
-      fieldNamesSrcMap.get( deCamelize( field.getName )).map { colName =>
-        if (colName == "_id")
-          primaryKey( name, colName )
-        else                                                              
-          mapField( name, colName )
+    // This runs *after* the constructor, so explicit mappings there
+    // get into fieldsBuffer first...
+
+    for ((name, field) <- javaFields) {
+      if (!fieldsBuffer.exists{ _.recordFieldName == name }) {
+        fieldNamesSrcMap.get( deCamelize( field.getName )).map { colName =>
+          if (colName == "_id")
+            primaryKey( name, colName )
+          else                                                              
+            mapField( name, colName )
+        }
       }
     }
+
+    return super.fieldsSeq
   }
 
   private def deCamelize( s: String ): String = {

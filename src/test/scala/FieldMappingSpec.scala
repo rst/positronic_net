@@ -97,26 +97,28 @@ abstract class LabeledData extends ContactData {
 }
 
 case class Phone (
-  val number:    String            = null,
-  val labelType: Int               = -1,
-  val label:     String            = null,
-  val contactId: RecordId[Contact] = Contacts.unsavedId,
-  val id:        RecordId[Phone]   = ContactData.phones.unsavedId
+  val number:      String            = null,
+  val labelType:   Int               = -1,
+  val label:       String            = null,
+  val contactId:   RecordId[Contact] = Contacts.unsavedId,
+  val dataVersion: Int               = -1,
+  val id:          RecordId[Phone]   = ContactData.phones.unsavedId
 ) extends LabeledData
 
 case class Email (
-  val address:   String            = null,
-  val label:     String            = null,
-  val labelType: Int               = -1,
-  val contactId: RecordId[Contact] = Contacts.unsavedId,
-  val id:        RecordId[Email]   = ContactData.emails.unsavedId
+  val address:     String            = null,
+  val label:       String            = null,
+  val labelType:   Int               = -1,
+  val contactId:   RecordId[Contact] = Contacts.unsavedId,
+  val dataVersion: Int               = -1,
+  val id:          RecordId[Email]   = ContactData.emails.unsavedId
 ) extends LabeledData
 
 case class UnknownData (
-  val mimetype:  String                = null,
-  val data1:     String                = null,
-  val contactId: RecordId[Contact]     = Contacts.unsavedId,
-  val id:        RecordId[UnknownData] = ContactData.unknowns.unsavedId
+  val mimetype:    String                = null,
+  val data1:       String                = null,
+  val contactId:   RecordId[Contact]     = Contacts.unsavedId,
+  val id:          RecordId[UnknownData] = ContactData.unknowns.unsavedId
 ) extends ContactData
 
 object ContactData
@@ -128,7 +130,7 @@ object ContactData
   def dataKindMapper[ TRec <: LabeledData : ClassManifest,
                       TKind : ClassManifest ] = 
     new TaggedVariantForFields[ TRec, TKind ](
-      ReflectUtils.getStatic[ String, TKind ]("MIMETYPE")
+      ReflectUtils.getStatic[ String, TKind ]("CONTENT_ITEM_TYPE")
     ) {
       // Need to special-case the "type" field, since that's a reserved
       // word in Scala.  And since we have trouble accessing the value of
@@ -136,6 +138,11 @@ object ContactData
       // we just type it in.  (It is documented, and they're hardly likely
       // changing it would break deployed apps, so it's not likely to happen.)
       mapField( "labelType", "data2" ) 
+
+      // "data version" is read-only...
+      mapField( "dataVersion",
+                ReflectUtils.getStatic[ String, ContactsContract.Data ]("DATA_VERSION"),
+                MapAs.ReadOnly )
     }
 
   val phones = dataKindMapper[ Phone, CommonDataKinds.Phone ] 
@@ -274,7 +281,9 @@ class FieldMappingSpec
       checkField( "date",       Calls.DATE,        MapAs.ReadWrite )
     }
     it( "should support overrides" ) {
-      checkField( "callType",   Calls.TYPE,        MapAs.ReadWrite )
+      checkField( "callType",    Calls.TYPE,       MapAs.ReadWrite )
+      checkFieldFrom( ContactData.phones )( 
+                  "dataVersion", "data_version",   MapAs.ReadOnly )
     }
     it( "should correctly default the URI" ) {
 

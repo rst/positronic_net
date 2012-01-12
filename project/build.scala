@@ -59,10 +59,18 @@ object AndroidBuild extends Build {
 
   // Bundled sample projects
 
-  def sampleProject( name: String, dir: String ) =
+  def sampleProject( name: String, dir: String ) = {
+    val projSrc = "sample/" + dir + "/src/main"
     Project( name, file("sample")/dir, 
-             settings = General.fullAndroidSettings 
-           ) dependsOn (libproj % "compile")
+             settings = General.fullAndroidSettings ++ (
+               testOptions in Test ++= Seq(
+                 Tests.Argument("-DandroidResPath=" + projSrc + "/res"),
+                 Tests.Argument("-DandroidManifestPath=" + projSrc + 
+                                "/AndroidManifest.xml"))
+             ))
+      .dependsOn (libproj % "compile")
+      .dependsOn (roboScalaTest % "test")
+  }
 
   lazy val todo     = sampleProject( "SampleTodo",     "todo_app" )
   lazy val call_log = sampleProject( "SampleCallLog",  "call_log_app" )

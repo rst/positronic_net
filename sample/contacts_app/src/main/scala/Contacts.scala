@@ -192,6 +192,54 @@ abstract class ContactDataWithRecordType extends ContactData
   def displayType = recordType.displayString
 }
 
+// Structured name records.  Note the special-case treatment of columns
+// on insert/update.  If we submit a display name *and nothing else*, the
+// content provider will attempt to fill in the first name, last name, etc.,
+// based on splitting the display name.  However, submitting even null or
+// empty values will prevent that.  So, we rig the record manager to produce
+// a mix most likely to get the behavior we want out of the content provider
+// in given instances.
+
+class StructuredName extends ContactData
+{
+  val displayName: String = null
+
+  val prefix:     String = null
+  val givenName:  String = null
+  val middleName: String = null
+  val familyName: String = null
+  val suffix:     String = null
+
+  val phoneticGivenName:  String = null
+  val phoneticMiddleName: String = null
+  val phoneticFamilyName: String = null
+
+  val id: RecordId[ StructuredName ] = ContactData.structuredNames.unsavedId
+}
+
+trait StructuredNameManager[T <: StructuredName] extends BaseRecordManager[T] {
+
+  override def dataPairs( n: T ) = {
+
+    import CommonDataKinds.{StructuredName => SN}
+
+    val basePairs = super.dataPairs(n)
+
+    val snFields = Seq( 
+      SN.PREFIX, SN.SUFFIX,
+      SN.GIVEN_NAME, SN.MIDDLE_NAME, SN.FAMILY_NAME,
+      SN.PHONETIC_GIVEN_NAME, SN.PHONETIC_MIDDLE_NAME, SN.PHONETIC_FAMILY_NAME)
+
+    val snPairs = basePairs.filter{ p => snFields.contains( p._1 )}
+
+    if (snPairs.exists{ _._2 != org.positronicnet.content.CvString(null) })
+      basePairs
+    else
+      basePairs.filter{ p => !snFields.contains( p._1 )}
+  }
+
+}
+
 // Phone records.  Here's where we have a subset of what's really allowed
 // (where what's allowed depends further on account type...)
 
@@ -240,19 +288,34 @@ object ContactData
     "mimetype" // documented value of ContactsContract.DataColumns.MIMETYPE
   )
 {
-  def dataKindMapper[ TRec <: ContactDataWithRecordType : ClassManifest,
-                      TKind : ClassManifest ] = 
-    new TaggedVariantForFields[ TRec, TKind ](
+  class DataKindMapper[ TRec <: ContactData : ClassManifest,
+                        TKind : ClassManifest ]
+    extends TaggedVariantForFields[ TRec, TKind ](
       ReflectUtils.getStatic[ String, TKind ]("CONTENT_ITEM_TYPE")
-    ) {
+    ) 
+  {
+    mapField( "dataVersion", 
+              ReflectUtils.getStatic[ String, CC.Data ]("DATA_VERSION"),
+              MapAs.ReadOnly )
+  }
+
+  class TypedDataKindMapper[ TRec <: ContactDataWithRecordType : ClassManifest,
+                             TKind : ClassManifest ]
+    extends TaggedVariantForFields[ TRec, TKind ](
+      ReflectUtils.getStatic[ String, TKind ]("CONTENT_ITEM_TYPE")
+    ) 
+    {
       mapField( "recType", ReflectUtils.getStatic[ String, TKind ]("TYPE") ) 
       mapField( "dataVersion", 
                 ReflectUtils.getStatic[ String, CC.Data ]("DATA_VERSION"),
                 MapAs.ReadOnly )
     }
 
-  val phones = dataKindMapper[ Phone, CommonDataKinds.Phone ] 
-  val emails = dataKindMapper[ Email, CommonDataKinds.Email ] 
+  val phones = new TypedDataKindMapper[ Phone, CommonDataKinds.Phone ] 
+  val emails = new TypedDataKindMapper[ Email, CommonDataKinds.Email ] 
+  val structuredNames = 
+    new DataKindMapper[ StructuredName, CommonDataKinds.StructuredName ]
+      with StructuredNameManager[ StructuredName ]
 
   val unknowns = 
     new CatchAllVariantForFields[ UnknownData, CC.Data ] {
@@ -264,7 +327,7 @@ object ContactData
 
 object ContactsUiBinder extends UiBinder
 
-class ContactsActivity extends PositronicActivity
+class ContactsDumpActivity extends PositronicActivity
 {
   onCreate {
     useAppFacility( PositronicContentResolver )

@@ -125,6 +125,18 @@ class ReflectUtilsSpec
         val map = ReflectUtils.getStatics[ Int, java.util.Calendar ]
         checkCalendarInts( map(_).intValue )
       }
+
+      it ("should handle redefinition of inherited statics") {
+
+        // Free test fixtures in the Android SDK!  Guess how I discovered
+        // this was an issue?
+
+        import android.provider.ContactsContract.CommonDataKinds.StructuredName
+
+        val strings = ReflectUtils.getStatics[ String, StructuredName ]
+        strings( "DISPLAY_NAME" ) should be ("data1")
+
+      }
     }
   }
 

@@ -76,14 +76,35 @@ object ReflectUtils
   // defined as static fields on some class, e.g., CallLog.Calls.  The ORM
   // uses this to fish out the names and associated values.)
 
-  def publicStaticValues[T]( valueKlass: Class[T], srcKlass: Class[_] ) = {
-
+  def publicStaticValues[T]( valueKlass: Class[T], 
+                             srcKlass: Class[_] ):Map[String,T] = 
+  {
     val ourFields = srcKlass.getFields.filter { f =>
       Modifier.isStatic( f.getModifiers ) && f.getType == valueKlass }
-    val pairs = 
-      ourFields map{ f => (f.getName -> f.get(null).asInstanceOf[T])}
+    val map = new scala.collection.mutable.HashMap[ String, Field ]
+
+    for (f <- ourFields) {
+      map.get( f.getName ) match {
+        case None => 
+          map( f.getName ) = f
+        case Some( ff ) => {
+          if (ff.getDeclaringClass.isAssignableFrom( f.getDeclaringClass )) {
+            // replace with field from more specific type
+            map( f.getName ) = f
+          }
+          else if (f.getDeclaringClass.isAssignableFrom(ff.getDeclaringClass)) {
+            // already had more specific type; do nothing
+          }
+          else {
+            android.util.Log.d( 
+              "XXX", 
+              valueKlass.getName+" has ambiguous definition for "+f.getName )
+          }
+        }
+      }
+    }
     
-    pairs.toMap
+    map.mapValues( _.get(null).asInstanceOf[T] ).toMap
   }
 
   // Extracting public static values of a given Java type from a Java class,

@@ -46,9 +46,9 @@ object Res extends AppFacility {
 //
 // (As are other details.  MS Exchange accounts are allowed only one
 // mobile phone number, two home or work numbers, etc.; I guess you
-// can ask Microsoft for the reasons.  And so forth.  What's supposed
-// to happen when you create a contact with two mobile numbers and
-// then assign it to an Exchange account is a bit mysterious...)
+// can ask Microsoft for the reasons.  And so forth.  Which is why
+// the interface has to ask what account that you're adding a contact
+// to before adding any data records.)
 
 case class TypeFieldInfo(
   val labelTypes: Seq[Int],
@@ -120,6 +120,9 @@ object Contacts
   extends RecordManagerForFields[ Contact, CC.Contacts ]
 
 // Raw-contacts table.
+//
+// Actual individual contacts, associated with accounts, which the
+// provider aggregates into the globs that are presented to users.
 
 case class RawContact (
   val contactId:       RecordId[Contact]    = Contacts.unsavedId,
@@ -154,6 +157,33 @@ object RawContacts
   mapField( "accountType", col("ACCOUNT_TYPE"), MapAs.WriteOnce )
 }
 
+// Groups table.
+//
+// Groups right now are per account.  We're mapping a subset...
+
+class Group extends ManagedRecord {
+
+  val accountName:  String          = null
+  val accountType:  String          = null
+  val title:        String          = null
+  val notes:        String          = null
+  val groupVisible: Boolean         = false
+  val id:           RecordId[Group] = Groups.unsavedId
+
+  override def toString = "Group: " + 
+    (if (!groupVisible) "[INVIS] " else "") +
+    accountName + " " + accountType + " '" +
+    title + "' '" + notes + "'"
+}
+
+object Groups extends RecordManagerForFields[ Group, CC.Groups ]
+{
+  private val col = ReflectUtils.getStatics[ String, CC.Groups ]
+
+  mapField( "accountName", col("ACCOUNT_NAME"), MapAs.WriteOnce )
+  mapField( "accountType", col("ACCOUNT_TYPE"), MapAs.WriteOnce )
+}
+
 // Contact-data table.  
 //
 // Note that "mimetype" isn't here because it isn't actually mapped
@@ -164,32 +194,11 @@ abstract class ContactData
   extends ManagedRecord with ReflectiveProperties
 {
   // Generic fields...
-
   val contactId:      RecordId[ Contact ]    = Contacts.unsavedId
   val rawContactId:   RecordId[ RawContact ] = RawContacts.unsavedId
   val isPrimary:      Boolean                = false
   val isSuperPrimary: Boolean                = false
   val dataVersion:    Int                    = -1 // read-only
-}
-
-abstract class ContactDataWithRecordType extends ContactData 
-{
-  val recType: Int = PhoneTypeInfo.customType
-  val label: String = "unset"
-
-  val recTypeInfo: TypeFieldInfo
-
-  lazy val recordType = TypeField( recType, label, recTypeInfo )
-
-  def recordType_:=( newType: TypeField ) =
-    if ( newType.recType == recTypeInfo.customType )
-      this.setProperty[Int]("recType", newType.recType)
-          .setProperty[String]("label", newType.label)
-    else
-      this.setProperty[Int]("recType", newType.recType)
-          .setProperty[String]("label", null)
-
-  def displayType = recordType.displayString
 }
 
 // Structured name records.  Note the special-case treatment of columns
@@ -215,6 +224,12 @@ class StructuredName extends ContactData
   val phoneticFamilyName: String = null
 
   val id: RecordId[ StructuredName ] = ContactData.structuredNames.unsavedId
+
+  override def toString = {
+    val components =
+      Seq( displayName, prefix, givenName, middleName, familyName, suffix )
+    "Name: '" + components.reduceLeft(_+"' '"+_) + "'"
+  }
 }
 
 trait StructuredNameManager[T <: StructuredName] extends BaseRecordManager[T] {
@@ -240,7 +255,41 @@ trait StructuredNameManager[T <: StructuredName] extends BaseRecordManager[T] {
 
 }
 
-// Phone records.  Here's where we have a subset of what's really allowed
+// Group membership records.  For inserts, you can set a "source id"
+// as opposed to the actual group ID; we're not bothering with this
+// for now.
+
+class GroupMembership extends ContactData
+{
+  val groupRowId: RecordId[Group] = Groups.unsavedId
+  val id: RecordId[GroupMembership] = ContactData.groupMemberships.unsavedId
+}
+
+// Common machinery for rows that have a "record type", which is
+// jargon for a Home/Work/Mobile category, as for phone numbers
+// or email addresses.
+
+abstract class ContactDataWithRecordType extends ContactData 
+{
+  val recType: Int = PhoneTypeInfo.customType
+  val label: String = "unset"
+
+  val recTypeInfo: TypeFieldInfo
+
+  lazy val recordType = TypeField( recType, label, recTypeInfo )
+
+  def recordType_:=( newType: TypeField ) =
+    if ( newType.recType == recTypeInfo.customType )
+      this.setProperty[Int]("recType", newType.recType)
+          .setProperty[String]("label", newType.label)
+    else
+      this.setProperty[Int]("recType", newType.recType)
+          .setProperty[String]("label", null)
+
+  def displayType = recordType.displayString
+}
+
+// Phone records.  Here's where we now have a subset of what's really allowed
 // (where what's allowed depends further on account type...)
 
 class Phone extends ContactDataWithRecordType {
@@ -313,6 +362,9 @@ object ContactData
 
   val phones = new TypedDataKindMapper[ Phone, CommonDataKinds.Phone ] 
   val emails = new TypedDataKindMapper[ Email, CommonDataKinds.Email ] 
+
+  val groupMemberships =
+    new DataKindMapper[ GroupMembership, CommonDataKinds.GroupMembership ]
   val structuredNames = 
     new DataKindMapper[ StructuredName, CommonDataKinds.StructuredName ]
       with StructuredNameManager[ StructuredName ]
@@ -343,10 +395,18 @@ class ContactsDumpActivity extends PositronicActivity
               Log.d("XXX","  Phone: "+ phone.displayType +" "+ phone.number)
             case email: Email =>
               Log.d("XXX","  Email: "+ email.displayType +" "+ email.address)
+            case name: StructuredName =>
+              Log.d("XXX", name.toString )
+            case membership: GroupMembership =>
+              Log.d("XXX","  Group: " + membership.groupRowId.fetchOnThisThread)
             case stuff: UnknownData =>
               Log.d("XXX","  " + stuff.mimetype + " " + stuff.data1)
           }
         }
+      }
+      for ( group <- Groups.fetchOnThisThread ) {
+        Log.d( "XXX", "Group: " + group.id )
+        Log.d( "XXX", group.toString )
       }
     }
   }

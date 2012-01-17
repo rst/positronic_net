@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-sdk android:minSdkVersion="7"></uses-sdk>
     <application android:label="Positronic Contacts">
-        <activity android:label="Positronic Contacts" android:name=".ContactsDumpActivity">
+        <activity android:label="Positronic Contacts" android:name=".ContactsActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"></action>
                 <category android:name="android.intent.category.LAUNCHER"></category>

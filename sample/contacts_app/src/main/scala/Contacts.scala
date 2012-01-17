@@ -2,7 +2,6 @@ package org.positronicnet.sample.contacts
 
 import org.positronicnet.content._
 import org.positronicnet.orm._
-import org.positronicnet.ui._
 import org.positronicnet.notifications._
 import org.positronicnet.notifications.Actions._
 import org.positronicnet.facility._
@@ -12,11 +11,6 @@ import org.positronicnet.util.ReflectUtils
 
 import android.content.Context
 import android.util.AttributeSet
-
-import android.util.Log
-import android.view.View
-import android.view.KeyEvent
-import android.widget.TextView
 
 import android.provider.{ContactsContract => CC}
 import android.provider.ContactsContract.CommonDataKinds
@@ -96,7 +90,7 @@ class ReflectiveTypeFieldInfo[ Stuff : ClassManifest ](
 
 case class Contact (
   val lookupKey:          String            = "",
-  val primaryDisplayName: String            = "",
+  val displayNamePrimary: String            = "",
   val photoUri:           String            = "",
   val photoThumbnailUri:  String            = "",
   val inVisibleGroup:     Boolean           = false,
@@ -105,7 +99,7 @@ case class Contact (
   val sendToVoicemail:    Boolean           = true,
   val id:                 RecordId[Contact] = Contacts.unsavedId
 ) 
-extends ManagedRecord
+extends ManagedRecord with ReflectiveProperties
 {
   lazy val raw = 
     new HasMany( RawContacts, 
@@ -129,11 +123,12 @@ case class RawContact (
   val starred:         Boolean              = false,
   val customRingtone:  String               = "",
   val sendToVoicemail: Boolean              = true,
+  val deleted:         Boolean              = false,
   val accountName:     String               = "",
   val accountType:     String               = "",
   val id:              RecordId[RawContact] = RawContacts.unsavedId
 ) 
-extends ManagedRecord
+extends ManagedRecord with ReflectiveProperties
 {
   lazy val data = 
     new HasMany( ContactData, 
@@ -377,38 +372,4 @@ object ContactData
     }
 }
 
-object ContactsUiBinder extends UiBinder
-
-class ContactsDumpActivity extends PositronicActivity
-{
-  onCreate {
-    useAppFacility( PositronicContentResolver )
-    useAppFacility( Res )               // stash a copy of the Resources
-    setContentView( R.layout.contacts )
-
-    Contacts.onThread {
-      for ( contact <- Contacts.fetchOnThisThread ) {
-        Log.d( "XXX", "Contact: " + contact.primaryDisplayName )
-        for ( datum <- contact.data.fetchOnThisThread ) {
-          datum match {
-            case phone: Phone => 
-              Log.d("XXX","  Phone: "+ phone.displayType +" "+ phone.number)
-            case email: Email =>
-              Log.d("XXX","  Email: "+ email.displayType +" "+ email.address)
-            case name: StructuredName =>
-              Log.d("XXX", name.toString )
-            case membership: GroupMembership =>
-              Log.d("XXX","  Group: " + membership.groupRowId.fetchOnThisThread)
-            case stuff: UnknownData =>
-              Log.d("XXX","  " + stuff.mimetype + " " + stuff.data1)
-          }
-        }
-      }
-      for ( group <- Groups.fetchOnThisThread ) {
-        Log.d( "XXX", "Group: " + group.id )
-        Log.d( "XXX", group.toString )
-      }
-    }
-  }
-}
 

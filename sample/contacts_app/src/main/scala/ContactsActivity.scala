@@ -22,6 +22,9 @@ class ContactsActivity
     useAppFacility( PositronicContentResolver )
     useAppFacility( Res )               // stash a copy of the Resources
     setContentView( R.layout.contacts )
+    
+    useOptionsMenuResource( R.menu.contacts_menu )
+    onOptionsItemSelected( R.id.dump_contacts ){ dumpToLog }
   }
 
   onResume {

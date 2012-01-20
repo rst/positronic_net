@@ -21,7 +21,7 @@ import android.preference.{Preference,PreferenceGroup,
                            CheckBoxPreference,EditTextPreference}
 
 import android.view.{View,ViewGroup}
-import android.widget.{TextView, EditText, CheckBox,
+import android.widget.{TextView, EditText, CheckBox, Spinner,
                        LinearLayout, CheckedTextView}
 
 // Entity being nominally bound to UI components (for now, prefs).
@@ -44,6 +44,9 @@ class CanaryBinder extends UiBinder
       canary.copy( blurb = view.getText.toString,
                    flag  = view.isChecked )
     }))
+
+  bind[CanarySpinner, Canary](
+    (_.setCanary(_)), ((x,y) => x.getCanary))
 }
 
 // The spec itself
@@ -189,6 +192,14 @@ class UiBinderSpec
         updated should equal (Canary (false, "blue"))
       }
     }
+
+    describe( "of compound views" ) {
+      it ("should find explicit bindings to ViewGroups") {
+        val view = new CanarySpinner( myContext )
+        myBinder.show( Canary( true, "yellow" ), view )
+        view.getCanary should equal ( Canary( true, "yellow" ))
+      }
+    }
   }
 
   describe( "binding to a random TextView" ) {
@@ -326,3 +337,10 @@ class HackedCheckedTextView( ctx: Context )
   override def setChecked( b: Boolean ):Unit = { checked = b }
 }
 
+class CanarySpinner( ctx: Context ) extends Spinner( ctx )
+{
+  var canary: Canary = null
+
+  def getCanary = canary
+  def setCanary( c: Canary ) = { this.canary = c }
+}

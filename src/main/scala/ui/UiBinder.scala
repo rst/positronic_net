@@ -5,6 +5,7 @@ import android.preference.{Preference,PreferenceGroup,
 
 import android.view.{View,ViewGroup}
 import android.widget.{TextView,CheckBox}
+import android.util.Log
 
 import org.positronicnet.util.{ReflectiveProperties,
                                PropertyLens,
@@ -121,6 +122,9 @@ class PropertyBindingFactory[ TWidget <: Object,
       case Some(option) => 
         option
       case None => {
+        Log.d( "UiBinder",
+               "Seeking property of type " + propKlass + " named '" +
+               propName + "' on " + dataKlass )
         val newOption = 
           lensFactory.forProperty( dataKlass, propName ) map { lens =>
             new PropertyBinding( readFunc, writeFunc, lens) }
@@ -360,19 +364,21 @@ class UiBinder
 
   private
   def showInner( toShow: Object, view: View, topLvl: Boolean ): Unit = {
-    view match {
-      case grp: ViewGroup =>
-        for (i <- 0 to grp.getChildCount - 1)
-          showInner( toShow, grp.getChildAt( i ), false)
-      case _ =>
-        getBinder(view, toShow) match {
-          case Some(binder) => binder.show( view, toShow )
-          case None => 
+
+    getBinder(view, toShow) match {
+
+      case Some(binder) => 
+        binder.show( view, toShow )
+
+      case None =>
+        view match {
+          case grp: ViewGroup =>
+            for (i <- 0 to grp.getChildCount - 1)
+              showInner( toShow, grp.getChildAt( i ), false)
+          case txt:TextView =>
             if (topLvl)
-              view match {
-                case txt:TextView => txt.setText( toShow.toString )
-                case _ =>
-              }
+              txt.setText( toShow.toString )
+          case _ => // do nothing
         }
     }
   }

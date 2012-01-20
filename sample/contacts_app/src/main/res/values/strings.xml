@@ -1,0 +1,4 @@
+<resources>
+  <string name="phone_header">Phone</string>
+  <string name="email_header">Email</string>
+</resources>

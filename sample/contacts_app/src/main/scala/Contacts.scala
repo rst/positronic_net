@@ -4,7 +4,6 @@ import org.positronicnet.content._
 import org.positronicnet.orm._
 import org.positronicnet.notifications._
 import org.positronicnet.notifications.Actions._
-import org.positronicnet.facility._
 
 import org.positronicnet.util.ReflectiveProperties
 import org.positronicnet.util.ReflectUtils
@@ -15,68 +14,12 @@ import android.util.AttributeSet
 import android.provider.{ContactsContract => CC}
 import android.provider.ContactsContract.CommonDataKinds
 
-// Utility plumbing for dealing with resources.
-// The naming here (Res.ources) is about as awkward as the mechanism...
-
-object Res extends AppFacility {
-
-  private var resCache: android.content.res.Resources = null
-
-  protected override def realOpen( ctx: Context ): Unit = 
-    resCache = ctx.getResources
-
-  def ources = resCache
-}
-
-// Class that represents the value of a "label-or-custom" field.
-// These are backed by two underlying fields, one an integer "type"
-// (which we generally style "recType" since "type" is a reserved
-// word in Scala), and one the custom label, if any.
-//
-// This also requires a list of possible "types", to support
-// changes --- which is a bit of an awkward subject, since the set
-// of allowed values depends on the accountType, and the details of
-// that are baked into the source code of the standard Contacts app.
-//
-// (As are other details.  MS Exchange accounts are allowed only one
-// mobile phone number, two home or work numbers, etc.; I guess you
-// can ask Microsoft for the reasons.  And so forth.  Which is why
-// the interface has to ask what account that you're adding a contact
-// to before adding any data records.)
-
-case class TypeFieldInfo(
-  val labelTypes: Seq[Int],
-  val customType: Int,
-  val toResource: (Int => Int)
-)
-
-case class TypeField(
-  val recType: Int,
-  val label:   String,
-  val info:    TypeFieldInfo
-)
-{
-  def recType_:=( newType: Int ) = 
-    this.copy( recType = newType, label = null )
-
-  def label_:=( s: String ) = 
-    this.copy( recType = info.customType, label = s )
-
-  def isCustom = (recType == info.customType)
-
-  def displayString =
-    if (recType == info.customType)
-      label
-    else
-      Res.ources.getString( info.toResource( recType ))
-}
-
 // Convenience class for digging as much as we can out of
 // Android standard data...
 
 class ReflectiveTypeFieldInfo[ Stuff : ClassManifest ]( 
     func: (Int => Int),
-    types: Seq[String]
+    types: IndexedSeq[String]
   )
   extends TypeFieldInfo( types.map{ ReflectUtils.getStatic[ Int, Stuff ](_) },
                          ReflectUtils.getStatic[ Int, Stuff ]( "TYPE_CUSTOM" ),
@@ -263,11 +206,22 @@ class GroupMembership extends ContactData
 // Common machinery for rows that have a "record type", which is
 // jargon for a Home/Work/Mobile category, as for phone numbers
 // or email addresses.
+//
+// Note that we are not yet dealing with restrictions on Exchange
+// account contacts, which are limited both in the total number of,
+// say, email addresses associated with any one contact, and the
+// number of email addresses of a particular type ("Home", "Work",
+// etc.)
+//
+// (FWIW, support for these restrictions is why the interface has to
+// ask what account that you're adding a contact to before adding any
+// data records --- it needs to know which set of restrictions applies,
+// and that depends on the account type.)
 
 abstract class ContactDataWithRecordType extends ContactData 
 {
-  val recType: Int = PhoneTypeInfo.customType
-  val label: String = "unset"
+  val recType: Int    = PhoneTypeInfo.customType
+  val label:   String = null
 
   val recTypeInfo: TypeFieldInfo
 
@@ -297,7 +251,8 @@ class Phone extends ContactDataWithRecordType {
 object PhoneTypeInfo 
   extends ReflectiveTypeFieldInfo[ CommonDataKinds.Phone ](
     (CommonDataKinds.Phone.getTypeLabelResource _),
-    Seq( "TYPE_HOME", "TYPE_WORK", "TYPE_MOBILE", "TYPE_OTHER", "TYPE_CUSTOM" ))
+    IndexedSeq( "TYPE_HOME", "TYPE_WORK", "TYPE_MOBILE", 
+                "TYPE_OTHER", "TYPE_CUSTOM" ))
 
 // Email records.  Here we have the complete documented set, though
 // not the Exchange restriction of a limit of three.
@@ -312,7 +267,8 @@ class Email extends ContactDataWithRecordType {
 object EmailTypeInfo 
   extends ReflectiveTypeFieldInfo[ CommonDataKinds.Email ](
     (CommonDataKinds.Phone.getTypeLabelResource _),
-    Seq( "TYPE_HOME", "TYPE_WORK", "TYPE_MOBILE", "TYPE_OTHER", "TYPE_CUSTOM" ))
+    IndexedSeq( "TYPE_HOME", "TYPE_WORK", "TYPE_MOBILE", 
+                "TYPE_OTHER", "TYPE_CUSTOM" ))
 
 // Unknown data records.  There's actually a defined way for third-party
 // apps to specify how to display these, which is undocumented, and changed

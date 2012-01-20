@@ -6,17 +6,41 @@ import org.positronicnet.content.PositronicContentResolver
 import org.positronicnet.notifications.Actions._
 import org.positronicnet.orm.Actions._
 
-import android.util.Log
+import android.content.{Context, Intent}
+import android.util.{AttributeSet, Log}
 import android.view.View
-import android.view.KeyEvent
-import android.widget.TextView
+import android.widget.{TextView, ExpandableListView}
 
 import scala.collection.mutable.ArrayBuffer
 
-object ContactsUiBinder extends UiBinder
+object ActivityUiBinder extends UiBinder {
+  bind[ RawContactView, RawContact ]( 
+    (_.setRawContact(_)), 
+    ((x,y) => throw new RuntimeException( "rawcontact set not defined!" )))
+}
+
+class RawContactView( ctx: Context, attrs: AttributeSet )
+  extends PositronicTextView( ctx, attrs )
+{
+  var rawc: RawContact = null
+
+  def setRawContact( r: RawContact ) = {
+    Log.d( "XXX", "setRawContact " + r )
+    rawc = r
+    setText( r.accountName )
+  }
+
+  onClick {
+    val intent = new Intent( getContext, classOf[ EditRawContactActivity ])
+    intent.putExtra( "raw_contact", rawc )
+    Log.d( "XXX", "setting extra in intent as " + rawc )
+    getContext.startActivity( intent )
+  }
+}
 
 class ContactsActivity 
-  extends android.app.ExpandableListActivity with PositronicActivityHelpers
+  extends android.app.ExpandableListActivity 
+  with PositronicActivityHelpers
 {
   onCreate {
     useAppFacility( PositronicContentResolver )
@@ -25,6 +49,8 @@ class ContactsActivity
     
     useOptionsMenuResource( R.menu.contacts_menu )
     onOptionsItemSelected( R.id.dump_contacts ){ dumpToLog }
+
+    getExpandableListView.setOnChildClickListener(this) // not automatic?!
   }
 
   onResume {
@@ -55,7 +81,8 @@ class ContactsActivity
         setListAdapter(
           new IndexedSeqGroupAdapter( data,
                                       R.layout.contact_view_row,
-                                      R.layout.rawcontact_view_row ))
+                                      R.layout.rawcontact_view_row,
+                                      ActivityUiBinder ))
   }}}}
 
   def dumpToLog = {

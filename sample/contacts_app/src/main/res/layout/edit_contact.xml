@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:fillViewport="true">
+  <LinearLayout android:id="@+id/editors"
+                android:orientation="vertical"
+                android:layout_width="fill_parent" 
+                android:layout_height="wrap_content">
+
+    <org.positronicnet.sample.contacts.StructuredNameDisplay
+                  dataLayout="@layout/structured_name"
+                  android:orientation="vertical"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content"/>
+
+    <org.positronicnet.sample.contacts.PhoneDisplay
+                  dataLayout="@layout/phone"
+                  android:orientation="vertical"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content">
+      <TextView android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/phone_header"/>
+    </org.positronicnet.sample.contacts.PhoneDisplay>
+
+    <org.positronicnet.sample.contacts.EmailDisplay
+                  dataLayout="@layout/email"
+                  android:orientation="vertical"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content">
+      <TextView android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/email_header"/>
+    </org.positronicnet.sample.contacts.EmailDisplay>
+
+  </LinearLayout>
+</ScrollView>

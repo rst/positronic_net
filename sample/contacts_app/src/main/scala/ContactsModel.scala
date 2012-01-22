@@ -1,7 +1,34 @@
 package org.positronicnet.sample.contacts
 
+import org.positronicnet.orm.RecordId
+import scala.collection.mutable.{ArrayBuffer, HashMap}
+
 // Classes that implement the "business logic" of dealing with
 // contacts, or at least the things we do with them.
+
+// Class that represents an "edit state" for editing the ContactData
+// items associated with a Contact or RawContact
+
+class ContactEditState( val initialItems: Seq[ ContactData ] ) {
+
+  private var deletedState: ArrayBuffer[ ContactData ] = ArrayBuffer.empty
+  private var currentState: HashMap[ RecordId[_], ContactData ] = HashMap.empty
+
+  for (rec <- initialItems) {
+    currentState( rec.id ) = rec
+  }
+  
+  def deletedItems: IndexedSeq[ContactData] = deletedState
+  def currentItems = currentState.valuesIterator
+
+  def updateItem( rec: ContactData ): Unit = 
+    currentState( rec.id ) = rec
+
+  def deleteItem( rec: ContactData ): Unit = {
+    currentState.remove( rec.id )
+    deletedState += rec
+  }
+}
 
 // Class that represents the value of a "label-or-custom" field.
 // These are backed by two underlying fields, one an integer "type"

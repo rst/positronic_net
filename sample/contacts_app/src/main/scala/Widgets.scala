@@ -5,7 +5,8 @@ import org.positronicnet.util._
 import org.positronicnet.facility._
 
 import android.widget.{Spinner, LinearLayout}
-import android.view.{View, ViewGroup, LayoutInflater}
+import android.view.{View, ViewGroup, LayoutInflater, KeyEvent}
+import android.app.Dialog
 
 import android.content.Context
 import android.util.{AttributeSet, Log}
@@ -48,6 +49,9 @@ case class TypeFieldInfo(
   val customType: Int,
   val toResource: (Int => Int)
 )
+{
+  val customTypeIdx = recTypes.indexOf( customType )
+}
 
 case class TypeField(
   val recType: Int,
@@ -68,7 +72,8 @@ case class TypeField(
       info.recTypes :+ recType
 
   def recType_:=( newType: Int ) = 
-    this.copy( recType = newType, label = null )
+    this.copy( recType = newType, 
+               label = (if (newType == info.customType) label else null ))
 
   def label_:=( s: String ) = 
     this.copy( recType = info.customType, label = s )
@@ -82,7 +87,7 @@ case class TypeField(
   def selectedStringIdx = recTypes.indexOf( recType )
 
   def displayStringOfRecType( recType: Int ) =
-    if (recType == info.customType)
+    if (recType == info.customType && label != null)
       label
     else {
       val str = Res.ources.getString( info.toResource( recType ))
@@ -96,25 +101,74 @@ case class TypeField(
 // Widget to display and update a TypeField, as above.
 
 class TypeFieldChooser( ctx: Context, attrs: AttributeSet )
-  extends Spinner( ctx, attrs )
+  extends PositronicSpinner( ctx, attrs )
 {
-  // XXX popping up a dialog to set the custom value when it is selected.
-
-  private var baseTypeField: TypeField = null
+  private var typeField: TypeField = null
 
   private val adapter = new IndexedSeqAdapter[String](
     IndexedSeq.empty, R.layout.simple_spinner_item)
 
+  lazy val editCustomDialog = new EditCustomTypeDialog( this )
+
   setAdapter( adapter )
                                             
-  def setTypeField( tf: TypeField ) = {
-    baseTypeField = tf
+  def setTypeField( tf: TypeField ) = { 
+
+    // Kludginess here --- we want to set the selection, but that
+    // triggers the 'onItemSelected' below.  If the typefield was
+    // already at the custom setting, we *don't* yet want the
+    // 'onItemSelected' to pop up the edit dialog.  So we temporarily
+    // set 'typeField' to null to disable it.
+
+    typeField = null
     adapter.resetSeq( tf.displayStrings )
     setSelection( tf.selectedStringIdx, false )
+    typeField = tf
   }
 
-  def getTypeField = 
-    baseTypeField.recType_:=( getSelectedItemPosition )
+  def getTypeField = typeField
+
+  onItemSelected{ (view, posn, id) =>
+    if (typeField == null) {
+      // still setting up; do nothing
+    }
+    else if (posn == typeField.info.customTypeIdx)
+      editCustomDialog.doEditLabel( typeField )
+    else {
+      typeField = (typeField.recType_:=( typeField.info.recTypes( posn )))
+      adapter.resetSeq( typeField.displayStrings )
+    }
+  }
+
+  def setCustom( s: String ) = {
+    typeField = typeField.label_:=( s )
+    setTypeField( typeField )           // reinitialize display
+  }
+
+  def cancelCustom = setSelection( typeField.selectedStringIdx, false )
+}
+
+class EditCustomTypeDialog( typeFieldChooser: TypeFieldChooser )
+  extends Dialog( typeFieldChooser.getContext )
+  with TypedViewHolder 
+{
+  setContentView( R.layout.edit_custom_type_dialog )
+  setTitle( R.string.enter_custom_label )
+
+  val editTxt = findView( TR.dialogEditText )
+  editTxt.onKey( KeyEvent.KEYCODE_ENTER ){ doSave; dismiss }
+
+  findView( TR.cancelButton ).onClick { doCancel; dismiss }
+  findView( TR.saveButton ).onClick { doSave; dismiss }
+
+  def doSave   = typeFieldChooser.setCustom( editTxt.getText.toString )
+  def doCancel = typeFieldChooser.cancelCustom
+
+  def doEditLabel( tf: TypeField ) = { 
+    if (tf.label != null) 
+      editTxt.setText( tf.label )
+    show
+  }
 }
 
 // Widget to display all ContactData of a particular type (Phone, Email, etc.)

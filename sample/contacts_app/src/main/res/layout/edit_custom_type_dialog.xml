@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:orientation="vertical"
+  android:layout_width="fill_parent"
+  android:layout_height="fill_parent">
+  <org.positronicnet.ui.PositronicEditText
+    android:id="@+id/dialogEditText"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:text=""
+  />
+  <LinearLayout
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content">
+    <org.positronicnet.ui.PositronicButton android:id="@+id/saveButton"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:text="@string/set_custom_label"
+    />
+    <org.positronicnet.ui.PositronicButton android:id="@+id/cancelButton"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:text="@string/cancel_custom_label"
+    />
+  </LinearLayout>
+</LinearLayout>

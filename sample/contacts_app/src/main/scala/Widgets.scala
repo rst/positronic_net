@@ -134,13 +134,13 @@ class CategoryDisplay[ T <: ContactData : ClassManifest ]
   def newView = {
     val v = inflater.inflate( dataLayoutResId, this, false )
     addView( v )
-    v
+    v.asInstanceOf[ ContactDatumEditor ] // it better be!
   }
 
   def bind( state: ContactEditState ) =
     for( item <- state.initialItems ) 
       if (targetKlass.isInstance( item )) 
-        ContactsUiBinder.show( item, newView )
+        newView.bind( item )
 }
 
 class StructuredNameDisplay( ctx: Context, attrs: AttributeSet )
@@ -152,3 +152,23 @@ class PhoneDisplay( ctx: Context, attrs: AttributeSet )
 class EmailDisplay( ctx: Context, attrs: AttributeSet )
   extends CategoryDisplay[ Email ]( ctx, attrs )
 
+// Widgets coordinating editing of a single ContactData, of
+// whatever type.  (All LinearLayouts for now, but we can mix
+// the trait into other stuff if need be.)
+
+trait ContactDatumEditor extends View {
+
+  private var item: ContactData = null
+
+  def bind ( item: ContactData ) = {
+    this.item = item
+    ContactsUiBinder.show( item, this )
+  }
+
+  def updatedItem = ContactsUiBinder.update( this.item, this )
+  
+}
+
+class ContactDatumEditLayout( ctx: Context, attrs: AttributeSet )
+  extends LinearLayout( ctx, attrs )
+  with ContactDatumEditor

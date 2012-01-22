@@ -136,9 +136,11 @@ class TypeFieldChooser( ctx: Context, attrs: AttributeSet )
       editCustomDialog.doEditLabel( typeField )
     else {
       typeField = (typeField.recType_:=( typeField.info.recTypes( posn )))
-      adapter.resetSeq( typeField.displayStrings )
+      adapter.resetSeq( typeField.displayStrings ) // wipe custom label, if any
     }
   }
+
+  // Hooks for EditCustomTypeDialog...
 
   def setCustom( s: String ) = {
     typeField = typeField.label_:=( s )

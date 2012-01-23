@@ -24,7 +24,7 @@ class EditRawContactActivity
       getIntent.getSerializableExtra( "raw_contact" ).asInstanceOf[ RawContact ]
 
     rawContact.data ! Fetch { data => 
-      this.state = new ContactEditState( data )
+      this.state = new ContactEditState( rawContact, data )
       val editors = findView( TR.editors )
       for (i <- Range(0, editors.getChildCount)) {
         val editor = editors.getChildAt(i).asInstanceOf[ CategoryDisplay[_] ]

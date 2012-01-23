@@ -137,6 +137,9 @@ abstract class ContactData
   val isPrimary:      Boolean                = false
   val isSuperPrimary: Boolean                = false
   val dataVersion:    Int                    = -1 // read-only
+
+  override def toString = 
+    super.toString + " id: " + id + " rcid: " + rawContactId
 }
 
 // Structured name records.  Note the special-case treatment of columns
@@ -166,7 +169,7 @@ class StructuredName extends ContactData
   override def toString = {
     val components =
       Seq( displayName, prefix, givenName, middleName, familyName, suffix )
-    "Name: '" + components.reduceLeft(_+"' '"+_) + "'"
+    super.toString + " '" + components.reduceLeft(_+"' '"+_) + "'"
   }
 }
 
@@ -247,7 +250,8 @@ class Phone extends ContactDataWithRecordType {
 
   val recTypeInfo = PhoneTypeInfo
 
-  override def toString = "Phone ("+ recordType.displayString +", "+ number +")"
+  override def toString = 
+    super.toString + " ("+ recordType.displayString +", "+ number +")"
 }
 
 object PhoneTypeInfo 
@@ -265,7 +269,8 @@ class Email extends ContactDataWithRecordType {
 
   val recTypeInfo = EmailTypeInfo
 
-  override def toString = "Email ("+ recordType.displayString +", "+ address+")"
+  override def toString = 
+    super.toString + " ("+ recordType.displayString +", "+ address+")"
 }
 
 object EmailTypeInfo 

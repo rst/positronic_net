@@ -11,16 +11,22 @@ import android.util.Log
 // Class that represents an "edit state" for editing the ContactData
 // items associated with a Contact or RawContact
 
-class ContactEditState( val initialItems: Seq[ ContactData ] ) {
-
+class ContactEditState( val rawContact: RawContact,
+                        val initialItems: Seq[ ContactData ] ) 
+{
   private var deletedState: ArrayBuffer[ ContactData ] = ArrayBuffer.empty
   private var currentState: HashMap[ RecordId[_], ContactData ] = HashMap.empty
 
   def deletedItems: IndexedSeq[ContactData] = deletedState
   def currentItems = currentState.valuesIterator
 
-  def updateItem( rec: ContactData ): Unit = 
-    currentState( rec.id ) = rec
+  def updateItem( rec: ContactData ): Unit = {
+    currentState( rec.id ) = 
+      if (rec.isUnsaved) 
+        rec.setProperty( "rawContactId", rawContact.id )
+      else
+        rec
+  }
 
   def deleteItem( rec: ContactData ): Unit = {
     currentState.remove( rec.id )

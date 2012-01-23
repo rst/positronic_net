@@ -199,6 +199,12 @@ class UiBinderSpec
         myBinder.show( Canary( true, "yellow" ), view )
         view.getCanary should equal ( Canary( true, "yellow" ))
       }
+      it ("should update from explicit bindings to ViewGroups") {
+        val view = new CanarySpinner( myContext )
+        val myCanary = Canary( false, "green" )
+        view.setCanary( myCanary )
+        myBinder.update( Canary( true, "yellow" ), view) should equal (myCanary)
+      }
     }
   }
 

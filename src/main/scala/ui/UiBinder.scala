@@ -404,18 +404,23 @@ class UiBinder
 
   def update[T <: Object]( toUpdate: T, view: View ): T = 
   {
-    var workingCopy = toUpdate
+    var workingCopy: Object = toUpdate
 
-    view match {
-      case grp: ViewGroup =>
-        for (i <- 0 to grp.getChildCount - 1)
-          workingCopy = this.update( workingCopy, grp.getChildAt( i ) )
-      case _ =>
-        getBinder(view, toUpdate) map { binder => 
-          workingCopy = binder.update( view, workingCopy ).asInstanceOf[T] }
+    getBinder( view, toUpdate ) match {
+
+      case Some(binder) => 
+        workingCopy = binder.update( view, workingCopy )
+
+      case None =>
+        view match {
+          case grp: ViewGroup =>
+            for (i <- 0 to grp.getChildCount - 1)
+              workingCopy = this.update( workingCopy, grp.getChildAt( i ) )
+          case _ =>
+        }
     }
 
-    return workingCopy
+    return workingCopy.asInstanceOf[T]
   }
 }
 

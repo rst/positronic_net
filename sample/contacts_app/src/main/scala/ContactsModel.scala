@@ -1,6 +1,9 @@
 package org.positronicnet.sample.contacts
 
 import org.positronicnet.orm.RecordId
+import org.positronicnet.orm.Actions._
+import org.positronicnet.content.PositronicContentResolver
+
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 
 import android.util.Log
@@ -32,6 +35,24 @@ class ContactEditState( val rawContact: RawContact,
     currentState.remove( rec.id )
     if (!rec.isNewRecord)
       deletedState += rec
+  }
+
+  // "Save" support.  Note that this does *not* yet do batch operations;
+  // infrastructure for that is pending (though it shouldn't be a big deal).
+
+  def save = saveAndThen( null )
+
+  def saveAndThen( callback: => Unit ) = {
+    PositronicContentResolver.runOnThread {
+      
+      for ( item <- deletedState )
+        ContactData.onThisThread( Delete( item ))
+
+      for ( item <- currentState.valuesIterator )
+        ContactData.onThisThread( Save( item ))
+
+      callback
+    }
   }
 
   def logIt = {

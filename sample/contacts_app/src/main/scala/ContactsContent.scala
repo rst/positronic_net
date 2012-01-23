@@ -297,12 +297,15 @@ object ContactData
     "mimetype" // documented value of ContactsContract.DataColumns.MIMETYPE
   )
 {
+  val CONTACT_ID = ReflectUtils.getStatic[ String, CC.Data ]("CONTACT_ID")
+
   class DataKindMapper[ TRec <: ContactData : ClassManifest,
                         TKind : ClassManifest ]
     extends TaggedVariantForFields[ TRec, TKind ](
       ReflectUtils.getStatic[ String, TKind ]("CONTENT_ITEM_TYPE")
     ) 
   {
+    mapField( "contactId", CONTACT_ID, MapAs.ReadOnly )
     mapField( "dataVersion", 
               ReflectUtils.getStatic[ String, CC.Data ]("DATA_VERSION"),
               MapAs.ReadOnly )
@@ -314,6 +317,7 @@ object ContactData
       ReflectUtils.getStatic[ String, TKind ]("CONTENT_ITEM_TYPE")
     ) 
     {
+      mapField( "contactId", CONTACT_ID, MapAs.ReadOnly )
       mapField( "recType", ReflectUtils.getStatic[ String, TKind ]("TYPE") ) 
       mapField( "dataVersion", 
                 ReflectUtils.getStatic[ String, CC.Data ]("DATA_VERSION"),

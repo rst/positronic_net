@@ -34,7 +34,6 @@ class EditRawContactActivity
   }
 
   def doSave = {
-    Log.d( "XXX", "in doSave" )
     val editors = findView( TR.editors )
     for (i <- Range(0, editors.getChildCount)) {
       editors.getChildAt(i) match {
@@ -43,5 +42,6 @@ class EditRawContactActivity
       }
     }
     state.logIt
+    state.saveAndThen{ this.runOnUiThread{ finish }}
   }
 }

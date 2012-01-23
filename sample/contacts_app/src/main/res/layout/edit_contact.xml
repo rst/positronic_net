@@ -19,9 +19,20 @@
                   android:orientation="vertical"
                   android:layout_width="fill_parent" 
                   android:layout_height="wrap_content">
-      <TextView android:layout_width="fill_parent"
+     <LinearLayout android:layout_width="fill_parent"
+                   android:layout_height="wrap_content">
+      <TextView android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="@string/phone_header"/>
+      <org.positronicnet.sample.contacts.AddItemButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/add_item_color"
+                android:background="@color/add_remove_item_background"
+                android:textSize="40dp"
+                android:text="@string/add_item"/>
+     </LinearLayout>
     </org.positronicnet.sample.contacts.PhoneDisplay>
 
     <org.positronicnet.sample.contacts.EmailDisplay
@@ -29,9 +40,20 @@
                   android:orientation="vertical"
                   android:layout_width="fill_parent" 
                   android:layout_height="wrap_content">
-      <TextView android:layout_width="fill_parent"
+     <LinearLayout android:layout_width="fill_parent"
+                   android:layout_height="wrap_content">
+      <TextView android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="@string/email_header"/>
+      <org.positronicnet.sample.contacts.AddItemButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/add_item_color"
+                android:background="@color/add_remove_item_background"
+                android:textSize="40dp"
+                android:text="@string/add_item"/>
+     </LinearLayout>
     </org.positronicnet.sample.contacts.EmailDisplay>
 
   </LinearLayout>

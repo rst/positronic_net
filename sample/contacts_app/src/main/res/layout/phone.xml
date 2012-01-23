@@ -14,5 +14,13 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
   />
+  <org.positronicnet.sample.contacts.RemoveItemButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/remove_item_color"
+            android:background="@color/add_remove_item_background"
+            android:textSize="40dp"
+            android:text="@string/remove_item"
+  />
 </org.positronicnet.sample.contacts.ContactDatumEditLayout>
 

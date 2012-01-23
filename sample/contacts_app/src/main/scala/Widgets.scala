@@ -116,12 +116,13 @@ class CategoryDisplay[ T <: ContactData : ClassManifest ]
   (ctx: Context, attrs: AttributeSet)
     extends LinearLayout( ctx, attrs )
 {
+  var state: ContactEditState = null    // really set at bind()
+
   val inflater = 
     ctx.getSystemService( Context.LAYOUT_INFLATER_SERVICE )
       .asInstanceOf[ LayoutInflater ]
 
-  val dataLayoutResId =  attrs.getAttributeResourceValue(null, "dataLayout", 0)
-
+  val dataLayoutResId = attrs.getAttributeResourceValue(null, "dataLayout", 0)
   val targetKlass = classManifest[T].erasure
 
   if (dataLayoutResId == 0)
@@ -137,10 +138,21 @@ class CategoryDisplay[ T <: ContactData : ClassManifest ]
     v.asInstanceOf[ ContactDatumEditor ] // it better be!
   }
 
-  def bind( state: ContactEditState ) =
+  def bind( state: ContactEditState ) = {
+    this.state = state
     for( item <- state.initialItems ) 
       if (targetKlass.isInstance( item )) 
         newView.bind( item )
+  }
+
+  def addItem = newView.bind( newItem )
+
+  def killDatumEditor( child: ContactDatumEditor ) = {
+    state.deleteItem( child.updatedItem )
+    this.removeView( child )
+  }
+
+  def addDatumEditor = newView.bind( newItem )
 }
 
 class StructuredNameDisplay( ctx: Context, attrs: AttributeSet )
@@ -152,11 +164,29 @@ class PhoneDisplay( ctx: Context, attrs: AttributeSet )
 class EmailDisplay( ctx: Context, attrs: AttributeSet )
   extends CategoryDisplay[ Email ]( ctx, attrs )
 
+// Utility trait for finding the parent of a particular type, if any...
+
+trait WidgetUtils extends View {
+
+  def findParent[ ViewType <: View : ClassManifest ] = {
+
+    val targetKlass = classManifest[ ViewType ].erasure
+    var parent = this.getParent
+
+    while (parent != null && !targetKlass.isInstance( parent )) {
+      parent = parent.getParent
+    }
+
+    parent.asInstanceOf[ ViewType ]
+  }
+
+}
+
 // Widgets coordinating editing of a single ContactData, of
 // whatever type.  (All LinearLayouts for now, but we can mix
 // the trait into other stuff if need be.)
 
-trait ContactDatumEditor extends View {
+trait ContactDatumEditor extends WidgetUtils {
 
   private var item: ContactData = null
 
@@ -167,8 +197,23 @@ trait ContactDatumEditor extends View {
 
   def updatedItem = ContactsUiBinder.update( this.item, this )
   
+  def doDelete = findParent[ CategoryDisplay[_] ].killDatumEditor( this )
 }
 
 class ContactDatumEditLayout( ctx: Context, attrs: AttributeSet )
   extends LinearLayout( ctx, attrs )
   with ContactDatumEditor
+
+// Widgets for "Add" and "Remove" category items.
+
+class AddItemButton( ctx: Context, attrs: AttributeSet ) 
+  extends PositronicButton(ctx, attrs) with WidgetUtils 
+{
+  onClick { findParent[ CategoryDisplay[_] ].addDatumEditor }
+}
+
+class RemoveItemButton( ctx: Context, attrs: AttributeSet ) 
+  extends PositronicButton(ctx, attrs) with WidgetUtils 
+{
+  onClick { findParent[ ContactDatumEditor ].doDelete }
+}

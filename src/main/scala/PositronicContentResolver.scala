@@ -65,6 +65,7 @@ import org.positronicnet.facility.WorkerThread
 
 object PositronicContentResolver
   extends AppFacility( "PositronicContentResolver" )
+  with WorkerThread
 {
   var logTag: String = "PositronicContentResolver"
 
@@ -73,6 +74,7 @@ object PositronicContentResolver
   private var realResolver: android.content.ContentResolver = null
 
   override protected def realOpen(ctx: Context) = { 
+    super.realOpen( ctx )
     realResolver = ctx.getContentResolver
   }
 

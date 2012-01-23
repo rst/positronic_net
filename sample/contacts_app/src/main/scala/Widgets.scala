@@ -62,7 +62,10 @@ class TypeFieldChooser( ctx: Context, attrs: AttributeSet )
     typeField = tf
   }
 
-  def getTypeField = typeField
+  def getTypeField = {
+    Log.d("XXX", "getTypeField " + typeField)
+    typeField
+  }
 
   onItemSelected{ (view, posn, id) =>
     if (typeField == null) {
@@ -140,9 +143,18 @@ class CategoryDisplay[ T <: ContactData : ClassManifest ]
 
   def bind( state: ContactEditState ) = {
     this.state = state
-    for( item <- state.initialItems ) 
+    for ( item <- state.initialItems ) 
       if (targetKlass.isInstance( item )) 
         newView.bind( item )
+  }
+
+  def updateState = {
+    for ( i <- Range( 0, this.getChildCount )) {
+      this.getChildAt(i) match {
+        case cde: ContactDatumEditor => state.updateItem( cde.updatedItem )
+        case _ =>
+      }
+    }
   }
 
   def addItem = newView.bind( newItem )

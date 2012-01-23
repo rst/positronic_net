@@ -1,5 +1,9 @@
 <resources>
 
+  <!-- options menu -->
+
+  <string name="save_raw_contact">Save</string>
+
   <!-- Generic "add item" and "remove item" buttons -->
 
   <string name="add_item">+</string>

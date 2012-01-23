@@ -3,6 +3,8 @@ package org.positronicnet.sample.contacts
 import org.positronicnet.orm.RecordId
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 
+import android.util.Log
+
 // Classes that implement the "business logic" of dealing with
 // contacts, or at least the things we do with them.
 
@@ -14,10 +16,6 @@ class ContactEditState( val initialItems: Seq[ ContactData ] ) {
   private var deletedState: ArrayBuffer[ ContactData ] = ArrayBuffer.empty
   private var currentState: HashMap[ RecordId[_], ContactData ] = HashMap.empty
 
-  for (rec <- initialItems) {
-    currentState( rec.id ) = rec
-  }
-  
   def deletedItems: IndexedSeq[ContactData] = deletedState
   def currentItems = currentState.valuesIterator
 
@@ -26,7 +24,20 @@ class ContactEditState( val initialItems: Seq[ ContactData ] ) {
 
   def deleteItem( rec: ContactData ): Unit = {
     currentState.remove( rec.id )
-    deletedState += rec
+    if (!rec.isNewRecord)
+      deletedState += rec
+  }
+
+  def logIt = {
+
+    for ( item <- deletedState )
+      Log.d( "RawContact state", "Delete " + item )
+
+    for ( item <- currentState.valuesIterator )
+      if ( item.isNewRecord )
+        Log.d( "RawContact state", "Insert " + item )
+      else
+        Log.d( "RawContact state", "Update " + item )
   }
 }
 

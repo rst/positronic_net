@@ -246,6 +246,8 @@ class Phone extends ContactDataWithRecordType {
   val id:      RecordId[ Phone ] = ContactData.phones.unsavedId
 
   val recTypeInfo = PhoneTypeInfo
+
+  override def toString = "Phone ("+ recordType.displayString +", "+ number +")"
 }
 
 object PhoneTypeInfo 
@@ -262,6 +264,8 @@ class Email extends ContactDataWithRecordType {
   val id:      RecordId[ Email ] = ContactData.emails.unsavedId
 
   val recTypeInfo = EmailTypeInfo
+
+  override def toString = "Email ("+ recordType.displayString +", "+ address+")"
 }
 
 object EmailTypeInfo 

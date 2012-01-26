@@ -31,7 +31,7 @@ class RawContactView( ctx: Context, attrs: AttributeSet )
   }
 
   onClick {
-    val intent = new Intent( getContext, classOf[ EditRawContactActivity ])
+    val intent = new Intent( getContext, classOf[ EditExistingContactActivity ])
     intent.putExtra( "raw_contact", rawc )
     Log.d( "XXX", "setting extra in intent as " + rawc )
     getContext.startActivity( intent )

@@ -19,17 +19,14 @@ class EditRawContactActivity
 
     useOptionsMenuResource( R.menu.edit_contact_menu )
     onOptionsItemSelected( R.id.save_raw_contact ) { doSave }
+  }
 
-    val rawContact = 
-      getIntent.getSerializableExtra( "raw_contact" ).asInstanceOf[ RawContact ]
-
-    rawContact.data ! Fetch { data => 
-      this.state = new ContactEditState( rawContact, data )
-      val editors = findView( TR.editors )
-      for (i <- Range(0, editors.getChildCount)) {
-        val editor = editors.getChildAt(i).asInstanceOf[ CategoryDisplay[_] ]
-        editor.bind( state )
-      }
+  def bindState( state: ContactEditState ) = {
+    this.state = state
+    val editors = findView( TR.editors )
+    for (i <- Range(0, editors.getChildCount)) {
+      val editor = editors.getChildAt(i).asInstanceOf[ CategoryDisplay[_] ]
+      editor.bind( state )
     }
   }
 
@@ -43,5 +40,18 @@ class EditRawContactActivity
     }
     state.logIt
     state.saveAndThen{ this.runOnUiThread{ finish }}
+  }
+}
+
+class EditExistingContactActivity
+  extends EditRawContactActivity
+{
+  onCreate {
+    val rawContact = 
+      getIntent.getSerializableExtra( "raw_contact" ).asInstanceOf[ RawContact ]
+
+    rawContact.data ! Fetch { data => 
+      bindState( new ContactEditState( rawContact, data ))
+    }
   }
 }

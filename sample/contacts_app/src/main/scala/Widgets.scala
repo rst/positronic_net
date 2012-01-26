@@ -48,6 +48,8 @@ class TypeFieldChooser( ctx: Context, attrs: AttributeSet )
 
   setAdapter( adapter )
                                             
+  def getTypeField = typeField
+
   def setTypeField( tf: TypeField ) = { 
 
     // Kludginess here --- we want to set the selection, but that
@@ -60,11 +62,6 @@ class TypeFieldChooser( ctx: Context, attrs: AttributeSet )
     adapter.resetSeq( tf.displayStrings )
     setSelection( tf.selectedStringIdx, false )
     typeField = tf
-  }
-
-  def getTypeField = {
-    Log.d("XXX", "getTypeField " + typeField)
-    typeField
   }
 
   onItemSelected{ (view, posn, id) =>
@@ -114,8 +111,7 @@ class EditCustomTypeDialog( typeFieldChooser: TypeFieldChooser )
 
 // Widget to display all ContactData of a particular type (Phone, Email, etc.)
 
-abstract
-class CategoryDisplay[ T <: ContactData : ClassManifest ]
+abstract class CategoryDisplay[ T <: ContactData : ClassManifest ]
   (ctx: Context, attrs: AttributeSet)
     extends LinearLayout( ctx, attrs )
 {
@@ -144,7 +140,7 @@ class CategoryDisplay[ T <: ContactData : ClassManifest ]
   def bind( state: ContactEditState ) = {
     this.state = state
     for ( item <- state.initialItems ) 
-      if (targetKlass.isInstance( item )) 
+      if (targetKlass.isInstance( item ))
         newView.bind( item )
   }
 
@@ -167,8 +163,22 @@ class CategoryDisplay[ T <: ContactData : ClassManifest ]
   def addDatumEditor = newView.bind( newItem )
 }
 
+abstract class SingletonCategoryDisplay[ T <: ContactData : ClassManifest ]
+  (ctx: Context, attrs: AttributeSet)
+    extends CategoryDisplay[T]( ctx, attrs )
+{
+  // We expect one instance of our particular data type (though we show
+  // more if we get them).  If we get none, we create a starter item.
+
+  override def bind( state: ContactEditState ) =
+    if (state.initialItems.exists( targetKlass.isInstance( _ )))
+      super.bind( state )
+    else
+      newView.bind( newItem )
+}
+
 class StructuredNameDisplay( ctx: Context, attrs: AttributeSet )
-  extends CategoryDisplay[StructuredName]( ctx, attrs )
+  extends SingletonCategoryDisplay[StructuredName]( ctx, attrs )
 
 class PhoneDisplay( ctx: Context, attrs: AttributeSet )
   extends CategoryDisplay[ Phone ]( ctx, attrs )

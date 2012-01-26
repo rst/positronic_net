@@ -228,7 +228,7 @@ abstract class ContactDataWithRecordType extends ContactData
 
   val recTypeInfo: TypeFieldInfo
 
-  lazy val recordType = TypeField( recType, label, recTypeInfo )
+  def recordType = TypeField( recType, label, recTypeInfo )
 
   def recordType_:=( newType: TypeField ) =
     if ( newType.recType == recTypeInfo.customType )

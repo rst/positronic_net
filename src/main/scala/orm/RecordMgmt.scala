@@ -328,6 +328,10 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 
   // Dealing with the mappings... internals
 
+  def dumpFieldsMapping( sfunc: String => Unit ) =
+    for (f <- fields)
+      sfunc( f.toString )
+
   private [orm] lazy val fields = fieldsSeq
   private [orm] lazy val fieldsForUpdate =
     fields.filter{ _.mappedHow == MapAs.ReadWrite }

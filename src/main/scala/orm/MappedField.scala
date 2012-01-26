@@ -109,7 +109,7 @@ abstract class MappedField( colName: String,
   val mappedHow       = how
 
   override def toString = 
-    super.toString + "(" + colName + "," + realColNumber + "," + how + ")"
+    super.toString + "(" + colName + "," + recordFieldName + "," + how + ")"
 
   def atIndex( newColNumber: Int ) = {
     val result = this.clone.asInstanceOf[ MappedField ]

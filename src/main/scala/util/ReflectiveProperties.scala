@@ -68,8 +68,10 @@ abstract class PropertyLensFactory[ V : ClassManifest ] {
         // ... leave them null
     }
 
-    if (getter != null && getter.getReturnType.equals( valueKlass ) &&
-        setter != null && setter.getReturnType.equals( klass ))
+    if (getter != null && 
+        getter.getReturnType.equals( valueKlass ) &&
+        setter != null && 
+        classOf[ReflectiveProperties].isAssignableFrom( setter.getReturnType ))
       return Some( PropertyLens[T,V]((t)   => vFromObject( getter.invoke(t) ),
                                      (t,v) => {
                                        val vobj = vToObject( v )

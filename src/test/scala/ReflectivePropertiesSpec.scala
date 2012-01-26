@@ -8,6 +8,17 @@ import org.positronicnet.util.PropertyLens
 import org.positronicnet.util.PropertyLensFactory
 import org.positronicnet.util.ReadOnlyProperty
 
+class BaseClass extends ReflectiveProperties {
+
+  // Computed property of a base class, so we can check that those
+  // are handled properly.
+
+  val bogon: String = "bogon"
+
+  def filteredBogon = bogon
+  def filteredBogon_:=( s: String ) = this.setProperty( "bogon", s )
+}
+
 case class Canary( intProp: Int = 17,
                    byteProp: Byte = 8,
                    charProp: Char = 10,
@@ -30,7 +41,7 @@ case class Canary( intProp: Int = 17,
 
                    otherThing: String = ""
                  )
-  extends ReflectiveProperties
+  extends BaseClass
 {
   // Sample read-only properties, so we can check that those are
   // handled properly...
@@ -144,6 +155,21 @@ class ReflectivePropertiesSpec
     it ("should not find nonexistent properties") {
       factory.forProperty[ Canary ]("readOnlydflkdlsfkjl") should equal (None)
     }
+  }
+
+  describe( "inherited computed property" ) {
+
+    val fac: PropertyLensFactory[ String ] = 
+      PropertyLensFactory.forPropertyType[ String ]
+    
+    it ("should work for inherited plain string fields") {
+      testProperty( fac, "bogon", "bogon", "bar" )
+    }
+
+    it ("should work for inherited computed string fields") {
+      testProperty( fac, "filteredBogon", "bogon", "bar" )
+    }
+
   }
 
   describe( "int lens factory" ) {

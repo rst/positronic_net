@@ -22,6 +22,29 @@
   <string name="phone_header">Phone</string>
   <string name="email_header">Email</string>
 
+  <!-- "structured name" component labels 
+
+       Note we're deliberately calling them "first", "middle", and "last" names
+       rather than "given", "middle", and "family" because those usage 
+       conventions are culturally bound.  For instance, Spanish names typically
+       have *two* family names, a patronymic and a matronymic, with the father's
+       family name written first, in the "middle" position.  So, as I write,
+       the current Spanish Prime Minister's full formal name is Mariano Rajoy
+       Brey, with both "Rajoy" and "Brey" being family names.  In less formal
+       contacts, the last family name is dropped; he's typically referred to in
+       news reports as "Mariano Rajoy".
+
+       If the content provider blows it on synthesizing a display name
+       when you've entered a Spanish name correctly, well... I suppose
+       we could offer UI that lets you correct it?
+   -->
+
+  <string name="prefix">Prefix</string>
+  <string name="first_name">First Name</string>
+  <string name="middle_name">Middle Name</string>
+  <string name="last_name">Last Name</string>
+  <string name="suffix">Suffix</string>
+
   <!-- "Enter custom label" dialog for user-entered record types
        ("takeout" phone number, etc.) 
    -->

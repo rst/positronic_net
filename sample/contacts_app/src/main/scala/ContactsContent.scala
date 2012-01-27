@@ -39,7 +39,7 @@ case class Contact (
   val inVisibleGroup:     Boolean           = false,
   val starred:            Boolean           = false,
   val customRingtone:     String            = "",
-  val sendToVoicemail:    Boolean           = true,
+  val sendToVoicemail:    Boolean           = false,
   val id:                 RecordId[Contact] = Contacts.unsavedId
 ) 
 extends ManagedRecord with ReflectiveProperties

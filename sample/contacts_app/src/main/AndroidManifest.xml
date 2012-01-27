@@ -5,6 +5,7 @@
   xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     <uses-sdk android:minSdkVersion="7"></uses-sdk>
     <application android:label="Positronic Contacts">
         <activity android:label="Positronic Contacts" android:name=".ContactsActivity">
@@ -15,5 +16,7 @@
         </activity>
         <activity android:label="Edit Existing Contact" 
                   android:name=".EditExistingContactActivity"/>
+        <activity android:label="Edit New Contact" 
+                  android:name=".EditNewContactActivity"/>
     </application>
 </manifest>

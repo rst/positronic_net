@@ -170,11 +170,11 @@ abstract class SingletonCategoryDisplay[ T <: ContactData : ClassManifest ]
   // We expect one instance of our particular data type (though we show
   // more if we get them).  If we get none, we create a starter item.
 
-  override def bind( state: ContactEditState ) =
-    if (state.initialItems.exists( targetKlass.isInstance( _ )))
-      super.bind( state )
-    else
+  override def bind( state: ContactEditState ) = {
+    super.bind( state )
+    if (!state.initialItems.exists( targetKlass.isInstance( _ )))
       newView.bind( newItem )
+  }
 }
 
 class StructuredNameDisplay( ctx: Context, attrs: AttributeSet )

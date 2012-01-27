@@ -204,6 +204,8 @@ class GroupMembership extends ContactData
 {
   val groupRowId: RecordId[Group] = Groups.unsavedId
   val id: RecordId[GroupMembership] = ContactData.groupMemberships.unsavedId
+
+  override def toString = super.toString + " group id: " + groupRowId
 }
 
 // Common machinery for rows that have a "record type", which is

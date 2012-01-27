@@ -2,6 +2,7 @@ package org.positronicnet.sample.contacts
 
 import org.positronicnet.orm.RecordId
 import org.positronicnet.orm.Actions._
+import org.positronicnet.notifications.Actions._
 import org.positronicnet.content.PositronicContentResolver
 
 import scala.collection.mutable.{ArrayBuffer, HashMap}
@@ -19,6 +20,7 @@ class ContactEditState( val rawContact: RawContact,
 {
   private var deletedState: ArrayBuffer[ ContactData ] = ArrayBuffer.empty
   private var currentState: HashMap[ RecordId[_], ContactData ] = HashMap.empty
+  private val accountInfo = AccountInfo.forRawContact( rawContact )
 
   def deletedItems: IndexedSeq[ContactData] = deletedState
   def currentItems = currentState.valuesIterator
@@ -45,6 +47,14 @@ class ContactEditState( val rawContact: RawContact,
   def saveAndThen( callback: => Unit ) = {
     PositronicContentResolver.runOnThread {
       
+      if ( rawContact.isNewRecord ) {
+
+        for (group <- accountInfo.initialGroups)
+          updateItem((new GroupMembership).setProperty("groupRowId", group.id))
+
+        RawContacts.onThisThread( Save( rawContact ))
+      }
+
       for ( item <- deletedState )
         ContactData.onThisThread( Delete( item ))
 
@@ -56,6 +66,9 @@ class ContactEditState( val rawContact: RawContact,
   }
 
   def logIt = {
+
+    if ( rawContact.isNewRecord )
+      Log.d( "RawContact state", "New contact: " + rawContact )
 
     for ( item <- deletedState )
       Log.d( "RawContact state", "Delete " + item )
@@ -135,3 +148,61 @@ case class TypeField(
     }
 }
 
+// Information on account types...
+// The minimal stuff here.  More to come...
+
+object AccountInfo {
+
+  def forRawContact( rawc: RawContact ) =
+    rawc.accountType match {
+      case "com.google" => 
+        new GoogleAccountInfo( rawc.accountType, rawc.accountName )
+      case _ => 
+        new OtherAccountInfo( rawc.accountType, rawc.accountName )
+    }
+}
+
+abstract class AccountInfo {
+  def initialGroups: Seq[ Group ]
+}
+
+class OtherAccountInfo( acctType: String, acctName: String ) 
+  extends AccountInfo
+{
+  def initialGroups = Seq.empty
+}
+
+class GoogleAccountInfo( acctType: String, acctName: String ) 
+  extends AccountInfo
+{
+  // The following is aping some of the logic in the official contacts
+  // app --- we attempt to add new contacts in a Google account to its
+  // "My Contacts" group, if such a thing is to be found.  
+  // 
+  // The business of looking for it by name is a kludge, but that's
+  // what's in model/GoogleSource.java in the Gingerbread version of
+  // the official Contacts app; ICS instead looks at an AUTO_ADD
+  // column which isn't referred to in the API docs.
+  //
+  // We do not yet attempt to *create* the group if it isn't found.
+  // The Gingerbread app will do that; no similar functionality is
+  // obviously present in the ICS version.  Even the version we have
+  // here is potentially subject to a race condition; we start loading
+  // the group in the background when we start editing, and hope it
+  // will be loaded on save.  This is 
+
+  val myContactsName = "System Group: My Contacts"
+
+  var myContactGroupSeq: Seq[Group] = Seq.empty
+
+  def initialGroups = myContactGroupSeq
+
+  // Try to find our default group, in the background
+
+  val groupQuery = Groups.whereEq( "accountName" -> acctName,
+                                   "accountType" -> acctType,
+                                   "title" -> myContactsName )
+
+  groupQuery ! Fetch { groups => 
+    myContactGroupSeq = groups }
+}

@@ -25,7 +25,6 @@ class RawContactView( ctx: Context, attrs: AttributeSet )
   var rawc: RawContact = null
 
   def setRawContact( r: RawContact ) = {
-    Log.d( "XXX", "setRawContact " + r )
     rawc = r
     setText( r.accountName )
   }
@@ -33,7 +32,6 @@ class RawContactView( ctx: Context, attrs: AttributeSet )
   onClick {
     val intent = new Intent( getContext, classOf[ EditExistingContactActivity ])
     intent.putExtra( "raw_contact", rawc )
-    Log.d( "XXX", "setting extra in intent as " + rawc )
     getContext.startActivity( intent )
   }
 }
@@ -49,6 +47,9 @@ class ContactsActivity
     
     useOptionsMenuResource( R.menu.contacts_menu )
     onOptionsItemSelected( R.id.dump_contacts ){ dumpToLog }
+    onOptionsItemSelected( R.id.new_contact ) {
+      startActivity( new Intent( this, classOf[ EditNewContactActivity ] ))
+    }
 
     getExpandableListView.setOnChildClickListener(this) // not automatic?!
   }
@@ -88,21 +89,9 @@ class ContactsActivity
   def dumpToLog = {
     Contacts.onThread {
       for ( contact <- Contacts.fetchOnThisThread ) {
-        Log.d( "XXX", "Contact: " + contact )
-        for ( datum <- contact.data.fetchOnThisThread ) {
-          datum match {
-            case phone: Phone => 
-              Log.d("XXX","  Phone: "+ phone.displayType +" "+ phone.number)
-            case email: Email =>
-              Log.d("XXX","  Email: "+ email.displayType +" "+ email.address)
-            case name: StructuredName =>
-              Log.d("XXX", name.toString )
-            case membership: GroupMembership =>
-              Log.d("XXX","  Group: " + membership.groupRowId.fetchOnThisThread)
-            case stuff: UnknownData =>
-              Log.d("XXX","  " + stuff.mimetype + " " + stuff.data1)
-          }
-        }
+        Log.d( "ContactsDump", "Contact: " + contact )
+        for ( datum <- contact.data.fetchOnThisThread )
+          Log.d("ContactsDump", datum.toString)
       }
       for ( group <- Groups.fetchOnThisThread ) {
         Log.d( "XXX", "Group: " + group.id )

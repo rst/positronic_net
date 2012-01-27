@@ -5,15 +5,16 @@ import org.positronicnet.notifications.Actions._
 import org.positronicnet.content.PositronicContentResolver
 
 import android.util.Log
+import android.accounts.{AccountManager, Account}
+import android.app.AlertDialog
+import android.content.DialogInterface  // android.content?!
 
 class EditRawContactActivity
-  extends PositronicActivity( layoutResourceId = R.layout.edit_contact )
-  with TypedViewHolder
+  extends PositronicActivity with TypedViewHolder
 {
   var state: ContactEditState = null    // set up onCreate, valid thereafter
 
   onCreate {
-
     useAppFacility( PositronicContentResolver )
     useAppFacility( Res )               // stash a copy of the Resources
 
@@ -38,8 +39,7 @@ class EditRawContactActivity
         case _ => 
       }
     }
-    state.logIt
-    state.saveAndThen{ this.runOnUiThread{ finish }}
+    state.saveAndThen{ this.runOnUiThread{ state.logIt; finish }}
   }
 }
 
@@ -47,11 +47,43 @@ class EditExistingContactActivity
   extends EditRawContactActivity
 {
   onCreate {
+    setContentView( R.layout.edit_contact )
+
     val rawContact = 
       getIntent.getSerializableExtra( "raw_contact" ).asInstanceOf[ RawContact ]
 
     rawContact.data ! Fetch { data => 
       bindState( new ContactEditState( rawContact, data ))
     }
+  }
+}
+
+class EditNewContactActivity
+  extends EditRawContactActivity
+{
+  onResume {
+    if (state == null) {
+      val accounts = AccountManager.get( this ).getAccounts
+      val dbuilder = new AlertDialog.Builder( this )
+      dbuilder.setTitle( R.string.choose_account_for_contact )
+      dbuilder.setItems( 
+        accounts.map{ _.name.asInstanceOf[java.lang.CharSequence] },
+        new DialogInterface.OnClickListener {
+          def onClick( dialog: DialogInterface, idx: Int ) = {
+            setUpForAccount( accounts( idx ))
+          }
+        }
+      )
+      dbuilder.create.show
+    }
+  }
+
+  def setUpForAccount( acct: Account ) = {
+
+    val contact = 
+      new RawContact( accountName = acct.name, accountType = acct.`type` )
+
+    setContentView( R.layout.edit_contact )
+    bindState( new ContactEditState( contact, Seq.empty ))
   }
 }

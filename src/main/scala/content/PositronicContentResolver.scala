@@ -5,6 +5,7 @@ import _root_.android.content.ContentValues
 import _root_.android.content.ContentUris
 import _root_.android.content.ContentResolver
 import _root_.android.net.Uri
+import _root_.android.util.Log
 
 import org.positronicnet.facility.AppFacility
 import org.positronicnet.facility.WorkerThread
@@ -59,8 +60,14 @@ import org.positronicnet.facility.WorkerThread
   * ones on the platform, for starters), but the `withUriIds` variant
   * is there if you prefer it.
   *
-  * (And of course, the raw platform API is still available if you
-  * prefer that.)
+  * There are also limited facilities for using
+  * [[org.positronicnet.content.PositronicContentResolver]] for asynch
+  * operations, using actor-like syntax; in particular, batch updates are
+  * supported via [[org.positronicnet.content.BatchOperation]].
+  *
+  * (The underlying `android.content.ContentResolver` is available by
+  * calling `realResolver`, q.v.; this, of course, supports the full,
+  * unrestricted plafrom API.)
   */
 
 object PositronicContentResolver
@@ -71,7 +78,7 @@ object PositronicContentResolver
 
   override def getLogTag = logTag
 
-  private var realResolver: android.content.ContentResolver = null
+  private[positronicnet] var realResolver: android.content.ContentResolver = null
 
   override protected def realOpen(ctx: Context) = { 
     super.realOpen( ctx )
@@ -95,7 +102,51 @@ object PositronicContentResolver
     new ContentProviderQuery( new UriIdContentResolverRepository(realResolver,
                                                                  this),
                               uri )
+
+  /** Run a content-resolver action on a private thread, invoking
+    * callbacks on the caller's thread when done.
+    */
+
+  def !( action: ContentResolverAction ) = 
+    action match {
+      case batch: BatchAction => 
+        val wrappedBatch = batch.withWrappedCallbacks
+        this.runOnThread { this.onThisThread( wrappedBatch ) }
+      case _ =>
+        this.runOnThread { this.onThisThread( action ) }
+    }
+
+  /** Run a content-resolver action on the current thread */
+
+  def onThisThread( action: ContentResolverAction ) =
+    action match {
+      case batch: BatchAction =>
+        try { 
+          Log.d( "PositronicContentResolver", "Running batch:" )
+
+          for (i <- Range( 0, batch.operations.size ))
+            Log.d( "PositronicContentResolver", 
+                   batch.operations.get(i).toString )
+
+          Log.d( "PositronicContentResolver", "End batch" )
+
+          val results = realResolver.applyBatch( batch.authority,
+                                                 batch.operations )
+          batch.successCallback( results )
+        }
+        catch {
+          case ex: Exception =>
+            Log.e( "PositronicContentResolver", "Batch operation failure", ex )
+            batch.failureCallback( ex )
+        }
+      case _ =>
+        throw new RuntimeException( "Unknown ContentResolverAction" )
+    }
 }
+
+/** Action on the content resolver, considered as an actor */
+
+abstract class ContentResolverAction
 
 private [content]
 abstract class BaseContentResolverRepo[ IdType ]( realResolver: ContentResolver,
@@ -160,6 +211,8 @@ class ContentProviderQuery[IdType]( source: BaseContentResolverRepo[IdType],
                             whereValues: Array[String]   = this.whereValues ) =
     new ContentProviderQuery( source, uri, orderString, 
                               whereString, whereValues )
+
+  def contentUri = uri
 
   def order( s: String ) = dinkedCopy( orderString = s )
 

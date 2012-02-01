@@ -1,12 +1,13 @@
 package org.positronicnet.sample.contacts
 
-import org.positronicnet.orm.RecordId
+import org.positronicnet.orm.{RecordId, BatchScopeAction}
 import org.positronicnet.orm.Actions._
 import org.positronicnet.notifications.Actions._
 import org.positronicnet.content.PositronicContentResolver
 
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 
+import android.provider.ContactsContract
 import android.util.Log
 
 // Classes that implement the "business logic" of dealing with
@@ -39,30 +40,30 @@ class ContactEditState( val rawContact: RawContact,
       deletedState += rec
   }
 
-  // "Save" support.  Note that this does *not* yet do batch operations;
-  // infrastructure for that is pending (though it shouldn't be a big deal).
+  // "Save" support.  Works through content resolver batch operations,
+  // per recommended best practice.
 
   def save = saveAndThen( null )
 
   def saveAndThen( callback: => Unit ) = {
-    PositronicContentResolver.runOnThread {
-      
-      if ( rawContact.isNewRecord ) {
 
-        for (group <- accountInfo.initialGroups)
-          updateItem((new GroupMembership).setProperty("groupRowId", group.id))
+    val batch = new BatchScopeAction( ContactsContract.AUTHORITY )
 
-        RawContacts.onThisThread( Save( rawContact ))
-      }
+    if ( rawContact.isNewRecord ) {
 
-      for ( item <- deletedState )
-        ContactData.onThisThread( Delete( item ))
+      batch.add( Save( rawContact ))
 
-      for ( item <- currentState.valuesIterator )
-        ContactData.onThisThread( Save( item ))
-
-      callback
+      for ( group <- accountInfo.initialGroups )
+        updateItem((new GroupMembership).setProperty("groupRowId", group.id))
     }
+
+    for ( item <- deletedState )
+      batch.add( Delete( item ))
+
+    for ( item <- currentState.valuesIterator )
+      batch.add( Save( item ))
+
+    PositronicContentResolver ! batch.onSuccess{ callback }
   }
 
   def logIt = {

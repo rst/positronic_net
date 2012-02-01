@@ -26,7 +26,7 @@ class RawContactView( ctx: Context, attrs: AttributeSet )
 
   def setRawContact( r: RawContact ) = {
     rawc = r
-    setText( r.accountName )
+    setText( if (r.accountName != null) r.accountName else "Phone-only" )
   }
 
   onClick {

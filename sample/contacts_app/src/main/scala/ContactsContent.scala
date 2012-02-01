@@ -64,11 +64,11 @@ object Contacts
 case class RawContact (
   val contactId:       RecordId[Contact]    = Contacts.unsavedId,
   val starred:         Boolean              = false,
-  val customRingtone:  String               = "",
-  val sendToVoicemail: Boolean              = true,
+  val customRingtone:  String               = null,
+  val sendToVoicemail: Boolean              = false,
   val deleted:         Boolean              = false,
-  val accountName:     String               = "",
-  val accountType:     String               = "",
+  val accountName:     String               = null,
+  val accountType:     String               = null,
   val id:              RecordId[RawContact] = RawContacts.unsavedId
 ) 
 extends ManagedRecord with ReflectiveProperties

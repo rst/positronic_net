@@ -64,24 +64,33 @@ class EditNewContactActivity
   onResume {
     if (state == null) {
       val accounts = AccountManager.get( this ).getAccounts
-      val dbuilder = new AlertDialog.Builder( this )
-      dbuilder.setTitle( R.string.choose_account_for_contact )
-      dbuilder.setItems( 
-        accounts.map{ _.name.asInstanceOf[java.lang.CharSequence] },
-        new DialogInterface.OnClickListener {
-          def onClick( dialog: DialogInterface, idx: Int ) = {
-            setUpForAccount( accounts( idx ))
+      if (accounts.size == 0)
+        setUpForAccount( null )
+      else if (accounts.size == 1)
+        setUpForAccount( accounts(0) )
+      else {
+        val dbuilder = new AlertDialog.Builder( this )
+        dbuilder.setTitle( R.string.choose_account_for_contact )
+        dbuilder.setItems( 
+          accounts.map{ _.name.asInstanceOf[java.lang.CharSequence] },
+          new DialogInterface.OnClickListener {
+            def onClick( dialog: DialogInterface, idx: Int ) = {
+              setUpForAccount( accounts( idx ))
+            }
           }
-        }
-      )
-      dbuilder.create.show
+        )
+        dbuilder.create.show
+      }
     }
   }
 
   def setUpForAccount( acct: Account ) = {
 
     val contact = 
-      new RawContact( accountName = acct.name, accountType = acct.`type` )
+      if (acct != null)
+        new RawContact( accountName = acct.name, accountType = acct.`type` )
+      else
+        new RawContact
 
     setContentView( R.layout.edit_contact )
     bindState( new ContactEditState( contact, Seq.empty ))

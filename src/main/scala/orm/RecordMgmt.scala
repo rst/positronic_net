@@ -463,8 +463,11 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   protected
   def dataPairs( rec: T ) = {
     val fieldsToSave = if (rec.isNewRecord) fieldsForInsert else fieldsForUpdate
-    fieldsToSave.map{ _.valPair( rec ) }
+    fieldsToSave.map{ _.valPair( rec ) } ++ extraDataPairs( rec )
   }
+
+  private [orm] def extraDataPairs( rec: T ): Seq[(String, ContentValue)] = 
+    Seq.empty
 
   private
   def insert( vals: Seq[(String, ContentValue)] ) = 

@@ -117,9 +117,9 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
   {
     taggedVariants += (varTag -> this)
 
-    protected
-    override def dataPairs( rec: TT ) = 
-      (super.dataPairs( rec )) :+ ( discriminantColumn -> CvString(varTag) )
+    private [orm]
+    override def extraDataPairs( rec: TT ) = 
+      Seq( discriminantColumn -> CvString(varTag) )
   }
 
   protected

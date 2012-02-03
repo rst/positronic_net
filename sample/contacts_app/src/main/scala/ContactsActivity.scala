@@ -95,17 +95,10 @@ class ContactsActivity
     else if (accounts.size == 1)
       newContactForAccount( accounts(0) )
     else {
-      val dbuilder = new AlertDialog.Builder( this )
-      dbuilder.setTitle( R.string.choose_account_for_contact )
-      dbuilder.setItems( 
-        accounts.map{ _.name.asInstanceOf[java.lang.CharSequence] },
-        new DialogInterface.OnClickListener {
-          def onClick( dialog: DialogInterface, idx: Int ) = {
-            newContactForAccount( accounts( idx ))
-          }
-        }
-      )
-      dbuilder.create.show
+      val title = R.string.choose_account_for_contact
+      withChoice[ Account ]( title , accounts, _.name ){
+        newContactForAccount( _ )
+      }
     }
   }
 
@@ -122,6 +115,22 @@ class ContactsActivity
     startActivity( intent )
   }
 
+  def withChoice[T](titleRes: Int, vals: IndexedSeq[T], labeler: T => String)
+                   (handler: T => Unit) = 
+  {
+    val dbuilder = new AlertDialog.Builder( this )
+    dbuilder.setTitle( titleRes )
+    dbuilder.setItems( 
+      vals.map{ labeler(_).asInstanceOf[CharSequence] }.toArray,
+      new DialogInterface.OnClickListener {
+        def onClick( dialog: DialogInterface, idx: Int ) = {
+          handler( vals( idx ) )
+        }
+      }
+    )
+    dbuilder.create.show
+  }
+  
   def dumpToLog = {
     Contacts.onThread {
       for ( contact <- Contacts.fetchOnThisThread ) {

@@ -1,4 +1,12 @@
 <resources>
+
+  <!-- Menu entries -->
+
   <string name="new_contact">Add Contact</string>
   <string name="dump_contacts">Dump Contacts</string>
+
+  <!-- title for "choose account" dialog for new contacts -->
+
+  <string name="choose_account_for_contact">Choose Account</string>
+
 </resources>

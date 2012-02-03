@@ -4,10 +4,6 @@
 
   <string name="save_raw_contact">Save</string>
 
-  <!-- title for "choose account" dialog for new contacts -->
-
-  <string name="choose_account_for_contact">Choose Account</string>
-
   <!-- Generic "add item" and "remove item" buttons -->
 
   <string name="add_item">+</string>

@@ -40,12 +40,10 @@ class ContactEditState( val rawContact: RawContact,
       deletedState += rec
   }
 
-  // "Save" support.  Works through content resolver batch operations,
-  // per recommended best practice.
+  // "Save" support.  Yields a content resolver batch operation that
+  // does the job in a single round, per recommended best practice.
 
-  def save = saveAndThen( null )
-
-  def saveAndThen( callback: => Unit ) = {
+  def saveBatch = {
 
     val batch = new BatchScopeAction( ContactsContract.AUTHORITY )
 
@@ -63,7 +61,7 @@ class ContactEditState( val rawContact: RawContact,
     for ( item <- currentState.valuesIterator )
       batch.add( Save( item ))
 
-    PositronicContentResolver ! batch.onSuccess{ callback }
+    batch
   }
 
   def logIt = {

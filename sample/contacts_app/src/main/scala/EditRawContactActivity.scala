@@ -42,14 +42,20 @@ class EditRawContactActivity
   }
 
   def doSave = {
+
     val editors = findView( TR.editors )
+
     for (i <- Range(0, editors.getChildCount)) {
       editors.getChildAt(i) match {
         case cd: CategoryDisplay[_] => cd.updateState
         case _ => 
       }
     }
-    state.saveAndThen{ this.runOnUiThread{ finish }}
+
+    val saveOp = state.saveBatch
+
+    PositronicContentResolver ! saveOp.onSuccess{ finish }.onFailure{ 
+      toastShort("Error saving; see log") }
   }
 }
 

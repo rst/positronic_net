@@ -36,8 +36,10 @@ class EditRawContactActivity
     this.state = state
     val editors = findView( TR.editors )
     for (i <- Range(0, editors.getChildCount)) {
-      val editor = editors.getChildAt(i).asInstanceOf[ CategoryDisplay[_] ]
-      editor.bind( state )
+      editors.getChildAt(i) match {
+        case cd: CategoryDisplay[_] => cd.bind( state )
+        case _ => 
+      }
     }
   }
 

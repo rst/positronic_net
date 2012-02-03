@@ -11,6 +11,10 @@ import android.util.{AttributeSet, Log}
 import android.view.View
 import android.widget.{TextView, ExpandableListView}
 
+import android.accounts.{AccountManager, Account}
+import android.app.AlertDialog
+import android.content.DialogInterface  // android.content?!
+
 import scala.collection.mutable.ArrayBuffer
 
 object ActivityUiBinder extends UiBinder {
@@ -30,7 +34,7 @@ class RawContactView( ctx: Context, attrs: AttributeSet )
   }
 
   onClick {
-    val intent = new Intent( getContext, classOf[ EditExistingContactActivity ])
+    val intent = new Intent( getContext, classOf[ EditRawContactActivity ])
     intent.putExtra( "raw_contact", rawc )
     getContext.startActivity( intent )
   }
@@ -47,9 +51,7 @@ class ContactsActivity
     
     useOptionsMenuResource( R.menu.contacts_menu )
     onOptionsItemSelected( R.id.dump_contacts ){ dumpToLog }
-    onOptionsItemSelected( R.id.new_contact ) {
-      startActivity( new Intent( this, classOf[ EditNewContactActivity ] ))
-    }
+    onOptionsItemSelected( R.id.new_contact ) { newContact }
 
     getExpandableListView.setOnChildClickListener(this) // not automatic?!
   }
@@ -85,6 +87,40 @@ class ContactsActivity
                                       R.layout.rawcontact_view_row,
                                       ActivityUiBinder ))
   }}}}
+
+  def newContact = {
+    val accounts = AccountManager.get( this ).getAccounts
+    if (accounts.size == 0)
+      newContactForAccount( null )
+    else if (accounts.size == 1)
+      newContactForAccount( accounts(0) )
+    else {
+      val dbuilder = new AlertDialog.Builder( this )
+      dbuilder.setTitle( R.string.choose_account_for_contact )
+      dbuilder.setItems( 
+        accounts.map{ _.name.asInstanceOf[java.lang.CharSequence] },
+        new DialogInterface.OnClickListener {
+          def onClick( dialog: DialogInterface, idx: Int ) = {
+            newContactForAccount( accounts( idx ))
+          }
+        }
+      )
+      dbuilder.create.show
+    }
+  }
+
+  def newContactForAccount( acct: Account ) = {
+
+    val rawContact = 
+      if (acct != null)
+        new RawContact( accountName = acct.name, accountType = acct.`type` )
+      else
+        new RawContact
+
+    val intent = new Intent( this, classOf[ EditRawContactActivity ])
+    intent.putExtra( "raw_contact", rawContact )
+    startActivity( intent )
+  }
 
   def dumpToLog = {
     Contacts.onThread {

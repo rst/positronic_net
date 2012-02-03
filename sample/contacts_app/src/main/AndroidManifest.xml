@@ -14,9 +14,7 @@
                 <category android:name="android.intent.category.LAUNCHER"></category>
             </intent-filter>
         </activity>
-        <activity android:label="Edit Existing Contact" 
-                  android:name=".EditExistingContactActivity"/>
-        <activity android:label="Edit New Contact" 
-                  android:name=".EditNewContactActivity"/>
+        <activity android:label="Edit Contact" 
+                  android:name=".EditRawContactActivity"/>
     </application>
 </manifest>

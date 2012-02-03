@@ -225,10 +225,10 @@ class GroupMembership extends ContactData
 
 abstract class ContactDataWithRecordType extends ContactData 
 {
-  val recType: Int    = PhoneTypeInfo.customType
-  val label:   String = null
-
   val recTypeInfo: TypeFieldInfo
+
+  val recType: Int = recTypeInfo.recTypes(0) // first choice is the default
+  val label:   String = null
 
   def recordType = TypeField( recType, label, recTypeInfo )
 
@@ -250,7 +250,7 @@ class Phone extends ContactDataWithRecordType {
   val number:  String            = null
   val id:      RecordId[ Phone ] = ContactData.phones.unsavedId
 
-  val recTypeInfo = PhoneTypeInfo
+  lazy val recTypeInfo = PhoneTypeInfo
 
   override def toString = 
     super.toString + " ("+ recordType.displayString +", "+ number +")"
@@ -269,7 +269,7 @@ class Email extends ContactDataWithRecordType {
   val address: String = null
   val id:      RecordId[ Email ] = ContactData.emails.unsavedId
 
-  val recTypeInfo = EmailTypeInfo
+  lazy val recTypeInfo = EmailTypeInfo
 
   override def toString = 
     super.toString + " ("+ recordType.displayString +", "+ address+")"

@@ -93,6 +93,13 @@ object RawContacts
   mapField( "contactId",   col("CONTACT_ID"),   MapAs.ReadOnly  )
   mapField( "accountName", col("ACCOUNT_NAME"), MapAs.WriteOnce )
   mapField( "accountType", col("ACCOUNT_TYPE"), MapAs.WriteOnce )
+
+  // Query to retrieve raw contacts for a contact.  *Should* use
+  // lookup key, to try to compensate for the results of background
+  // syncs, but this is OK for testing...
+
+  def forContact( contact: Contact ) =
+    this.whereEq( col("CONTACT_ID") -> contact.id )
 }
 
 // Groups table.

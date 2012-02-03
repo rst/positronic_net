@@ -9,7 +9,7 @@ import org.positronicnet.orm.Actions._
 import android.content.{Context, Intent}
 import android.util.{AttributeSet, Log}
 import android.view.View
-import android.widget.{TextView, ExpandableListView}
+import android.widget.{TextView, ListView}
 
 import android.accounts.{AccountManager, Account}
 import android.app.AlertDialog
@@ -17,31 +17,8 @@ import android.content.DialogInterface  // android.content?!
 
 import scala.collection.mutable.ArrayBuffer
 
-object ActivityUiBinder extends UiBinder {
-  bind[ RawContactView, RawContact ]( 
-    (_.setRawContact(_)), 
-    ((x,y) => throw new RuntimeException( "rawcontact set not defined!" )))
-}
-
-class RawContactView( ctx: Context, attrs: AttributeSet )
-  extends PositronicTextView( ctx, attrs )
-{
-  var rawc: RawContact = null
-
-  def setRawContact( r: RawContact ) = {
-    rawc = r
-    setText( if (r.accountName != null) r.accountName else "Phone-only" )
-  }
-
-  onClick {
-    val intent = new Intent( getContext, classOf[ EditRawContactActivity ])
-    intent.putExtra( "raw_contact", rawc )
-    getContext.startActivity( intent )
-  }
-}
-
 class ContactsActivity 
-  extends android.app.ExpandableListActivity 
+  extends android.app.ListActivity 
   with PositronicActivityHelpers
 {
   onCreate {
@@ -52,41 +29,36 @@ class ContactsActivity
     useOptionsMenuResource( R.menu.contacts_menu )
     onOptionsItemSelected( R.id.dump_contacts ){ dumpToLog }
     onOptionsItemSelected( R.id.new_contact ) { newContact }
-
-    getExpandableListView.setOnChildClickListener(this) // not automatic?!
   }
 
   onResume {
+    Contacts ! Fetch { contacts => 
+      if (contacts.size > 0) {
+        val sortedContacts = contacts.sortBy{ _.displayNamePrimary.toLowerCase }
+        setListAdapter( new IndexedSeqAdapter( sortedContacts, 
+                                               R.layout.contact_view_row ))
+      }
+      else {
+        // android package IDs don't show up in TypedResources, so...
+        val txtv = findViewById( android.R.id.empty ).asInstanceOf[ TextView ]
+        txtv.setText( R.string.no_contacts )
+      }
+    }
+  }
 
-    // There's no obvious way to retrieve a join of Contacts to
-    // RawContacts (though for a real cheat, we could try doing it
-    // through ContactData, which has implicit joins to both).  So,
-    // we instead do separate fetches and do the join here.
-    //
-    // Could load an initial data set when just contacts are received,
-    // in order to show the users something quickly, if the full
-    // RawContact fetch causes a perceptible pause.
-
-    Contacts ! Fetch { contacts =>
-      RawContacts ! Fetch { rawContacts => {
-
-        val dataByContactId = 
-          contacts.collect{ case contact:Contact => 
-            (contact.id, (contact, new ArrayBuffer[RawContact] )) }.toMap
-        
-        for (rawContact <- rawContacts)
-          if (!rawContact.deleted)
-            dataByContactId( rawContact.contactId )._2 += rawContact
-
-        val pairs = dataByContactId.values.toIndexedSeq 
-        val data = pairs.sortBy{ _._1.displayNamePrimary.toLowerCase }
-
-        setListAdapter(
-          new IndexedSeqGroupAdapter( data,
-                                      R.layout.contact_view_row,
-                                      R.layout.rawcontact_view_row,
-                                      ActivityUiBinder ))
-  }}}}
+  override def onListItemClick( l: ListView, v: View, posn: Int, id: Long ) = {
+    val contact = getListAdapter.getItem( posn ).asInstanceOf[Contact]
+    RawContacts.forContact( contact ) ! Fetch { rawContacts => 
+      if (rawContacts.size == 1)
+        startEditingRawContact( rawContacts(0) )
+      else {
+        val title = R.string.edit_contact_in_account
+        withChoiceFromDialog[ RawContact ]( title, rawContacts, _.accountName ){
+          startEditingRawContact( _ )
+        }
+      }
+    }
+  }
 
   def newContact = {
     val accounts = AccountManager.get( this ).getAccounts
@@ -96,27 +68,29 @@ class ContactsActivity
       newContactForAccount( accounts(0) )
     else {
       val title = R.string.choose_account_for_contact
-      withChoice[ Account ]( title , accounts, _.name ){
+      withChoiceFromDialog[ Account ]( title , accounts, _.name ){
         newContactForAccount( _ )
       }
     }
   }
 
-  def newContactForAccount( acct: Account ) = {
-
-    val rawContact = 
+  def newContactForAccount( acct: Account ) =
+    startEditingRawContact( 
       if (acct != null)
         new RawContact( accountName = acct.name, accountType = acct.`type` )
       else
-        new RawContact
+        new RawContact)
 
+  def startEditingRawContact( rawContact: RawContact ) = {
     val intent = new Intent( this, classOf[ EditRawContactActivity ])
     intent.putExtra( "raw_contact", rawContact )
     startActivity( intent )
   }
 
-  def withChoice[T](titleRes: Int, vals: IndexedSeq[T], labeler: T => String)
-                   (handler: T => Unit) = 
+  def withChoiceFromDialog[T](titleRes: Int, 
+                              vals: IndexedSeq[T], 
+                              labeler: T => String)
+                             (handler: T => Unit) = 
   {
     val dbuilder = new AlertDialog.Builder( this )
     dbuilder.setTitle( titleRes )

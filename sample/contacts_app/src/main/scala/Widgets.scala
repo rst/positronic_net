@@ -139,7 +139,7 @@ abstract class CategoryDisplay[ T <: ContactData : ClassManifest ]
 
   def bind( state: ContactEditState ) = {
     this.state = state
-    for ( item <- state.initialItems ) 
+    for ( item <- state.currentItems ) 
       if (targetKlass.isInstance( item ))
         newView.bind( item )
   }
@@ -172,7 +172,7 @@ abstract class SingletonCategoryDisplay[ T <: ContactData : ClassManifest ]
 
   override def bind( state: ContactEditState ) = {
     super.bind( state )
-    if (!state.initialItems.exists( targetKlass.isInstance( _ )))
+    if (!state.currentItems.exists( targetKlass.isInstance( _ )))
       newView.bind( newItem )
   }
 }

@@ -18,25 +18,40 @@ import android.util.Log
 
 class ContactEditState( val rawContact: RawContact,
                         val initialItems: Seq[ ContactData ] ) 
+  extends Serializable
 {
-  private var deletedState: ArrayBuffer[ ContactData ] = ArrayBuffer.empty
-  private var currentState: HashMap[ RecordId[_], ContactData ] = HashMap.empty
+  private var deletedState = new ArrayBuffer[ ContactData ]
+  private var currentState = new ArrayBuffer[ ContactData ]
   private val accountInfo = AccountInfo.forRawContact( rawContact )
 
+  currentState ++= initialItems
+
   def deletedItems: IndexedSeq[ContactData] = deletedState
-  def currentItems = currentState.valuesIterator
+  def currentItems: IndexedSeq[ContactData] = currentState
 
   def updateItem( rec: ContactData ): Unit = {
-    currentState( rec.id ) = 
+
+    val tweakedRec =
       if (rec.isUnsaved) 
         rec.setProperty( "rawContactId", rawContact.id )
       else
         rec
+    
+    val idx = currentState.indexWhere( _.id == rec.id )
+    
+    if (idx < 0) 
+      currentState += tweakedRec
+    else 
+      currentState( idx ) = tweakedRec
   }
 
   def deleteItem( rec: ContactData ): Unit = {
-    currentState.remove( rec.id )
-    if (!rec.isNewRecord)
+    val idx = currentState.indexWhere( _.id == rec.id )
+
+    if (idx >= 0) 
+      currentState.remove( idx )
+
+    if (!rec.isNewRecord) 
       deletedState += rec
   }
 
@@ -58,7 +73,7 @@ class ContactEditState( val rawContact: RawContact,
     for ( item <- deletedState )
       batch.add( Delete( item ))
 
-    for ( item <- currentState.valuesIterator )
+    for ( item <- currentState )
       batch.add( Save( item ))
 
     batch
@@ -72,7 +87,7 @@ class ContactEditState( val rawContact: RawContact,
     for ( item <- deletedState )
       Log.d( "RawContact state", "Delete " + item )
 
-    for ( item <- currentState.valuesIterator )
+    for ( item <- currentState )
       if ( item.isNewRecord )
         Log.d( "RawContact state", "Insert " + item )
       else
@@ -161,7 +176,7 @@ object AccountInfo {
     }
 }
 
-abstract class AccountInfo {
+abstract class AccountInfo extends Serializable {
   def initialGroups: Seq[ Group ]
 }
 

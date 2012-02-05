@@ -109,6 +109,33 @@ class EditCustomTypeDialog( typeFieldChooser: TypeFieldChooser )
   }
 }
 
+// Widget to display all data associated with a RawContact
+
+class RawContactEditor( ctx: Context, attrs: AttributeSet ) 
+  extends LinearLayout( ctx, attrs )
+  with TypedViewHolder
+{
+  def bindState( state: ContactEditState ) = {
+    val editors = findView( TR.editors )
+    for (i <- Range(0, editors.getChildCount)) {
+      editors.getChildAt(i) match {
+        case cd: CategoryDisplay[_] => cd.bind( state )
+        case _ => 
+      }
+    }
+  }
+
+  def updateState = {
+    val editors = findView( TR.editors )
+    for (i <- Range(0, editors.getChildCount)) {
+      editors.getChildAt(i) match {
+        case cd: CategoryDisplay[_] => cd.updateState
+        case _ => 
+      }
+    }
+  }
+}
+
 // Widget to display all ContactData of a particular type (Phone, Email, etc.)
 
 abstract class CategoryDisplay[ T <: ContactData : ClassManifest ]

@@ -68,28 +68,12 @@ class EditRawContactActivity
 
   def bindState( state: ContactEditState ) = {
     this.state = state
-    val editors = findView( TR.editors )
-    for (i <- Range(0, editors.getChildCount)) {
-      editors.getChildAt(i) match {
-        case cd: CategoryDisplay[_] => cd.bind( state )
-        case _ => 
-      }
-    }
+    findView( TR.rawContactEditor ).bindState( state )
   }
 
   // Updating the state from what's displayed in the editor widgets.
 
-  def syncState = {
-
-    val editors = findView( TR.editors )
-
-    for (i <- Range(0, editors.getChildCount)) {
-      editors.getChildAt(i) match {
-        case cd: CategoryDisplay[_] => cd.updateState
-        case _ => 
-      }
-    }
-  }
+  def syncState = findView( TR.rawContactEditor ).updateState
 
 }
 

@@ -160,7 +160,11 @@ abstract class CategoryDisplay[ T <: ContactData : ClassManifest ]
     this.removeView( child )
   }
 
-  def addDatumEditor = newView.bind( newItem )
+  def addDatumEditor: Unit = {
+    val view = newView
+    view.bind( newItem )
+    view.requestFocus
+  }
 }
 
 abstract class SingletonCategoryDisplay[ T <: ContactData : ClassManifest ]
@@ -201,7 +205,6 @@ trait WidgetUtils extends View {
 
     parent.asInstanceOf[ ViewType ]
   }
-
 }
 
 // Widgets coordinating editing of a single ContactData, of

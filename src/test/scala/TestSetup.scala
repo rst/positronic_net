@@ -84,21 +84,20 @@ class TodoDatabase( filename: String )
 
 case class TodoItem( description: String  = null, 
                      isDone:      Boolean = false,
-                     todoListId:  Long    = ManagedRecord.unsavedId,
-                     id:          Long    = ManagedRecord.unsavedId
+                     todoListId:  RecordId[TodoList] = TodoLists.unsavedId,
+                     id:          RecordId[TodoItem] = TodoItems.unsavedId
                    )
-  extends ManagedRecord( TodoItems )
+  extends ManagedRecord
 {
+  def description_:=( s: String ) = copy( description = s )
   def isDone( newVal: Boolean ) = copy( isDone = newVal )
-
-  lazy val list = new BelongsTo( TodoLists )
 }
 
 object TodoItems extends RecordManager[ TodoItem ]( TodoDb("todo_items") )
 
-case class TodoList( name: String = null,
-                     id:   Long   = ManagedRecord.unsavedId )
-  extends ManagedRecord( TodoLists )
+case class TodoList( name: String             = null,
+                     id:   RecordId[TodoList] = TodoLists.unsavedId )
+  extends ManagedRecord
 {
   def name( newName: String ) = copy( name = newName )
 
@@ -121,6 +120,26 @@ trait CommonDbTestHelpers
                                   isDone: Boolean, 
                                   items: T ) =
     items.exists{ it => it.description == description && it.isDone == isDone }
+}
+
+trait SerializationTestHelpers
+  extends org.scalatest.matchers.ShouldMatchers
+{
+  def assertSerializationPreservesEquality( stuff: Object ) = {
+    serializationRoundTrip( stuff ) should equal (stuff)
+  }
+
+  def serializationRoundTrip( stuff: Object ): Object = {
+    val bytesout   = new java.io.ByteArrayOutputStream( 1024 )
+    val objectsout = new java.io.ObjectOutputStream( bytesout )
+
+    objectsout.writeObject( stuff )
+
+    val bytesin    = new java.io.ByteArrayInputStream( bytesout.toByteArray )
+    val objectsin  = new java.io.ObjectInputStream( bytesin )
+
+    objectsin.readObject
+  }
 }
 
 trait DbTestFixtures 

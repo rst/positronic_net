@@ -11,12 +11,8 @@ trait ReflectiveProperties {
   def getProperty[T : ClassManifest]( prop: String ): T =
     PropertyLensFactory.forPropertyType[T].forProperty( selfKlass, prop ).get.getter( this )
 
-  // Note glitch --- return type is ReflectiveProperties, not anything more
-  // specific.  So, if you need a more specific type, you either need a cast
-  // (as in testPropApi in the specs), or to use lenses directly.
-
-  def setProperty[T : ClassManifest]( prop: String, value: T ): ReflectiveProperties =
-    PropertyLensFactory.forPropertyType[T].forProperty( selfKlass, prop ).get.setter( this, value ).asInstanceOf[ ReflectiveProperties ]
+  def setProperty[T : ClassManifest]( prop: String, value: T ): this.type =
+    PropertyLensFactory.forPropertyType[T].forProperty( selfKlass, prop ).get.setter( this, value ).asInstanceOf[ this.type ]
     
 }
 
@@ -31,7 +27,6 @@ abstract class PropertyLensFactory[ V : ClassManifest ] {
 
   def vFromObject( obj: Object ): V
   def vToObject( v: V ): Object
-  def vFromField( obj: Object, f: Field ): V
   def vIntoField( obj: Object, f: Field, value: V): Unit
 
   private
@@ -73,8 +68,10 @@ abstract class PropertyLensFactory[ V : ClassManifest ] {
         // ... leave them null
     }
 
-    if (getter != null && getter.getReturnType.equals( valueKlass ) &&
-        setter != null && setter.getReturnType.equals( klass ))
+    if (getter != null && 
+        getter.getReturnType.equals( valueKlass ) &&
+        setter != null && 
+        classOf[ReflectiveProperties].isAssignableFrom( setter.getReturnType ))
       return Some( PropertyLens[T,V]((t)   => vFromObject( getter.invoke(t) ),
                                      (t,v) => {
                                        val vobj = vToObject( v )
@@ -84,31 +81,42 @@ abstract class PropertyLensFactory[ V : ClassManifest ] {
                                      valueKlass
                                    ))
 
-    // Failing that, look for a field and try to do the clone/set thing...
+    // Require at least a properly-typed 'getter'...
+
+    if (getter == null || !getter.getReturnType.equals( valueKlass )) {
+      return None
+    }
+    
+    // If there's a backing field, do the clone/set thing...
 
     val fieldOpt = ReflectUtils.declaredFieldsByName( klass ).get( prop )
     
-    if (fieldOpt == None) return None   // no luck
+    if (fieldOpt != None) {
 
-    val field = fieldOpt.get
+      val field = fieldOpt.get
 
-    if (field.getType.equals( valueKlass )) {
-      field.setAccessible( true ) // might want some annotation checks...
-      return Some( PropertyLens[T,V]((t) => vFromField( t, field ),
-                                     (t,v) => {
-                                       val newT = PropertyLensFactory.klone( t )
-                                       vIntoField( newT, field, v )
-                                       newT.asInstanceOf[T]
-                                     },
-                                     klass,
-                                     valueKlass
-                                   ))
+      if (field.getType.equals( valueKlass )) {
+        field.setAccessible( true ) // might want some annotation checks...
+        return Some( PropertyLens[T,V]((t) => vFromObject( getter.invoke(t) ),
+                                       (t,v) => {
+                                         val newT = PropertyLensFactory.klone(t)
+                                         vIntoField( newT, field, v )
+                                         newT.asInstanceOf[T]
+                                       },
+                                       klass,
+                                       valueKlass
+                                     ))
+      }
     }
       
-                  
-    // Wrong type; still no luck.
+    // Failing *that*, treat as a read-only property.
 
-    return None
+    return Some( PropertyLens[T,V]((t) => vFromObject( getter.invoke(t) ),
+                                   (t, v) => 
+                                     throw new ReadOnlyProperty(klass,prop),
+                                   klass,
+                                   valueKlass
+                                 ))
   }
 }
 
@@ -181,7 +189,6 @@ private [util]
 class ObjectLensFactory[ V : ClassManifest ] extends PropertyLensFactory[ V ] {
   def vFromObject( obj: Object ): V = obj.asInstanceOf[ V ]
   def vToObject( v: V ): Object = v.asInstanceOf[ Object ]
-  def vFromField( obj: Object, f: Field ) = f.get( obj ).asInstanceOf[ V ]
   def vIntoField( obj: Object, f: Field, value: V ) = 
     f.set( obj, value.asInstanceOf[ Object ] )
 }
@@ -191,7 +198,6 @@ private [util]
 object IntLensFactory extends PropertyLensFactory[ Int ] {
   def vFromObject( obj: Object ): Int = obj.asInstanceOf[ Integer ].intValue
   def vToObject( v: Int ) = new Integer( v )
-  def vFromField( obj: Object, f: Field ) = f.getInt( obj )
   def vIntoField( obj: Object, f: Field, value: Int ) = f.setInt( obj, value )
 }
 
@@ -199,7 +205,6 @@ private [util]
 object ByteLensFactory extends PropertyLensFactory[ Byte ] {
   def vFromObject( obj: Object ): Byte = obj.asInstanceOf[ Byte ].byteValue
   def vToObject( v: Byte ) = new java.lang.Byte( v )
-  def vFromField( obj: Object, f: Field ) = f.getByte( obj )
   def vIntoField( obj: Object, f: Field, value: Byte ) = f.setByte( obj, value )
 }
 
@@ -207,7 +212,6 @@ private [util]
 object CharLensFactory extends PropertyLensFactory[ Char ] {
   def vFromObject( obj: Object ): Char = obj.asInstanceOf[ Char ].charValue
   def vToObject( v: Char ) = new java.lang.Character( v )
-  def vFromField( obj: Object, f: Field ) = f.getChar( obj )
   def vIntoField( obj: Object, f: Field, value: Char ) = f.setChar( obj, value )
 }
 
@@ -215,7 +219,6 @@ private [util]
 object ShortLensFactory extends PropertyLensFactory[ Short ] {
   def vFromObject( obj: Object ): Short = obj.asInstanceOf[ Short ].shortValue
   def vToObject( v: Short ) = new java.lang.Short( v )
-  def vFromField( obj: Object, f: Field ) = f.getShort( obj )
   def vIntoField( obj: Object, f: Field, value: Short ) = f.setShort(obj, value)
 }
 
@@ -223,7 +226,6 @@ private [util]
 object LongLensFactory extends PropertyLensFactory[ Long ] {
   def vFromObject( obj: Object ): Long = obj.asInstanceOf[ Long ].longValue
   def vToObject( v: Long ) = new java.lang.Long( v )
-  def vFromField( obj: Object, f: Field ) = f.getLong( obj )
   def vIntoField( obj: Object, f: Field, value: Long ) = f.setLong( obj, value )
 }
 
@@ -231,7 +233,6 @@ private [util]
 object FloatLensFactory extends PropertyLensFactory[ Float ] {
   def vFromObject( obj: Object ): Float = obj.asInstanceOf[ Float ].floatValue
   def vToObject( v: Float ) = new java.lang.Float( v )
-  def vFromField( obj: Object, f: Field ) = f.getFloat( obj )
   def vIntoField( obj: Object, f: Field, value: Float ) = 
     f.setFloat( obj, value )
 }
@@ -241,7 +242,6 @@ object DoubleLensFactory extends PropertyLensFactory[ Double ] {
   def vFromObject( obj: Object ): Double = 
     obj.asInstanceOf[ Double ].doubleValue
   def vToObject( v: Double ) = new java.lang.Double( v )
-  def vFromField( obj: Object, f: Field ) = f.getDouble( obj )
   def vIntoField( obj: Object, f: Field, value: Double ) = 
     f.setDouble( obj, value )
 }
@@ -251,9 +251,10 @@ object BooleanLensFactory extends PropertyLensFactory[ Boolean ] {
   def vFromObject( obj: Object ): Boolean = 
     obj.asInstanceOf[ Boolean ].booleanValue
   def vToObject( v: Boolean ) = new java.lang.Boolean( v )
-  def vFromField( obj: Object, f: Field ) = f.getBoolean( obj )
   def vIntoField( obj: Object, f: Field, value: Boolean ) = 
     f.setBoolean( obj, value )
 }
 
-
+class ReadOnlyProperty( klass: Class[_], prop: String )
+  extends RuntimeException( "Attempt to set read-only property " + prop + 
+                            " of class " + klass.toString )

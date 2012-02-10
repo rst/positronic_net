@@ -25,7 +25,7 @@ abstract class CursorSourceAdapter[T <: AnyRef](
 )
  extends _root_.android.widget.CursorAdapter( activity, null )
 {
-  var inflater: LayoutInflater = null
+  protected var inflater: LayoutInflater = null
 
   if (source != null) {
     activity.manageListener( this, source ) {
@@ -158,7 +158,7 @@ class IndexedSeqAdapter[T <: Object](protected var seq:IndexedSeq[T] = new Array
 
   /** Get the id of the n'th item from the current sequence */
 
-  def getItemId(position: Int) = getItem(position).hashCode()
+  def getItemId(position: Int) = position
 
   /** Get number of items in the current sequence */
 
@@ -182,4 +182,89 @@ class IndexedSeqSourceAdapter[T <: Object](activity: PositronicActivityHelpers,
                                 binder = binder )
 {
   activity.manageListener( this, source ) { resetSeq( _ ) }
+}
+
+/**
+ * Simple adapter for expandable lists.  Takes an underlying data set,
+ * which is an `IndexedSeq[(GroupItem, IndexedSeq[ChildItem])]`, and
+ * does the obvious, using a passed-in UiBinder to bind the views.
+ */
+
+class IndexedSeqGroupAdapter[ GroupItem <: Object, ChildItem <: Object ]
+  (protected var data: IndexedSeq[(GroupItem, IndexedSeq[ChildItem])],
+   groupViewResourceId: Int = 0, 
+   childViewResourceId: Int = 0,
+   binder: UiBinder = UiBinder
+  )
+  extends android.widget.BaseExpandableListAdapter
+{
+  protected var inflater: LayoutInflater = null
+
+  protected def getInflater( view: android.view.View ) = {
+    if (inflater == null) {
+      inflater = 
+        view.getContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE)
+          .asInstanceOf[LayoutInflater]
+    }
+    inflater
+  }
+
+  def reset( newData: IndexedSeq[(GroupItem, IndexedSeq[ChildItem])] ) = {
+    this.data = newData
+    notifyDataSetChanged
+  }
+
+  def getChild( grpPos: Int, chldPos: Int ) = data (grpPos)._2 (chldPos) 
+
+  def getChildId( grpPos: Int, chldPos: Int ) = chldPos
+
+  def getChildrenCount( grpPos: Int ) = data (grpPos)._2.size
+
+  def getChildView( grpPos: Int, chldPos: Int, isLastChild: Boolean,
+                    convertView: View, parent: ViewGroup ): View = 
+  {
+    val view = if (convertView != null) convertView 
+               else newChildView (grpPos, chldPos, parent)
+
+    bindChildView (view, getChild (grpPos, chldPos), isLastChild )
+
+    view
+  }
+
+  def newChildView( grpPos: Int, chldPos: Int, parent: ViewGroup ) = {
+    assert( childViewResourceId != 0 )
+    getInflater( parent ).inflate( childViewResourceId, parent, false )
+  }
+
+  def bindChildView (view: View, child: ChildItem, isLastItem: Boolean) =
+    binder.show (child, view)
+
+  def getGroup( grpPos: Int ) = data (grpPos)._1
+
+  def getGroupId( grpPos: Int ) = grpPos
+
+  def getGroupCount = data.size
+
+  def getGroupView( grpPos: Int, isExpanded: Boolean, 
+                    convertView: View, parent: ViewGroup): View = 
+  {
+    val view = if (convertView != null) convertView 
+               else newGroupView (grpPos, parent)
+
+    bindGroupView (view, getGroup (grpPos))
+
+    view
+  }
+
+  def newGroupView( grpPos: Int, parent: ViewGroup ) = {
+    assert( groupViewResourceId != 0 )
+    getInflater( parent ).inflate( groupViewResourceId, parent, false )
+  }
+
+  def bindGroupView (view: View, group: GroupItem) =
+    binder.show (group, view)
+
+  def hasStableIds = false
+
+  def isChildSelectable( grpPos: Int, chldPos: Int ) = false
 }

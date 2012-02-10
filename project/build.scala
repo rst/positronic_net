@@ -6,7 +6,7 @@ import AndroidKeys._
 object General {
   val settings = Defaults.defaultSettings ++ Seq (
     organization := "org.positronicnet",
-    version := "0.3-SNAPSHOT",
+    version := "0.4-SNAPSHOT",
     scalaVersion := "2.9.0-1",
     platformName in Android := "android-7"
   )
@@ -59,11 +59,20 @@ object AndroidBuild extends Build {
 
   // Bundled sample projects
 
-  def sampleProject( name: String, dir: String ) =
+  def sampleProject( name: String, dir: String ) = {
+    val projSrc = "sample/" + dir + "/src/main"
     Project( name, file("sample")/dir, 
-             settings = General.fullAndroidSettings 
-           ) dependsOn (libproj % "compile")
+             settings = General.fullAndroidSettings ++ (
+               testOptions in Test ++= Seq(
+                 Tests.Argument("-DandroidResPath=" + projSrc + "/res"),
+                 Tests.Argument("-DandroidManifestPath=" + projSrc + 
+                                "/AndroidManifest.xml"))
+             ))
+      .dependsOn (libproj % "compile")
+      .dependsOn (roboScalaTest % "test")
+  }
 
-  lazy val todo     = sampleProject( "SampleTodo",    "todo_app" )
-  lazy val call_log = sampleProject( "SampleCallLog", "call_log_app" )
+  lazy val todo     = sampleProject( "SampleTodo",     "todo_app" )
+  lazy val call_log = sampleProject( "SampleCallLog",  "call_log_app" )
+  lazy val contacts = sampleProject( "SampleContacts", "contacts_app" )
 }

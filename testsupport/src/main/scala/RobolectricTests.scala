@@ -112,6 +112,12 @@ trait RobolectricTests
 
       case None =>
 
+        if (!(new java.io.File( manifestPath )).exists)
+          throw new java.io.IOException( manifestPath + " not found" )
+
+        if (!(new java.io.File( androidResPath )).exists)
+          throw new java.io.IOException( manifestPath + " not found" )
+
         val config = new RobolectricConfig( 
           new java.io.File( manifestPath ),
           new java.io.File( androidResPath ))

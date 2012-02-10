@@ -1,0 +1,21 @@
+<resources>
+
+  <!-- Text for "empty items" box in the contacts layout -->
+
+  <string name="loading_contacts">Loading Contacts</string>
+  <string name="no_contacts">No Contacts Found</string>
+
+  <!-- Menu entries -->
+
+  <string name="new_contact">Add Contact</string>
+  <string name="dump_contacts">Dump Contacts</string>
+
+  <!-- title for "choose account" dialog for new contacts -->
+
+  <string name="choose_account_for_contact">Choose Account</string>
+
+  <!-- title for "choose account" dialog for existing contacts -->
+
+  <string name="edit_contact_in_account">Edit Contact in Account</string>
+
+</resources>

@@ -3,6 +3,7 @@ package org.positronicnet.orm
 import org.positronicnet.content._
 import org.positronicnet.notifications._
 import org.positronicnet.util._
+import org.positronicnet.facility._
 
 import android.database.Cursor
 import android.util.Log
@@ -33,9 +34,9 @@ import scala.collection._
   * like so:
   * 
   * {{{
-  *     case class TodoItem( description: String = null, 
-  *                          isDone: Boolean     = false,
-  *                          id: Long            = ManagedRecord.unsavedId 
+  *     case class TodoItem( description: String    = null, 
+  *                          isDone: Boolean        = false,
+  *                          id: RecordId[TodoItem] = TodoItems.unsavedId 
   *                        )
   *       extends ManagedRecord( TodoItem )
   *
@@ -54,7 +55,7 @@ import scala.collection._
   * awfully awkward to write that constraint...
   */
 
-abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
+trait ManagedRecord extends Object {
 
   // Bookkeeping
 
@@ -69,11 +70,11 @@ abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
     * overridden.
     */
 
-  val id: Long
+  val id: RecordId[_]
 
   /** True if this is a new record (i.e., not a query result). */
 
-  def isNewRecord = (id == ManagedRecord.unsavedId)
+  def isNewRecord = id.isNewRecord
 
   /** True if this record is unsaved (i.e., a new record or
     * modified query result).
@@ -95,61 +96,97 @@ abstract class ManagedRecord( private[orm] val manager: BaseRecordManager[_] ) {
     * corresponding Scala record field.
     */
 
-  class HasMany[T <: ManagedRecord]( src: RecordManager[T], foreignKey: String )
+  class HasMany[T <: ManagedRecord]( src: Scope[T], foreignKey: String )
     extends HasManyAssociation( src, foreignKey, this.id )
   {
-    def this( src: RecordManager[T] ) = 
-      this( src, src.columnNameFor( manager.defaultForeignKeyField ))
+    def this( src: Scope[T] ) =
+      this( src, src.mgr.columnNameFor( this.id.mgr.defaultForeignKeyField ))
   }
 
-  /** Many-to-one association.  See discussion in the
-    * [[org.positronicnet.orm]] overview.  Note that the
-    * `foreignKey` need not be supplied if it follows common conventions.
-    * (If the class the `BelongsTo` refers to is named `ParentClass`, the
-    * conventional foreign key field is the one whose Scala name is
-    * `parentClassId`, in the "child" class.  That is, if a `TodoItem`
-    * belongs to a `TodoList`, the convention is for `TodoItem` to have
-    * a `todoListId`, and that's what we use.)
-    *
-    * Otherwise it must be the column name for the
-    * [[org.positronicnet.orm.ContentRepository]], not the name of the
-    * corresponding Scala record field.
+}
+
+/** Representation for a record ID.
+  *
+  * Ordinarily just wraps a Long, but also tracks when records have been
+  * saved, which can be useful when creating a base record (e.g., TodoList)
+  * and several dependent records (e.g., TodoItem) in one go.
+  */
+
+class RecordId[T <: ManagedRecord] private[orm] (
+    @transient val mgrArg: BaseRecordManager[T],
+    val id: Long)
+  extends NonSharedNotifier[T]
+  with Serializable
+{
+  def isNewRecord = id < 0
+
+  // Bookkeeping to keep track of record manager across serialization.
+  // (Doing this with custom readObject and writeObject methods
+  // was... glitchy when attaching serialized RecordIds as extras to
+  // Intents, so instead we do this.)
+
+  @transient private var mgrCache = mgrArg
+  private val className: String = mgrArg.managedKlass.getName
+  
+  /** Record manager for this ID.  Ordinarily it's just a reference to
+    * the record manager that constructed us, but if we got serialized and
+    * deserialized, the 
     */
 
-  class BelongsTo[T <: ManagedRecord]( src: RecordManager[T],
-                                       foreignKeyField: MappedField )
-    extends BelongsToImpl( src, foreignKeyField, this )
-  {
-    def this( src: RecordManager[T] ) =
-      this( src, manager.columnFor( src.defaultForeignKeyField ))
-
-    def this( src: RecordManager[T], foreignKey: String ) =
-      this( src, manager.columnFor( foreignKey ))
+  def mgr = {
+    if (mgrCache == null) {
+      val retrievedMgr = BaseRecordManager.forClassNamed( className )
+      mgrCache = retrievedMgr.asInstanceOf[ BaseRecordManager[ T ]]
+    }
+    mgrCache
   }
 
-  private [orm]
-  class BelongsToImpl[T <: ManagedRecord]( src: RecordManager[T],
-                                           foreignKeyField: MappedField,
-                                           parent: ManagedRecord
-                                         )
-    extends BaseNotifier( src.baseQuery.facility )
-    with CachingNotifier[ T ]
-  {
-    protected def currentValue = {
-      val scope = src.whereEq( src.primaryKeyField.dbColumnName -> 
-                               foreignKeyField.getValue( parent ))
-      (scope.records.fetchOnThisThread)(0)
+  private[orm] var savedId = id
+  private[orm] def markSaved( savedId: Long ) = { this.savedId = savedId }
+
+  protected def currentValue = mgr.find( this, mgr.baseQuery )
+
+  override def equals( other: Any ) =
+    other match {
+      case otherId: RecordId[_] =>
+        otherId.id == this.id && otherId.mgr == this.mgr
+      case _ =>
+        false
+    }
+
+  // hashCode --- equals doesn't check savedId; nor should this
+  override def hashCode = id.asInstanceOf[Int]
+
+  override def toString = "RecordId(" + className + ", " + id.toString + ")"
+
+  def onThread( thunk: => Unit ) = { 
+    mgr.facility match {
+      case w: WorkerThread => w.runOnThread{ thunk }
+      case _ => thunk
     }
   }
 }
 
-/** Companion object for the [[org.positronicnet.orm.ManagedRecord]] class. */
+object RecordId {
+  implicit def toContentValue(id: RecordId[_]):ContentValue = CvLong(id.id)
+}
 
-object ManagedRecord {
+private [orm]
+object BaseRecordManager {
 
-  /** ID of all unsaved [[org.positronicnet.orm.ManagedRecord]]s */
+  private [orm] def forClassNamed( name: String ): BaseRecordManager[_] = {
 
-  val unsavedId = -1
+    // We have the name of the managed class.  We need to get the
+    // record manager, which we do by a somewhat convoluted path...
+    // creating a dummy object, and asking *it* what it thinks its
+    // manager ought to be.
+
+    val managedKlass = Class.forName( name )
+    val builder = ReflectUtils.getObjectBuilderForClass( managedKlass )
+    val dummyObject = builder().asInstanceOf[ ManagedRecord ]
+
+    dummyObject.id.mgr
+  }
 }
 
 /** Base class for mapping of [[org.positronicnet.orm.ManagedRecord]]s
@@ -164,6 +201,22 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   extends BaseNotificationManager( repository.facility )
   with Scope[T]
 {
+  /** ID for a new unsaved object */
+
+  private var nextUnsavedId = 0
+
+  def unsavedId = {
+    nextUnsavedId -= 1
+    new RecordId( this, nextUnsavedId )
+  }
+
+  /** Upcasting a raw Long to an ID; sometimes useful in cases where
+    * serializing "baked" record Ids is really awkward, as in the extras
+    * to a pending intent...
+    */
+
+  def idFromLong( rawId: Long ) = new RecordId( this, rawId )
+
   /**
     * Produce a new object (to be populated with mapped data from a query). 
     *
@@ -171,7 +224,11 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     * if there is one constructor, and defaults for all its arguments,
     * we'll use that.  
     *
-    * In other cases, RecordManagers can override.
+    * Note that if you override this, you might want to provide a niladic
+    * constructor anyway on the class itself, or strange and unuseuful things
+    * will happen when attempting to serialize and deserialize our
+    * [[org.positronicnet.orm.RecordId]]s, e.g., when putting them into the
+    * extras of an android `Intent`.
     */
 
   def newRecord = builder()
@@ -183,21 +240,21 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   // constructor.  The mapping is frozen at first use when the
   // lazy val 'fields' is computed below...
 
-  protected[orm] val managedKlass: Class[T] = 
+  private [orm] val managedKlass: Class[T] = 
     classManifest[T].erasure.asInstanceOf[ Class[T] ]
 
-  protected[orm] val javaFields = 
+  private [orm] val javaFields = 
     ReflectUtils.declaredFieldsByName( managedKlass )
 
-  protected[orm] val fieldsBuffer = new mutable.ArrayBuffer[ MappedField ]
-  protected[orm] def fieldsSeq: Seq[ MappedField ] = fieldsBuffer
+  protected [orm] val fieldsBuffer = new mutable.ArrayBuffer[ MappedField ]
+  protected [orm] def fieldsSeq: Seq[ MappedField ] = fieldsBuffer
 
-  protected[orm] var primaryKeyField: MappedLongField = null
+  private [orm] var primaryKeyField: MappedIdField = null
 
-  protected[orm] def columnNameFor( fieldName: String ) =
+  private [orm] def columnNameFor( fieldName: String ) =
     columnFor( fieldName ).dbColumnName
 
-  protected[orm] def columnFor( fieldName: String ) =
+  private [orm] def columnFor( fieldName: String ) =
     fields.find{ _.recordFieldName == fieldName } match {
       case Some( mappedField ) => mappedField
       case None =>
@@ -227,9 +284,22 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     * everything explicitly.
     */
 
-  def mapField( fieldName: String, 
-                columnName: String, 
-                primaryKey: Boolean = false ): Unit = 
+  def mapField( fieldName: String, columnName: String, 
+                how: MapAs.How = MapAs.ReadWrite ) =
+    mapFieldInternal( fieldName, columnName, how, false )
+
+  /** Declare a mapping, as with `mapField`, for a field to be
+    * designated as the primary key.
+    */
+
+  def primaryKey( fieldName: String, columnName: String ) =
+    mapFieldInternal( fieldName, columnName, MapAs.ReadOnly, true )
+
+  private[orm]
+  def mapFieldInternal( fieldName: String, 
+                        columnName: String,
+                        how: MapAs.How = MapAs.ReadWrite,
+                        primaryKey: Boolean = false ): Unit = 
   {
     val javaField = javaFields( fieldName )
 
@@ -239,7 +309,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     }
 
     val idx = fieldsBuffer.size
-    val mappedField = MappedField.create( columnName, idx, javaField )
+    val mappedField = MappedField.create( columnName, idx, how, javaField )
 
     fieldsBuffer += mappedField
     
@@ -248,10 +318,10 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
         throw new IllegalArgumentException( "Multiple primary key fields" )
       }
       mappedField match {
-        case f: MappedLongField => 
+        case f: MappedIdField => 
           primaryKeyField = f
         case _ => 
-          throw new IllegalArgumentException("Primary key field must be Long")
+          throw new IllegalArgumentException("Primary key field must be an ID")
       }
     }
   }
@@ -265,12 +335,19 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 
   // Dealing with the mappings... internals
 
-  protected [orm] lazy val fields = fieldsSeq
-  protected [orm] lazy val nonKeyFields = 
-    fields.filter{ primaryKeyField == null || 
-                   _.dbColumnName != primaryKeyField.dbColumnName }
+  def dumpFieldsMapping( sfunc: String => Unit ) =
+    for (f <- fields)
+      sfunc( f.toString )
 
-  protected[orm] lazy val defaultForeignKeyField = {
+  private [orm] lazy val fields = fieldsSeq
+  private [orm] lazy val fieldsForUpdate =
+    fields.filter{ _.mappedHow == MapAs.ReadWrite }
+  private [orm] lazy val fieldsForInsert =
+    fields.filter{ f => 
+      (f.mappedHow == MapAs.ReadWrite) || 
+      (f.mappedHow == MapAs.WriteOnce) }
+
+  private [orm] lazy val defaultForeignKeyField = {
     val className = managedKlass.getName.split('.').last
     className.head.toLower + className.tail + "Id"
   }
@@ -353,11 +430,11 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     */
 
   def fetchRecords( qry: ContentQuery[_,_] ): IndexedSeq[ T ] = {
-    qry.select( fieldNames: _* ).map{ c => instantiateFrom( c ) }
+    qry.select( fieldNames: _* ).map{ c => instantiateFrom( c, fields ) }
   }
 
   private [orm] 
-  def instantiateFrom( c: Cursor ): T = {
+  def instantiateFrom( c: Cursor, fields: Seq[ MappedField ] ): T = {
     val result = newRecord
     result.unsaved = false              // ... not yet altered.
     for( field <- fields ) field.setFromCursorColumn( result, c )
@@ -369,14 +446,39 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   // whatever.
 
   protected [orm]
-  def queryForRecord( rec: T ) =
+  def queryForRecord( rec: T ) = {
+    this.fields                         // make sure PK is set!
     repository.whereEq( primaryKeyField.valPair ( rec ))
+  }
 
   protected [orm]
   def queryForAll( qry: ContentQuery[_,_] ) = qry
 
+  protected [orm]
+  def save( rec: T, scope: Scope[T] ): RecordId[T] = {
+    val data = dataPairs( rec )
+    if (rec.isNewRecord) {
+      rec.id.markSaved( this.insert( data ) )
+    }
+    else {
+      update( rec, data )
+    }
+      
+    return rec.id.asInstanceOf[RecordId[T]]
+  }
+
+  protected
+  def dataPairs( rec: T ) = {
+    val fieldsToSave = if (rec.isNewRecord) fieldsForInsert else fieldsForUpdate
+    fieldsToSave.map{ _.valPair( rec ) } ++ extraDataPairs( rec )
+  }
+
+  private [orm] def extraDataPairs( rec: T ): Seq[(String, ContentValue)] = 
+    Seq.empty
+
   private
-  def insert( vals: Seq[(String, ContentValue)] ) = repository.insert( vals:_* )
+  def insert( vals: Seq[(String, ContentValue)] ) = 
+    repository.insert( vals:_* ).asInstanceOf[Long]
 
   private
   def update( rec: T, vals: Seq[(String, ContentValue)] ) =
@@ -392,19 +494,10 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   def deleteAll( scope: Scope[T] ): Unit = deleteAll( scope.baseQuery, scope )
 
   protected [orm]
-  def save( rec: T, scope: Scope[T] ): Long = {
-    val data = nonKeyFields.map{ f => f.valPair( rec ) }
-    if (rec.isNewRecord) 
-      return insert( data ).asInstanceOf[Long]
-    else {
-      update( rec, data )
-      return rec.id.asInstanceOf[Long]
-    }
+  def find( id: RecordId[T], qry: ContentQuery[_,_] ) = {
+    this.fields                         // make sure PK is set!
+    fetchRecords( qry.whereEq( primaryKeyField.dbColumnName -> id.savedId ))(0)
   }
-
-  protected [orm]
-  def find( id: Long, qry: ContentQuery[_,_] ) =
-    fetchRecords( qry.whereEq( primaryKeyField.dbColumnName -> id ))(0)
 
   protected [orm]
   def delete( rec: T, scope: Scope[T] ):Unit = 
@@ -438,15 +531,24 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   */
 abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
   extends BaseRecordManager[ T ]( repository )
+  with AutomaticFieldMappingFromQuery[ T ]
+
+private [orm]
+trait AutomaticFieldMappingFromQuery[ T <: ManagedRecord ]
+  extends BaseRecordManager[ T ]
 {
+  // Take explicit mappings, and add them to mappings for like-named
+  // columns available from our repository.  For that, we have to do a
+  // dummy query which will (hopefully) return no rows.
+  //
+  // (Which, in turn, means that we can't compute the mappings in the
+  // constructor; we need to wait until the DB is open.  Which may
+  // help explain some of the pretzel logic by which this code gets
+  // invoked...)
+
   override protected[orm] def fieldsSeq: Seq[ MappedField ] = {
 
-    // Take explicit mappings, and add them to mappings for
-    // like-named columns available from our repository.
-    // For that, we have to do a dummy query which will
-    // (hopefully) return no rows...
-
-    val dummyCursor = repository.where( "2 + 2 = 5" ).selectDefaultColumns
+    val dummyCursor = baseQuery.where( "2 + 2 = 5" ).selectDefaultColumns
     val dbColNames  = dummyCursor.getColumnNames
     val klassName   = managedKlass.getName
 
@@ -479,7 +581,10 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
                    " attempting to map " + dbColName + " to " +
                    recordFieldName )
 
-              mapField( recordFieldName, dbColName, dbColName == "_id" )
+              if (dbColName == "_id")
+                primaryKey( recordFieldName, dbColName )
+              else                                                              
+                mapField( recordFieldName, dbColName )
           }
         }
       }
@@ -493,5 +598,73 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
   def camelize( str: String ) = str.split("_").reduceLeft{ _ + _.capitalize }
 
   private 
-  def log( s: String ) = Log.d( repository.facility.getLogTag, s )
+  def log( s: String ) = Log.d( facility.getLogTag, s )
+}
+
+abstract class RecordManagerForFields[ TRec <: ManagedRecord : ClassManifest,
+                                       TSrc : ClassManifest ]
+    ( repository: ContentQuery[_,_] )
+  extends BaseRecordManager[ TRec ]( repository )
+  with FieldMappingFromStaticNames[ TRec ]
+{
+  def this() =
+    this(
+      PositronicContentResolver(
+        ReflectUtils.getStatic[ android.net.Uri, TSrc ]( "CONTENT_URI" )))
+
+  // Disguised arg to constructor for the FieldMappingFromStaticNames trait
+
+  protected lazy val fieldNamesSrcMap = 
+    ReflectUtils.publicStaticValues( classOf [String], 
+                                     classManifest[ TSrc ].erasure )
+}
+
+private [orm]
+trait FieldMappingFromStaticNames[ T <: ManagedRecord ]
+  extends BaseRecordManager[ T ]
+{
+  // Disguised argument to constructor for the trait...
+
+  protected val fieldNamesSrcMap: Map[ String, String ]
+
+  override protected[orm] def fieldsSeq: Seq[ MappedField ] = {
+
+    // This runs *after* the constructor, so explicit mappings there
+    // get into fieldsBuffer first...
+
+    for ((name, field) <- javaFields) {
+      if (!fieldsBuffer.exists{ _.recordFieldName == name }) {
+        fieldNamesSrcMap.get( deCamelize( field.getName )).map { colName =>
+          if (colName == "_id")
+            primaryKey( name, colName )
+          else                                                              
+            mapField( name, colName )
+        }
+      }
+    }
+
+    return super.fieldsSeq
+  }
+
+  private def deCamelize( s: String ): String = {
+
+    if (s == "id") return "_ID"         // special case to bridge conventions
+
+    var lastIdx: Int = 0
+    var nextIdx: Int = -1
+    var chunks: Seq[String] = Seq.empty
+
+    while (lastIdx >= 0) {
+      nextIdx = s.indexWhere(_.isUpper, from = lastIdx+1)
+      if (nextIdx > 0) {
+        chunks = chunks :+ (s.subSequence( lastIdx, nextIdx ).toString)
+      }
+      else {
+        chunks = chunks :+ s.substring( lastIdx )
+      }
+      lastIdx = nextIdx
+    }
+
+    return chunks.map{_.toUpperCase}.reduce{_+"_"+_}
+  }
 }

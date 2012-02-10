@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<org.positronicnet.sample.contacts.ContactDatumEditLayout
+              xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:layout_width="fill_parent" 
+              android:layout_height="wrap_content">
+
+  <TextView android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/prefix"
+  />
+  <EditText android:id="@+id/prefix"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+  />
+
+  <TextView android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/first_name"
+  />
+  <EditText android:id="@+id/givenName"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+  />
+
+  <TextView android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/middle_name"
+  />
+  <EditText android:id="@+id/middleName"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+  />
+
+  <TextView android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/last_name"
+  />
+  <EditText android:id="@+id/familyName"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+  />
+
+  <TextView android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/suffix"
+  />
+  <EditText android:id="@+id/suffix"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+  />
+</org.positronicnet.sample.contacts.ContactDatumEditLayout>

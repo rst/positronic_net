@@ -2,6 +2,7 @@ package org.positronicnet.util
 
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
+import java.lang.reflect.Modifier
 
 object ReflectUtils
 {
@@ -10,8 +11,10 @@ object ReflectUtils
   // *one* constructor declared, and we can get defaults for *all*
   // its arguments, we try for that.
 
-  def getObjectBuilder[T](implicit manifest: ClassManifest[T]) = {
-    val klass = manifest.erasure
+  def getObjectBuilder[T](implicit manifest: ClassManifest[T]) = 
+    getObjectBuilderForClass( manifest.erasure ).asInstanceOf[(() => T)]
+
+  def getObjectBuilderForClass[T](klass: Class[T]) = {
     val constructors = klass.getConstructors
     constructors.find{ _.getParameterTypes.size == 0 } match {
       case Some( constructor ) => 
@@ -48,8 +51,10 @@ object ReflectUtils
         for (i <- Range( 1, constructorParmTypes.size + 1 ))
         yield companionClass.getDeclaredMethod("init$default$"+i.toString)
       val companionObject = companionClass.getField("MODULE$").get(null)
-      val args = methods.map{ _.invoke( companionObject ) }
-      return (() => constructor.newInstance( args: _* ).asInstanceOf[ T ])
+      return (() => {
+        val args = methods.map{ _.invoke( companionObject ) }
+        constructor.newInstance( args: _* ).asInstanceOf[ T ]
+      })
     }
     catch {
       case ex: java.lang.NoSuchMethodException =>
@@ -65,6 +70,69 @@ object ReflectUtils
     val fieldList = ancestry( klass ).flatMap( _.getDeclaredFields )
     Map( fieldList.map( f => (f.getName, f )): _* )
   }
+
+  // Extracting public static values of a given Java type from a Java class.
+  // (Android content providers often have column names of static fields
+  // defined as static fields on some class, e.g., CallLog.Calls.  The ORM
+  // uses this to fish out the names and associated values.)
+
+  def publicStaticValues[T]( valueKlass: Class[T], 
+                             srcKlass: Class[_] ):Map[String,T] = 
+  {
+    val ourFields = srcKlass.getFields.filter { f =>
+      Modifier.isStatic( f.getModifiers ) && f.getType == valueKlass }
+    val map = new scala.collection.mutable.HashMap[ String, Field ]
+
+    for (f <- ourFields) {
+      map.get( f.getName ) match {
+        case None => 
+          map( f.getName ) = f
+        case Some( ff ) => {
+          if (ff.getDeclaringClass.isAssignableFrom( f.getDeclaringClass )) {
+            // replace with field from more specific type
+            map( f.getName ) = f
+          }
+          else if (f.getDeclaringClass.isAssignableFrom(ff.getDeclaringClass)) {
+            // already had more specific type; do nothing
+          }
+          else {
+            android.util.Log.d( 
+              "XXX", 
+              valueKlass.getName+" has ambiguous definition for "+f.getName )
+          }
+        }
+      }
+    }
+    
+    map.mapValues( _.get(null).asInstanceOf[T] ).toMap
+  }
+
+  // Extracting public static values of a given Java type from a Java class,
+  // expressed using Scala type notation.
+  //
+  // (Android content providers often have column names of static fields
+  // defined as static fields on some class, e.g., CallLog.Calls.  The ORM
+  // uses this to fish out the names and associated values.)
+
+  def getStatics[ TVal: ClassManifest, TSrc: ClassManifest ] = 
+    publicStaticValues[ TVal ]( 
+      classManifest[ TVal ].erasure.asInstanceOf[ Class[ TVal ]],
+      classManifest[ TSrc ].erasure )
+
+  // Extracting value of a single public static field
+
+  def getStatic[ TVal: ClassManifest, TSrc: ClassManifest ](fieldName: String)={
+    val srcKlass = classManifest[ TSrc ].erasure
+    val valKlass = classManifest[ TVal ].erasure
+    val fld = srcKlass.getField( fieldName )
+    if ( Modifier.isStatic( fld.getModifiers ) && fld.getType == valKlass )
+      fld.get(null).asInstanceOf[ TVal ]
+    else
+      throw new RuntimeException( srcKlass.toString + " has no public static "+ 
+                                  valKlass.toString + " " + fieldName )
+  }
+
+  // Returns a list of the argument class and all its superclasses
 
   def ancestry( klass: Class[_] ): List[ Class[_]] =
     if (klass == classOf[ AnyRef ]) List( klass )

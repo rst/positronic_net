@@ -1,0 +1,7 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+  android:name="Contact list operations">
+  <item android:id="@+id/new_contact"
+        android:title="@string/new_contact"/>
+  <item android:id="@+id/dump_contacts"
+        android:title="@string/dump_contacts"/>
+</menu>

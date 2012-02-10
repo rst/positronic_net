@@ -43,12 +43,12 @@ object TodoDb extends Database( filename = "todos.sqlite3", logTag = "todo" )
 // hacks, to support more general undo, and so forth) be doable as
 // extensions.
 
-case class TodoItem( todoListId: Long    = ManagedRecord.unsavedId,
-                     description: String = null, 
-                     isDone: Boolean     = false,
-                     id: Long            = ManagedRecord.unsavedId 
+case class TodoItem( todoListId:  RecordId[TodoList] = TodoLists.unsavedId,
+                     description: String             = null, 
+                     isDone:      Boolean            = false,
+                     id:          RecordId[TodoItem] = TodoItems.unsavedId 
                    )
-  extends ManagedRecord( TodoItems )
+  extends ManagedRecord
 {
   def setDescription( s: String ) = copy( description = s )
   def setDone( b: Boolean )       = copy( isDone = b )
@@ -59,10 +59,10 @@ object TodoItems extends RecordManager[ TodoItem ]( TodoDb( "todo_items" ))
 
 // "Todo list" model.  
 
-case class TodoList( name: String = null,
-                     id: Long     = ManagedRecord.unsavedId
+case class TodoList( name: String             = null,
+                     id:   RecordId[TodoList] = TodoLists.unsavedId
                    )
-  extends ManagedRecord( TodoLists )
+  extends ManagedRecord
 {
   def setName( s: String ) = copy( name = s )
 

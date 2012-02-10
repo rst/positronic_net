@@ -25,6 +25,15 @@ class ThingWithLazyFields {
   val food            = "cheese"
 }
 
+case class ThingWithChangingDefaults( val fubar: Int = DefaultSequence.next )
+object DefaultSequence {
+  private var current = 0
+  def next = {
+    current = current + 1
+    current
+  }
+}
+
 class ReflectUtilsSpec
   extends Spec with ShouldMatchers
 {
@@ -57,14 +66,24 @@ class ReflectUtilsSpec
       rec.instanceVar  should equal ("initialized")
     }
 
-    it ("should find all-defaults constructor") {
+    describe("all-defaults constructor") {
 
-      val builder =
-        ReflectUtils.getObjectBuilder[ ThingWithDefaultingConstructor ]
-      val rec: ThingWithDefaultingConstructor = builder()
+      it ("should build objects correctly") {
 
-      rec.x should equal ("x")
-      rec.y should equal (12345)
+        val builder =
+          ReflectUtils.getObjectBuilder[ ThingWithDefaultingConstructor ]
+        val rec: ThingWithDefaultingConstructor = builder()
+
+        rec.x should equal ("x")
+        rec.y should equal (12345)
+      }
+
+      it ("should invoke constructor arguments every time") {
+        val builder = ReflectUtils.getObjectBuilder[ ThingWithChangingDefaults ]
+        val x = builder()
+        val y = builder()
+        x.fubar should not equal (y.fubar)
+      }
     }
   }
 
@@ -79,6 +98,65 @@ class ReflectUtilsSpec
       val getter = ReflectUtils.extractor( classOf[ThingWithLazyFields],
                                            classOf[java.io.File] )
       getter should equal (None)
+    }
+  }
+
+  describe ("collect public static values") {
+
+    def checkCalendarInts( calendarInts: String => Int ) = {
+      calendarInts("AM")          should equal (java.util.Calendar.AM)
+      calendarInts("JANUARY")     should equal (java.util.Calendar.JANUARY)
+      calendarInts("DAY_OF_WEEK") should equal (java.util.Calendar.DAY_OF_WEEK)
+      calendarInts("FRIDAY")      should equal (java.util.Calendar.FRIDAY)
+    }
+
+    describe( "from class objects" ) {
+      it ("should collect field values from Calendar") {
+        val map =
+          ReflectUtils.publicStaticValues( java.lang.Integer.TYPE,
+                                           classOf[ java.util.Calendar] )
+        checkCalendarInts( map(_) )
+      }
+    }
+
+    describe( "from class manifests" ) {
+      it ("should collect field values from Calendar") {
+        // Reflection gets confused here about primitives.  I can live with it.
+        val map = ReflectUtils.getStatics[ Int, java.util.Calendar ]
+        checkCalendarInts( map(_).intValue )
+      }
+
+      it ("should handle redefinition of inherited statics") {
+
+        // Free test fixtures in the Android SDK!  Guess how I discovered
+        // this was an issue?
+
+        import android.provider.ContactsContract.CommonDataKinds.StructuredName
+
+        val strings = ReflectUtils.getStatics[ String, StructuredName ]
+        strings( "DISPLAY_NAME" ) should be ("data1")
+
+      }
+    }
+  }
+
+  describe ("get single public static value") {
+    it ("should get the value if available") {
+      val friday = ReflectUtils.getStatic[ Int, java.util.Calendar ]("FRIDAY") 
+      friday should equal (java.util.Calendar.FRIDAY)
+    }
+    it ("should signal on wrong type") {
+      val exc = intercept[ RuntimeException ]{
+        ReflectUtils.getStatic[ String, java.util.Calendar ]("FRIDAY")
+      }
+      exc.getMessage should (
+        include ("String") and include ("Calendar") and include ("FRIDAY"))
+    }
+    it ("should signal on bad field") {
+      val exc = intercept[ NoSuchFieldException ]{
+        ReflectUtils.getStatic[ String, java.util.Calendar ]("FREAKY_FRIDAY")
+      }
+      exc.getMessage should include ("FREAKY")
     }
   }
 }

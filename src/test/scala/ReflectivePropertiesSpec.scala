@@ -6,6 +6,18 @@ import org.scalatest.matchers.ShouldMatchers
 import org.positronicnet.util.ReflectiveProperties
 import org.positronicnet.util.PropertyLens
 import org.positronicnet.util.PropertyLensFactory
+import org.positronicnet.util.ReadOnlyProperty
+
+class BaseClass extends ReflectiveProperties {
+
+  // Computed property of a base class, so we can check that those
+  // are handled properly.
+
+  val bogon: String = "bogon"
+
+  def filteredBogon = bogon
+  def filteredBogon_:=( s: String ) = this.setProperty( "bogon", s )
+}
 
 case class Canary( intProp: Int = 17,
                    byteProp: Byte = 8,
@@ -29,8 +41,17 @@ case class Canary( intProp: Int = 17,
 
                    otherThing: String = ""
                  )
-  extends ReflectiveProperties
+  extends BaseClass
 {
+  // Sample read-only properties, so we can check that those are
+  // handled properly...
+
+  def readOnlyString = "ro"
+  def readOnlyInt = 323423
+
+  lazy val lazyString = computeLazyString
+  def computeLazyString = "boogabooga"
+
   // Define some pseudoproperties, so we can test how they're handled.
   // The intent of this feature is to support cases where, say, a Date
   // (as far as the UI is concerned) is stored as a Long internally.
@@ -99,7 +120,7 @@ class ReflectivePropertiesSpec
     
     testCanary.getProperty[V]( propName )     should equal ( defaultVal )
     setCanary.getProperty[V](  propName )     should equal ( otherVal )
-    setCanary.asInstanceOf[Canary].otherThing should equal ( "coalmine" )
+    setCanary.otherThing                      should equal ( "coalmine" )
   }
 
   def testProperty[V:ClassManifest]( factory: PropertyLensFactory[V], propName: String, 
@@ -112,6 +133,43 @@ class ReflectivePropertiesSpec
     
     testLens( lens, defaultVal, otherVal )
     testPropApi( propName, defaultVal, otherVal )
+  }
+
+  describe( "read-only property" ) {
+    val testCanary = Canary( otherThing = "coalmine" )
+    val factory = PropertyLensFactory.forPropertyType[String]
+    it ("the method should be there") {
+      classOf[Canary].getMethod("readOnlyString").getReturnType should equal (classOf[String])
+    }
+    it ("should be able to read") {
+      testCanary.getProperty[String]("readOnlyString") should equal ("ro")
+    }
+    it ("should fail on write") {
+      intercept [ReadOnlyProperty] {
+        testCanary.setProperty[String]( "readOnlyString", "bogon" )
+      }
+    }
+    it ("should not find properties of the wrong type") {
+      factory.forProperty[ Canary ]("readOnlyInt") should equal (None)
+    }
+    it ("should not find nonexistent properties") {
+      factory.forProperty[ Canary ]("readOnlydflkdlsfkjl") should equal (None)
+    }
+  }
+
+  describe( "inherited computed property" ) {
+
+    val fac: PropertyLensFactory[ String ] = 
+      PropertyLensFactory.forPropertyType[ String ]
+    
+    it ("should work for inherited plain string fields") {
+      testProperty( fac, "bogon", "bogon", "bar" )
+    }
+
+    it ("should work for inherited computed string fields") {
+      testProperty( fac, "filteredBogon", "bogon", "bar" )
+    }
+
   }
 
   describe( "int lens factory" ) {
@@ -147,6 +205,14 @@ class ReflectivePropertiesSpec
       fac.forProperty[ Canary ]( "intProp" ) should equal (None)
       fac.forProperty[ Canary ]( "massagedInt" ) should equal (None)
       fac.forProperty[ Canary ]( "quux" ) should equal (None)
+    }
+  }
+
+  describe( "lazy fields as properties" ) {
+    val fac: PropertyLensFactory[ String ] = 
+      PropertyLensFactory.forPropertyType[ String ]
+    it ("should work correctly") {
+      testProperty( fac, "lazyString", "boogabooga", "boogie" )
     }
   }
 

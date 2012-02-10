@@ -210,6 +210,13 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     new RecordId( this, nextUnsavedId )
   }
 
+  /** Upcasting a raw Long to an ID; sometimes useful in cases where
+    * serializing "baked" record Ids is really awkward, as in the extras
+    * to a pending intent...
+    */
+
+  def idFromLong( rawId: Long ) = new RecordId( this, rawId )
+
   /**
     * Produce a new object (to be populated with mapped data from a query). 
     *

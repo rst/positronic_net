@@ -47,26 +47,35 @@ class TypeFieldChooser( ctx: Context, attrs: AttributeSet )
   lazy val editCustomDialog = new EditCustomTypeDialog( this )
 
   setAdapter( adapter )
+
+  override def performClick = {
+    syncAdapter                      // use *current* available labels
+    super.performClick
+  }
                                             
   def getTypeField = typeField
 
   def setTypeField( tf: TypeField ) = { 
-
-    // Kludginess here --- we want to set the selection, but that
-    // triggers the 'onItemSelected' below.  If the typefield was
-    // already at the custom setting, we *don't* yet want the
-    // 'onItemSelected' to pop up the edit dialog.  So we temporarily
-    // set 'typeField' to null to disable it.
-
-    typeField = null
-    adapter.resetSeq( tf.displayStrings )
-    setSelection( tf.selectedStringIdx, false )
     typeField = tf
+    syncAdapter
+  }
+
+  private var inSyncAdapter = false
+
+  def syncAdapter = {
+    inSyncAdapter = true
+    try {
+      adapter.resetSeq( typeField.displayStrings )
+      setSelection( typeField.selectedStringIdx, false )
+    }
+    finally {
+      inSyncAdapter = false
+    }
   }
 
   onItemSelected{ (view, posn, id) =>
-    if (typeField == null) {
-      // still setting up; do nothing
+    if (inSyncAdapter) {
+      // this is us setting up, not a user selection; do nothing.
     }
     else if (posn == typeField.info.customTypeIdx)
       editCustomDialog.doEditLabel( typeField )
@@ -80,10 +89,10 @@ class TypeFieldChooser( ctx: Context, attrs: AttributeSet )
 
   def setCustom( s: String ) = {
     typeField = typeField.label_:=( s )
-    setTypeField( typeField )           // reinitialize display
+    syncAdapter
   }
 
-  def cancelCustom = setSelection( typeField.selectedStringIdx, false )
+  def cancelCustom = syncAdapter
 }
 
 class EditCustomTypeDialog( typeFieldChooser: TypeFieldChooser )

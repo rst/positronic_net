@@ -41,6 +41,7 @@ class EditRawContactActivity
 
   def doSave = {
     syncState
+    state.logIt
     PositronicContentResolver ! state.saveBatch.onSuccess{ finish }.onFailure{ 
       toastShort("Error saving; see log") }
   }

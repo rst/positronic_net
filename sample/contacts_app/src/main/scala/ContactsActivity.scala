@@ -12,14 +12,13 @@ import android.view.View
 import android.widget.{TextView, ListView}
 
 import android.accounts.{AccountManager, Account}
-import android.app.AlertDialog
-import android.content.DialogInterface  // android.content?!
 
 import scala.collection.mutable.ArrayBuffer
 
 class ContactsActivity 
   extends android.app.ListActivity 
   with PositronicActivityHelpers
+  with ActivityViewUtils
 {
   onCreate {
     useAppFacility( PositronicContentResolver )
@@ -87,24 +86,6 @@ class ContactsActivity
     startActivity( intent )
   }
 
-  def withChoiceFromDialog[T](titleRes: Int, 
-                              vals: IndexedSeq[T], 
-                              labeler: T => String)
-                             (handler: T => Unit) = 
-  {
-    val dbuilder = new AlertDialog.Builder( this )
-    dbuilder.setTitle( titleRes )
-    dbuilder.setItems( 
-      vals.map{ labeler(_).asInstanceOf[CharSequence] }.toArray,
-      new DialogInterface.OnClickListener {
-        def onClick( dialog: DialogInterface, idx: Int ) = {
-          handler( vals( idx ) )
-        }
-      }
-    )
-    dbuilder.create.show
-  }
-  
   def dumpToLog = {
     Contacts.onThread {
       for ( contact <- Contacts.fetchOnThisThread ) {

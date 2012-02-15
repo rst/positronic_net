@@ -6,7 +6,7 @@ import org.positronicnet.facility._
 
 import android.widget.{Spinner, LinearLayout}
 import android.view.{View, ViewGroup, LayoutInflater, KeyEvent}
-import android.app.Dialog
+import android.app.{Activity, Dialog}
 
 import android.content.Context
 import android.util.{AttributeSet, Log}
@@ -15,10 +15,8 @@ import android.util.{AttributeSet, Log}
 // facilities plus a few extra...
 
 object ContactsUiBinder extends UiBinder {
-
   bindProperties[ TypeFieldChooser, TypeField ](
     (_.getTypeField), (_.setTypeField( _ )))
-  
 }
 
 // Utility plumbing for dealing with resources.
@@ -123,26 +121,15 @@ class EditCustomTypeDialog( typeFieldChooser: TypeFieldChooser )
 class RawContactEditor( ctx: Context, attrs: AttributeSet ) 
   extends LinearLayout( ctx, attrs )
   with TypedViewHolder
+  with WidgetUtils
 {
-  def bindState( state: ContactEditState ) = {
-    val editors = findView( TR.editors )
-    for (i <- Range(0, editors.getChildCount)) {
-      editors.getChildAt(i) match {
-        case cd: CategoryDisplay[_] => cd.bind( state )
-        case _ => 
-      }
-    }
-  }
+  def bindState( state: ContactEditState ) = 
+    for (editor <- childrenOfType[ CategoryDisplay[_] ](findView( TR.editors )))
+      editor.bind( state )
 
-  def updateState = {
-    val editors = findView( TR.editors )
-    for (i <- Range(0, editors.getChildCount)) {
-      editors.getChildAt(i) match {
-        case cd: CategoryDisplay[_] => cd.updateState
-        case _ => 
-      }
-    }
-  }
+  def updateState = 
+    for (editor <- childrenOfType[ CategoryDisplay[_] ](findView( TR.editors )))
+      editor.updateState
 }
 
 // Widget to display all ContactData of a particular type (Phone, Email, etc.)
@@ -150,6 +137,7 @@ class RawContactEditor( ctx: Context, attrs: AttributeSet )
 abstract class CategoryDisplay[ T <: ContactData : ClassManifest ]
   (ctx: Context, attrs: AttributeSet)
     extends LinearLayout( ctx, attrs )
+    with WidgetUtils
 {
   var state: ContactEditState = null    // really set at bind()
 
@@ -180,14 +168,9 @@ abstract class CategoryDisplay[ T <: ContactData : ClassManifest ]
         newView.bind( item )
   }
 
-  def updateState = {
-    for ( i <- Range( 0, this.getChildCount )) {
-      this.getChildAt(i) match {
-        case cde: ContactDatumEditor => state.updateItem( cde.updatedItem )
-        case _ =>
-      }
-    }
-  }
+  def updateState =
+    for (cde <- childrenOfType[ ContactDatumEditor ]( this ))
+      state.updateItem( cde.updatedItem )
 
   def addItem = newView.bind( newItem )
 
@@ -226,23 +209,6 @@ class PhoneDisplay( ctx: Context, attrs: AttributeSet )
 class EmailDisplay( ctx: Context, attrs: AttributeSet )
   extends CategoryDisplay[ Email ]( ctx, attrs )
 
-// Utility trait for finding the parent of a particular type, if any...
-
-trait WidgetUtils extends View {
-
-  def findParent[ ViewType <: View : ClassManifest ] = {
-
-    val targetKlass = classManifest[ ViewType ].erasure
-    var parent = this.getParent
-
-    while (parent != null && !targetKlass.isInstance( parent )) {
-      parent = parent.getParent
-    }
-
-    parent.asInstanceOf[ ViewType ]
-  }
-}
-
 // Widgets coordinating editing of a single ContactData, of
 // whatever type.  (All LinearLayouts for now, but we can mix
 // the trait into other stuff if need be.)
@@ -258,7 +224,7 @@ trait ContactDatumEditor extends WidgetUtils {
 
   def updatedItem = ContactsUiBinder.update( this.item, this )
   
-  def doDelete = findParent[ CategoryDisplay[_] ].killDatumEditor( this )
+  def doDelete = parentOfType[ CategoryDisplay[_] ].killDatumEditor( this )
 }
 
 class ContactDatumEditLayout( ctx: Context, attrs: AttributeSet )
@@ -270,11 +236,11 @@ class ContactDatumEditLayout( ctx: Context, attrs: AttributeSet )
 class AddItemButton( ctx: Context, attrs: AttributeSet ) 
   extends PositronicButton(ctx, attrs) with WidgetUtils 
 {
-  onClick { findParent[ CategoryDisplay[_] ].addDatumEditor }
+  onClick { parentOfType[ CategoryDisplay[_] ].addDatumEditor }
 }
 
 class RemoveItemButton( ctx: Context, attrs: AttributeSet ) 
   extends PositronicButton(ctx, attrs) with WidgetUtils 
 {
-  onClick { findParent[ ContactDatumEditor ].doDelete }
+  onClick { parentOfType[ ContactDatumEditor ].doDelete }
 }

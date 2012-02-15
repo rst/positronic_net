@@ -17,14 +17,17 @@ import android.util.Log
 // items associated with a Contact or RawContact
 
 class ContactEditState( val rawContact: RawContact,
-                        val initialItems: Seq[ ContactData ] ) 
+                        initialItems: Seq[ ContactData ] ) 
   extends Serializable
 {
   private var deletedState = new ArrayBuffer[ ContactData ]
   private var currentState = new ArrayBuffer[ ContactData ]
   private val accountInfo = AccountInfo.forRawContact( rawContact )
 
-  currentState ++= initialItems
+  currentState ++= initialItems.filter{
+    case unknown: UnknownData => false
+    case _ => true
+  }
 
   def deletedItems: IndexedSeq[ContactData] = deletedState
   def currentItems: IndexedSeq[ContactData] = currentState

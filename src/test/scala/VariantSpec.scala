@@ -183,6 +183,10 @@ class VariantSpec
 
   describe( "a single variant manager" ) {
 
+    it ("should report its discriminant") {
+      People.students.discriminant should be ("student")
+    }
+
     it ("should find pre-placed records") {
       val students = People.students.order("name").fetchOnThisThread
       students should have size (4)

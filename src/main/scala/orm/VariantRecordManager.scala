@@ -115,6 +115,8 @@ abstract class VariantRecordManager[ T <: ManagedRecord : ClassManifest ](reposi
   class BaseTaggedVariant[ TT <: T : ClassManifest ]( varTag: String )
     extends BaseVariant[ TT ]( repository.whereEq(discriminantColumn -> varTag))
   {
+    val discriminant = varTag
+
     taggedVariants += (varTag -> this)
 
     private [orm]

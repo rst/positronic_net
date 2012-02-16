@@ -58,29 +58,6 @@ class WidgetSpec
       assertTypeField( customPhone.getProperty[ TypeField ]("recordType"), 
                        TYPE_CUSTOM, "FOAF Mobile" )
     }
-    it( "should load correctly into widgets" ) {
-
-      val widget = new TypeFieldChooser( Robolectric.application,
-                                         new TestAttributeSet )
-      widget.setId( R.id.recordType )
-
-      // Assumes 'TYPE_CUSTOM' is last...
-      
-      ContactsUiBinder.show( customPhone, widget )
-
-      val adapter = widget.getAdapter.asInstanceOf[ IndexedSeqAdapter[ String ]]
-      val count = widget.getAdapter.getCount
-
-      count should equal (PhoneTypeInfo.recTypes.size) 
-      adapter.getItem (count - 1) should equal ("FOAF Mobile")
-
-      // The following seem to be Robolectric failures; this works well enough
-      // in "real life"...
-
-      //widget.getSelectedItemPosition should equal (count - 1)
-      //val view = widget.getSelectedView.asInstanceOf[ android.widget.TextView ]
-      //view.getText should equal ("FOAF Mobile")
-    }
   }
 
 }

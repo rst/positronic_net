@@ -45,6 +45,8 @@
        ("takeout" phone number, etc.) 
    -->
 
+  <string name="choose_category">Select Category</string>
+
   <string name="enter_custom_label">Enter Custom Label</string>
   <string name="set_custom_label">Save</string>
   <string name="cancel_custom_label">Cancel</string>

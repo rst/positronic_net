@@ -32,65 +32,46 @@ object Res extends AppFacility {
   def ources = resCache
 }
 
-// Widget to display and update a TypeField, as above.
+// Widget to display and update a TypeField
 
 class TypeFieldChooser( ctx: Context, attrs: AttributeSet )
-  extends PositronicSpinner( ctx, attrs )
+  extends PositronicButton( ctx, attrs )
+  with WidgetUtils
 {
+  // The typeField that we're managing
+
   private var typeField: TypeField = null
 
-  private val adapter = new IndexedSeqAdapter[String](
-    IndexedSeq.empty, R.layout.simple_spinner_item)
+  def getTypeField = typeField
+  def setTypeField( tf: TypeField ) = { 
+    typeField = tf 
+    setText( tf.displayString )
+  }
+
+  // User interaction
 
   lazy val editCustomDialog = new EditCustomTypeDialog( this )
 
-  setAdapter( adapter )
+  onClick {
 
-  override def performClick = {
-    syncAdapter                      // use *current* available labels
-    super.performClick
-  }
-                                            
-  def getTypeField = typeField
+    val title = R.string.choose_category
+    val info = typeField.info
+    val labeler = ((recType: Int) => 
+      Res.ources.getString( info.toResource( recType )))
 
-  def setTypeField( tf: TypeField ) = { 
-    typeField = tf
-    syncAdapter
-  }
-
-  private var inSyncAdapter = false
-
-  def syncAdapter = {
-    inSyncAdapter = true
-    try {
-      adapter.resetSeq( typeField.displayStrings )
-      setSelection( typeField.selectedStringIdx, false )
-    }
-    finally {
-      inSyncAdapter = false
+    withChoiceFromDialog[ Int ]( title, info.recTypes, labeler ){
+      newType => {
+        if (newType == info.customType)
+          editCustomDialog.doEditLabel( typeField )
+        else
+          setTypeField( typeField.recType_:=( newType ) )
+      }
     }
   }
 
-  onItemSelected{ (view, posn, id) =>
-    if (inSyncAdapter) {
-      // this is us setting up, not a user selection; do nothing.
-    }
-    else if (posn == typeField.info.customTypeIdx)
-      editCustomDialog.doEditLabel( typeField )
-    else {
-      typeField = (typeField.recType_:=( typeField.info.recTypes( posn )))
-      adapter.resetSeq( typeField.displayStrings ) // wipe custom label, if any
-    }
-  }
+  // Hook for EditCustomTypeDialog...
 
-  // Hooks for EditCustomTypeDialog...
-
-  def setCustom( s: String ) = {
-    typeField = typeField.label_:=( s )
-    syncAdapter
-  }
-
-  def cancelCustom = syncAdapter
+  def setCustom( s: String ) = setTypeField( typeField.label_:=( s ))
 }
 
 class EditCustomTypeDialog( typeFieldChooser: TypeFieldChooser )
@@ -103,11 +84,10 @@ class EditCustomTypeDialog( typeFieldChooser: TypeFieldChooser )
   val editTxt = findView( TR.dialogEditText )
   editTxt.onKey( KeyEvent.KEYCODE_ENTER ){ doSave; dismiss }
 
-  findView( TR.cancelButton ).onClick { doCancel; dismiss }
+  findView( TR.cancelButton ).onClick { dismiss }
   findView( TR.saveButton ).onClick { doSave; dismiss }
 
   def doSave   = typeFieldChooser.setCustom( editTxt.getText.toString )
-  def doCancel = typeFieldChooser.cancelCustom
 
   def doEditLabel( tf: TypeField ) = { 
     if (tf.label != null) 

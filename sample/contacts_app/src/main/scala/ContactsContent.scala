@@ -14,6 +14,8 @@ import android.util.AttributeSet
 import android.provider.{ContactsContract => CC}
 import android.provider.ContactsContract.CommonDataKinds
 
+import android.text.TextUtils
+
 // Contacts table.  For now, we're treating the whole thing as
 // read-only, so we don't bother with read-only marks on particular
 // columns.  (There are only a few modifiable columns; it might be
@@ -141,19 +143,33 @@ abstract class ContactData
   def typeTag = 
     this.id.mgr.asInstanceOf[ ContactData.DataKindMapper[_,_] ].discriminant
 
+  // Routine to allow editor code to determine if this record is "empty",
+  // and should not be saved.
+
+  def isEmpty: Boolean
+
+  // Utility for 'isEmpty' routines...
+
+  def isBlank( s: String ) = 
+    s == null || !TextUtils.isGraphic( s )
+
   // More informative 'toString'
 
   override def toString = 
     super.toString + " id: " + id + " rcid: " + rawContactId
 }
 
-// Structured name records.  Note the special-case treatment of columns
+// "Structured name" records.  Note the special-case treatment of columns
 // on insert/update.  If we submit a display name *and nothing else*, the
 // content provider will attempt to fill in the first name, last name, etc.,
 // based on splitting the display name.  However, submitting even null or
 // empty values will prevent that.  So, we rig the record manager to produce
 // a mix most likely to get the behavior we want out of the content provider
 // in given instances.
+//
+// XXX: treatment of blank names may or may not be appropriate.
+// (We might want to force user to fill in *something* on save.)
+// But that's a matter for the ContactEditState...
 
 class StructuredName extends ContactData
 {
@@ -170,6 +186,12 @@ class StructuredName extends ContactData
   val phoneticFamilyName: String = null
 
   val id: RecordId[ StructuredName ] = ContactData.structuredNames.unsavedId
+
+  def isEmpty = 
+    isBlank( prefix ) && isBlank( suffix ) &&
+    isBlank( givenName ) && isBlank( middleName ) && isBlank( familyName ) &&
+    isBlank( phoneticGivenName ) && isBlank( phoneticMiddleName ) &&
+    isBlank( phoneticFamilyName )
 
   override def toString = {
     val components =
@@ -211,6 +233,8 @@ class GroupMembership extends ContactData
   val id: RecordId[GroupMembership] = ContactData.groupMemberships.unsavedId
 
   override def toString = super.toString + " group id: " + groupRowId
+
+  def isEmpty = false
 }
 
 // Common machinery for rows that have a "record type", or what 
@@ -237,6 +261,8 @@ class Phone extends ContactDataWithCategoryLabel {
   val number:  String            = null
   val id:      RecordId[ Phone ] = ContactData.phones.unsavedId
 
+  def isEmpty = isBlank( number )
+
   override def toString = 
     super.toString + " ("+ categoryTag +", "+ number +")"
 }
@@ -247,6 +273,8 @@ class Phone extends ContactDataWithCategoryLabel {
 class Email extends ContactDataWithCategoryLabel {
   val address: String = null
   val id:      RecordId[ Email ] = ContactData.emails.unsavedId
+
+  def isEmpty = isBlank( address )
 
   override def toString = 
     super.toString + " ("+ categoryTag +", "+ address+")"
@@ -263,6 +291,8 @@ class UnknownData extends ContactData {
   val id:       RecordId[ UnknownData ] = ContactData.unknowns.unsavedId
 
   override def typeTag = mimetype
+
+  def isEmpty = false
 }
 
 // Record mapper for the whole shebang.

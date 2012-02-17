@@ -78,7 +78,10 @@ class ContactEditState( val rawContact: RawContact,
       batch.add( Delete( item ))
 
     for ( item <- currentState )
-      batch.add( Save( item ))
+      if (!item.isEmpty)
+        batch.add( Save( item ))
+      else if (!item.isNewRecord)
+        batch.add( Delete( item ))
 
     batch
   }

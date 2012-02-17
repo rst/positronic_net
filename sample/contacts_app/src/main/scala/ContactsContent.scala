@@ -213,59 +213,45 @@ class GroupMembership extends ContactData
   override def toString = super.toString + " group id: " + groupRowId
 }
 
-// Common machinery for rows that have a "record type", which is
-// jargon for a Home/Work/Mobile category, as for phone numbers
-// or email addresses.
-//
-// Note that we are not yet dealing with restrictions on Exchange
-// account contacts, which are limited both in the total number of,
-// say, email addresses associated with any one contact, and the
-// number of email addresses of a particular type ("Home", "Work",
-// etc.)
-//
-// (FWIW, support for these restrictions is why the interface has to
-// ask what account that you're adding a contact to before adding any
-// data records --- it needs to know which set of restrictions applies,
-// and that depends on the account type.)
+// Common machinery for rows that have a "record type", or what 
+// we're calling here a "category label", which is jargon for a
+// Home/Work/Mobile category, as for phone numbers or email 
+// addresses.
 
-abstract class ContactDataWithRecordType extends ContactData 
+abstract class ContactDataWithCategoryLabel extends ContactData 
 {
-  lazy val recTypeInfo = new TypeFieldInfo
+  lazy val categoryLabelInfo = new CategoryLabelInfo
 
-  val recType: Int = 0
-  val label:   String = null
+  val categoryTag: Int = 0
+  val label:       String = null
 
-  def recordType = TypeField( recType, label, recTypeInfo )
+  def categoryLabel = CategoryLabel( categoryTag, label, categoryLabelInfo )
 
-  def recordType_:=( newType: TypeField ) =
-    if ( newType.recType == recTypeInfo.customType )
-      this.setProperty[Int]("recType", newType.recType)
-          .setProperty[String]("label", newType.label)
-    else
-      this.setProperty[Int]("recType", newType.recType)
-          .setProperty[String]("label", null)
+  def categoryLabel_:=( newLabel: CategoryLabel ) = 
+    this.setProperty[Int]("categoryTag", newLabel.tag)
+        .setProperty[String]("label", newLabel.label)
 }
 
 // Phone records.  Here's where we now have a subset of what's really allowed
 // (where what's allowed depends further on account type...)
 
-class Phone extends ContactDataWithRecordType {
+class Phone extends ContactDataWithCategoryLabel {
   val number:  String            = null
   val id:      RecordId[ Phone ] = ContactData.phones.unsavedId
 
   override def toString = 
-    super.toString + " ("+ recType +", "+ number +")"
+    super.toString + " ("+ categoryTag +", "+ number +")"
 }
 
 // Email records.  Here we have the complete documented set, though
 // not the Exchange restriction of a limit of three.
 
-class Email extends ContactDataWithRecordType {
+class Email extends ContactDataWithCategoryLabel {
   val address: String = null
   val id:      RecordId[ Email ] = ContactData.emails.unsavedId
 
   override def toString = 
-    super.toString + " ("+ recType +", "+ address+")"
+    super.toString + " ("+ categoryTag +", "+ address+")"
 }
 
 // Unknown data records.  There's actually a defined way for third-party
@@ -303,12 +289,12 @@ object ContactData
               MapAs.ReadOnly )
   }
 
-  class TypedDataKindMapper[ TRec <: ContactDataWithRecordType : ClassManifest,
+  class TypedDataKindMapper[ TRec <: ContactDataWithCategoryLabel:ClassManifest,
                              TKind : ClassManifest ]
     extends DataKindMapper[ TRec, TKind ]
   {
     mapField( "contactId", CONTACT_ID, MapAs.ReadOnly )
-    mapField( "recType", ReflectUtils.getStatic[ String, TKind ]("TYPE") ) 
+    mapField( "categoryTag", ReflectUtils.getStatic[ String, TKind ]("TYPE") ) 
     mapField( "dataVersion", 
               ReflectUtils.getStatic[ String, CC.Data ]("DATA_VERSION"),
               MapAs.ReadOnly )

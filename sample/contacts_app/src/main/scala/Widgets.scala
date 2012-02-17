@@ -16,8 +16,8 @@ import android.widget.Toast
 // facilities plus a few extra...
 
 object ContactsUiBinder extends UiBinder {
-  bindProperties[ TypeFieldChooser, TypeField ](
-    (_.getTypeField), (_.setTypeField( _ )))
+  bindProperties[ CategoryChooser, CategoryLabel ](
+    (_.getCategoryLabel), (_.setCategoryLabel( _ )))
 }
 
 // Utility plumbing for dealing with resources.
@@ -33,76 +33,7 @@ object Res extends AppFacility {
   def ources = resCache
 }
 
-// Widget to display and update a TypeField
-
-class TypeFieldChooser( ctx: Context, attrs: AttributeSet )
-  extends PositronicButton( ctx, attrs )
-  with WidgetUtils
-{
-  // The typeField that we're managing
-
-  private var typeField: TypeField = null
-
-  // Our metadata (mostly fished out of the ContactDatumEditor of which
-  // we are effectively a component).
-
-  lazy val datumEditor = parentOfType[ ContactDatumEditor ]
-  lazy val editState   = parentOfType[ CategoryDisplay[_] ].state
-  lazy val info        = editState.dataKindInfo( datumEditor.item ).get
-
-  // Hooks for the UiBinder
-
-  def getTypeField = typeField
-  def setTypeField( tf: TypeField ) = { 
-    typeField = tf 
-    setText( info.typeFieldToString( typeField ))
-  }
-
-  // User interaction
-
-  lazy val editCustomDialog = new EditCustomTypeDialog( this )
-
-  onClick {
-
-    val title   = R.string.choose_category
-    val choices = editState.availableCategories( datumEditor.item )
-
-    withChoiceFromDialog[ CategoryInfo ]( title, choices, _.displayString ){
-      category => {
-        if ( category.isCustom )
-          editCustomDialog.doEditLabel( typeField )
-        else
-          setTypeField( typeField.recType_:=( category.typeTag ) )
-      }
-    }
-  }
-
-  // Hook for EditCustomTypeDialog...
-
-  def setCustom( s: String ) = setTypeField( typeField.label_:=( s ))
-}
-
-class EditCustomTypeDialog( typeFieldChooser: TypeFieldChooser )
-  extends Dialog( typeFieldChooser.getContext )
-  with TypedViewHolder 
-{
-  setContentView( R.layout.edit_custom_type_dialog )
-  setTitle( R.string.enter_custom_label )
-
-  val editTxt = findView( TR.dialogEditText )
-  editTxt.onKey( KeyEvent.KEYCODE_ENTER ){ doSave; dismiss }
-
-  findView( TR.cancelButton ).onClick { dismiss }
-  findView( TR.saveButton ).onClick { doSave; dismiss }
-
-  def doSave   = typeFieldChooser.setCustom( editTxt.getText.toString )
-
-  def doEditLabel( tf: TypeField ) = { 
-    if (tf.label != null) 
-      editTxt.setText( tf.label )
-    show
-  }
-}
+// Widget encompassing all data display for editing a RawContact
 
 class RawContactEditor( ctx: Context, attrs: AttributeSet ) 
   extends LinearLayout( ctx, attrs )
@@ -110,17 +41,17 @@ class RawContactEditor( ctx: Context, attrs: AttributeSet )
   with WidgetUtils
 {
   def bindState( state: ContactEditState ) = 
-    for (editor <- childrenOfType[ CategoryDisplay[_] ](findView( TR.editors )))
+    for (editor <- childrenOfType[ DataKindEditor[_] ](findView( TR.editors )))
       editor.bind( state )
 
   def updateState = 
-    for (editor <- childrenOfType[ CategoryDisplay[_] ](findView( TR.editors )))
+    for (editor <- childrenOfType[ DataKindEditor[_] ](findView( TR.editors )))
       editor.updateState
 }
 
 // Widget to display all ContactData of a particular type (Phone, Email, etc.)
 
-abstract class CategoryDisplay[ T <: ContactData : ClassManifest ]
+abstract class DataKindEditor[ T <: ContactData : ClassManifest ]
   (ctx: Context, attrs: AttributeSet)
     extends LinearLayout( ctx, attrs )
     with WidgetUtils
@@ -175,9 +106,9 @@ abstract class CategoryDisplay[ T <: ContactData : ClassManifest ]
   }
 }
 
-abstract class SingletonCategoryDisplay[ T <: ContactData : ClassManifest ]
+abstract class SingletonDataKindEditor[ T <: ContactData : ClassManifest ]
   (ctx: Context, attrs: AttributeSet)
-    extends CategoryDisplay[T]( ctx, attrs )
+    extends DataKindEditor[T]( ctx, attrs )
 {
   // We expect one instance of our particular data type (though we show
   // more if we get them).  If we get none, we create a starter item.
@@ -190,15 +121,15 @@ abstract class SingletonCategoryDisplay[ T <: ContactData : ClassManifest ]
 }
 
 class StructuredNameDisplay( ctx: Context, attrs: AttributeSet )
-  extends SingletonCategoryDisplay[StructuredName]( ctx, attrs )
+  extends SingletonDataKindEditor[StructuredName]( ctx, attrs )
 
 class PhoneDisplay( ctx: Context, attrs: AttributeSet )
-  extends CategoryDisplay[ Phone ]( ctx, attrs )
+  extends DataKindEditor[ Phone ]( ctx, attrs )
 
 class EmailDisplay( ctx: Context, attrs: AttributeSet )
-  extends CategoryDisplay[ Email ]( ctx, attrs )
+  extends DataKindEditor[ Email ]( ctx, attrs )
 
-// Widgets coordinating editing of a single ContactData, of
+// Widgets coordinating editing of a single ContactData item, of
 // whatever type.  (All LinearLayouts for now, but we can mix
 // the trait into other stuff if need be.)
 
@@ -213,19 +144,19 @@ trait ContactDatumEditor extends WidgetUtils {
 
   def updatedItem = ContactsUiBinder.update( this.item, this )
   
-  def doDelete = parentOfType[ CategoryDisplay[_] ].killDatumEditor( this )
+  def doDelete = parentOfType[ DataKindEditor[_] ].killDatumEditor( this )
 }
 
 class ContactDatumEditLayout( ctx: Context, attrs: AttributeSet )
   extends LinearLayout( ctx, attrs )
   with ContactDatumEditor
 
-// Widgets for "Add" and "Remove" category items.
+// Widgets for "Add" and "Remove" buttons for category items.
 
 class AddItemButton( ctx: Context, attrs: AttributeSet ) 
   extends PositronicButton(ctx, attrs) with WidgetUtils 
 {
-  onClick { parentOfType[ CategoryDisplay[_] ].addDatumEditor }
+  onClick { parentOfType[ DataKindEditor[_] ].addDatumEditor }
 }
 
 class RemoveItemButton( ctx: Context, attrs: AttributeSet ) 
@@ -233,3 +164,75 @@ class RemoveItemButton( ctx: Context, attrs: AttributeSet )
 {
   onClick { parentOfType[ ContactDatumEditor ].doDelete }
 }
+
+// Widget to display and update a CategoryLabel
+
+class CategoryChooser( ctx: Context, attrs: AttributeSet )
+  extends PositronicButton( ctx, attrs )
+  with WidgetUtils
+{
+  // The category label that we're managing
+
+  private var categoryLabel: CategoryLabel = null
+
+  // Our metadata (mostly fished out of the ContactDatumEditor of which
+  // we are effectively a component).
+
+  lazy val datumEditor = parentOfType[ ContactDatumEditor ]
+  lazy val editState   = parentOfType[ DataKindEditor[_] ].state
+  lazy val info        = editState.dataKindInfo( datumEditor.item ).get
+
+  // Hooks for the UiBinder
+
+  def getCategoryLabel = this.categoryLabel
+  def setCategoryLabel( categoryLabel: CategoryLabel ) = { 
+    this.categoryLabel = categoryLabel
+    setText( info.categoryLabelToString( categoryLabel ))
+  }
+
+  // User interaction
+
+  lazy val editCustomDialog = new EditCustomCategoryDialog( this )
+
+  onClick {
+
+    val title   = R.string.choose_category
+    val choices = editState.availableCategories( datumEditor.item )
+
+    withChoiceFromDialog[ CategoryInfo ]( title, choices, _.displayString ){
+      category => {
+        if ( category.isCustom )
+          editCustomDialog.doEdit( categoryLabel )
+        else
+          setCategoryLabel( categoryLabel.tag_:=( category.tag ) )
+      }
+    }
+  }
+
+  // Hook for EditCustomCategoryDialog...
+
+  def setCustom( s: String ) = setCategoryLabel( categoryLabel.label_:=( s ))
+}
+
+class EditCustomCategoryDialog( categoryChooser: CategoryChooser )
+  extends Dialog( categoryChooser.getContext )
+  with TypedViewHolder 
+{
+  setContentView( R.layout.edit_custom_type_dialog )
+  setTitle( R.string.enter_custom_label )
+
+  val editTxt = findView( TR.dialogEditText )
+  editTxt.onKey( KeyEvent.KEYCODE_ENTER ){ doSave; dismiss }
+
+  findView( TR.cancelButton ).onClick { dismiss }
+  findView( TR.saveButton ).onClick { doSave; dismiss }
+
+  def doSave = categoryChooser.setCustom( editTxt.getText.toString )
+
+  def doEdit( label: CategoryLabel ) = { 
+    if (label.label != null)
+      editTxt.setText( label.label )
+    show
+  }
+}
+

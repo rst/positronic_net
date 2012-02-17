@@ -3,8 +3,8 @@
               xmlns:android="http://schemas.android.com/apk/res/android"
               android:layout_width="fill_parent" 
               android:layout_height="wrap_content">
-  <org.positronicnet.sample.contacts.TypeFieldChooser
-              android:id="@+id/recordType"
+  <org.positronicnet.sample.contacts.CategoryChooser
+              android:id="@+id/categoryLabel"
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
               android:layout_weight="0"

@@ -88,7 +88,7 @@ class ContactEditState( val rawContact: RawContact,
 
   def availableCategories( item: ContactData ) =
     item match {
-      case typedItem: ContactDataWithRecordType =>
+      case typedItem: ContactDataWithCategoryLabel =>
         accountInfo.dataKinds.get( typedItem.typeTag ) match {
           case Some( kindInfo ) => kindInfo.categories
           case None => IndexedSeq.empty
@@ -110,9 +110,9 @@ class ContactEditState( val rawContact: RawContact,
 
     item match {
 
-      case itemWithRecType: ContactDataWithRecordType =>
+      case itemWithCategory: ContactDataWithCategoryLabel =>
         accountInfo.dataKinds.get( item.typeTag ) map { info =>
-          item.setProperty[ Int ]("recType", info.categories(0).typeTag )
+          item.setProperty[ Int ]("categoryTag", info.categories(0).tag )
         }
 
       case _ => Some( item )
@@ -138,26 +138,25 @@ class ContactEditState( val rawContact: RawContact,
 
 // Class that represents the value of a "label-or-custom" field.
 // These are backed by two underlying fields, one an integer "type"
-// (which we generally style "recType" since "type" is a reserved
+// (which we generally style "categoryTag" since "type" is a reserved
 // word in Scala), and one the custom label, if any.
 
-case class TypeFieldInfo( val customType: Int = CDK.BaseTypes.TYPE_CUSTOM )
+case class CategoryLabelInfo( val customType: Int = CDK.BaseTypes.TYPE_CUSTOM )
 
-case class TypeField(
-  val recType: Int,
-  val label:   String,
-  val info:    TypeFieldInfo
+case class CategoryLabel(
+  val tag:   Int,
+  val label: String,
+  val info:  CategoryLabelInfo
 )
 {
-  def recType_:=( newType: Int ) = 
-    this.copy( recType = newType, label = null ) 
+  def tag_:=( newTag: Int ) = 
+    this.copy( tag = newTag, label = null ) 
 
   def label_:=( s: String ) = 
-    this.copy( recType = info.customType, label = s )
+    this.copy( tag = info.customType, label = s )
 }
 
 // Information on account types...
-// The minimal stuff here.  More to come...
 
 object AccountInfo {
 
@@ -170,43 +169,43 @@ object AccountInfo {
     }
 }
 
-class DataKindInfo ( val typeTagToResource: (Int => Int) = (x => -1),
+class DataKindInfo ( val categoryTagToResource: (Int => Int) = (x => -1),
                      val maxRecords: Int = -1 )
 {
   private var categoriesBuf = new ArrayBuffer[ CategoryInfo ]
 
   lazy val categories: IndexedSeq[ CategoryInfo ] = categoriesBuf
-  lazy val infoForCategory = Map( categories.map { x => (x.typeTag -> x) }: _* )
+  lazy val infoForCategoryTag = 
+    Map( categories.map { x => (x.tag -> x) }: _* )
 
-  def typeTagToString( typeTag: Int ) = {
-    val str = Res.ources.getString( typeTagToResource( typeTag ))
-    if (str == null)
-      "Unknown type " + typeTag
-    else
-      str
-  }
+  def categoryTagToString( categoryTag: Int ): String =
+    try {
+      return Res.ources.getString( categoryTagToResource( categoryTag ))
+    }
+    catch {
+      case _: Throwable =>
+        return "Unknown type " + categoryTag
+    }
 
-  def typeFieldToString( typeField: TypeField ): String = {
-    val info = infoForCategory( typeField.recType )
-    if (info.isCustom)
-      typeField.label
+  def categoryLabelToString( label: CategoryLabel ) =
+    if (infoForCategoryTag( label.tag ).isCustom)
+      label.label
     else
-      typeTagToString( info.typeTag )
-  }
+      categoryTagToString( label.tag )
 
   protected
-  def category( typeTag: Int, 
+  def category( categoryTag: Int, 
                 maxRecord: Int = -1,
                 isCustom: Boolean = false ) =
-    categoriesBuf += CategoryInfo( this, typeTag, maxRecords, isCustom )
+    categoriesBuf += CategoryInfo( this, categoryTag, maxRecords, isCustom )
 }
 
 case class CategoryInfo ( dataKindInfo: DataKindInfo,
-                          typeTag: Int, 
+                          tag: Int, 
                           maxRecords: Int, 
                           isCustom: Boolean )
 {
-  lazy val displayString = dataKindInfo.typeTagToString( typeTag )
+  lazy val displayString = dataKindInfo.categoryTagToString( tag )
 }
 
 abstract class AccountInfo extends Serializable {

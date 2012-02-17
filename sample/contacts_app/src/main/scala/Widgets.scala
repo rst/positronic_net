@@ -202,9 +202,9 @@ class CategoryChooser( ctx: Context, attrs: AttributeSet )
     withChoiceFromDialog[ CategoryInfo ]( title, choices, _.displayString ){
       category => {
         if ( category.isCustom )
-          editCustomDialog.doEdit( categoryLabel )
+          editCustomDialog.doEdit( categoryLabel.tag_:=( category.tag ))
         else
-          setCategoryLabel( categoryLabel.tag_:=( category.tag ) )
+          setCategoryLabel( categoryLabel.tag_:=( category.tag ).label_:=(null))
       }
     }
   }
@@ -218,6 +218,8 @@ class EditCustomCategoryDialog( categoryChooser: CategoryChooser )
   extends Dialog( categoryChooser.getContext )
   with TypedViewHolder 
 {
+  var categoryLabel: CategoryLabel = null
+
   setContentView( R.layout.edit_custom_type_dialog )
   setTitle( R.string.enter_custom_label )
 
@@ -227,9 +229,11 @@ class EditCustomCategoryDialog( categoryChooser: CategoryChooser )
   findView( TR.cancelButton ).onClick { dismiss }
   findView( TR.saveButton ).onClick { doSave; dismiss }
 
-  def doSave = categoryChooser.setCustom( editTxt.getText.toString )
+  def doSave = categoryChooser.setCategoryLabel( 
+    this.categoryLabel.label_:=( editTxt.getText.toString ))
 
   def doEdit( label: CategoryLabel ) = { 
+    this.categoryLabel = label
     if (label.label != null)
       editTxt.setText( label.label )
     show

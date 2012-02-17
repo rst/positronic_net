@@ -137,23 +137,14 @@ class ContactEditState( val rawContact: RawContact,
 }
 
 // Class that represents the value of a "label-or-custom" field.
-// These are backed by two underlying fields, one an integer "type"
-// (which we generally style "categoryTag" since "type" is a reserved
+// These are backed by two underlying fields, one an integer named
+// "type" (which we generally style "tag" since "type" is a reserved
 // word in Scala), and one the custom label, if any.
 
-case class CategoryLabelInfo( val customType: Int = CDK.BaseTypes.TYPE_CUSTOM )
-
-case class CategoryLabel(
-  val tag:   Int,
-  val label: String,
-  val info:  CategoryLabelInfo
-)
+case class CategoryLabel( val tag: Int,  val label: String )
 {
-  def tag_:=( newTag: Int ) = 
-    this.copy( tag = newTag, label = null ) 
-
-  def label_:=( s: String ) = 
-    this.copy( tag = info.customType, label = s )
+  def tag_:=( newTag: Int ) = this.copy( tag = newTag ) 
+  def label_:=( s: String ) = this.copy( label = s )
 }
 
 // Information on account types...

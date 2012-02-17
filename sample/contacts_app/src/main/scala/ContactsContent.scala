@@ -220,12 +220,10 @@ class GroupMembership extends ContactData
 
 abstract class ContactDataWithCategoryLabel extends ContactData 
 {
-  lazy val categoryLabelInfo = new CategoryLabelInfo
-
   val categoryTag: Int = 0
   val label:       String = null
 
-  def categoryLabel = CategoryLabel( categoryTag, label, categoryLabelInfo )
+  def categoryLabel = CategoryLabel( categoryTag, label )
 
   def categoryLabel_:=( newLabel: CategoryLabel ) = 
     this.setProperty[Int]("categoryTag", newLabel.tag)

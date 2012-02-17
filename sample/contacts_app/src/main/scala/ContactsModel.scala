@@ -211,6 +211,10 @@ class OtherAccountInfo( acctType: String, acctName: String )
   extends AccountInfo
 {
   def initialGroups = Seq.empty
+  val dataKinds = BaseAccountInfo.dataKinds
+}
+
+object BaseAccountInfo {
   val dataKinds = 
     Map( 
       CDK.StructuredName.CONTENT_ITEM_TYPE -> 
@@ -247,7 +251,10 @@ class OtherAccountInfo( acctType: String, acctName: String )
           category( CDK.Email.TYPE_MOBILE )
           category( CDK.Email.TYPE_OTHER )
           category( CDK.BaseTypes.TYPE_CUSTOM, isCustom = true )
-        }
+        },
+
+      CDK.Note.CONTENT_ITEM_TYPE     -> new DataKindInfo(),
+      CDK.Nickname.CONTENT_ITEM_TYPE -> new DataKindInfo()
     )
 }
 
@@ -286,11 +293,8 @@ class GoogleAccountInfo( acctType: String, acctName: String )
     myContactGroupSeq = groups }
 
   val dataKinds = 
-    Map( 
-      CDK.StructuredName.CONTENT_ITEM_TYPE -> 
-        new DataKindInfo,
-
-      CDK.Phone.CONTENT_ITEM_TYPE ->
+    BaseAccountInfo.dataKinds
+     .updated( CDK.Phone.CONTENT_ITEM_TYPE,
         new DataKindInfo( CDK.Phone.getTypeLabelResource _ ) {
           category( CDK.Phone.TYPE_HOME )
           category( CDK.Phone.TYPE_WORK )
@@ -299,15 +303,13 @@ class GoogleAccountInfo( acctType: String, acctName: String )
           category( CDK.Phone.TYPE_FAX_HOME )
           category( CDK.Phone.TYPE_OTHER )
           category( CDK.BaseTypes.TYPE_CUSTOM, isCustom = true )
-        },
-
-      CDK.Email.CONTENT_ITEM_TYPE ->
+        })
+     .updated( CDK.Email.CONTENT_ITEM_TYPE,
         new DataKindInfo( CDK.Email.getTypeLabelResource _ ) {
           category( CDK.Email.TYPE_HOME )
           category( CDK.Email.TYPE_WORK )
           category( CDK.Email.TYPE_OTHER )
           category( CDK.BaseTypes.TYPE_CUSTOM, isCustom = true )
-        }
-    )
+        })
 }
 

@@ -237,6 +237,33 @@ class GroupMembership extends ContactData
   def isEmpty = false
 }
 
+// Nicknames.  These have an internal "category label", as we're calling
+// it, but the stock contacts app forces it to "default".  For now, we do
+// likewise, if only to avoid producing something the SyncAdapter might
+// gag on...
+
+class Nickname extends ContactData
+{
+  val id: RecordId[Nickname] = ContactData.nicknames.unsavedId
+
+  // The actual nickname
+  val name: String = null
+
+  // The "CategoryLabel" fields we aren't going to use...
+  val `type` = CommonDataKinds.Nickname.TYPE_DEFAULT
+  val label: String = null
+
+  def isEmpty = isBlank( name )
+}
+
+// Notes.
+
+class Note extends ContactData {
+  val id: RecordId[Note] = ContactData.notes.unsavedId
+  val note: String = null
+  def isEmpty = isBlank( note )
+}
+
 // Common machinery for rows that have a "record type", or what 
 // we're calling here a "category label", which is jargon for a
 // Home/Work/Mobile category, as for phone numbers or email 
@@ -254,8 +281,7 @@ abstract class ContactDataWithCategoryLabel extends ContactData
         .setProperty[String]("label", newLabel.label)
 }
 
-// Phone records.  Here's where we now have a subset of what's really allowed
-// (where what's allowed depends further on account type...)
+// Phone records.  
 
 class Phone extends ContactDataWithCategoryLabel {
   val number:  String            = null
@@ -267,8 +293,7 @@ class Phone extends ContactDataWithCategoryLabel {
     super.toString + " ("+ categoryTag +", "+ number +")"
 }
 
-// Email records.  Here we have the complete documented set, though
-// not the Exchange restriction of a limit of three.
+// Email records.  
 
 class Email extends ContactDataWithCategoryLabel {
   val address: String = null
@@ -330,6 +355,9 @@ object ContactData
 
   val phones = new TypedDataKindMapper[ Phone, CommonDataKinds.Phone ] 
   val emails = new TypedDataKindMapper[ Email, CommonDataKinds.Email ] 
+
+  val nicknames = new DataKindMapper[ Nickname, CommonDataKinds.Nickname ]
+  val notes     = new DataKindMapper[ Note,     CommonDataKinds.Note     ]
 
   val groupMemberships =
     new DataKindMapper[ GroupMembership, CommonDataKinds.GroupMembership ]

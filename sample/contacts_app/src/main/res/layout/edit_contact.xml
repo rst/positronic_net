@@ -65,6 +65,20 @@
      </LinearLayout>
     </org.positronicnet.sample.contacts.DataKindEditor>
 
+    <org.positronicnet.sample.contacts.SingletonDataKindEditor
+                  class="org.positronicnet.sample.contacts.Nickname"
+                  itemLayout="@layout/nickname"
+                  android:orientation="vertical"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content"/>
+
+    <org.positronicnet.sample.contacts.SingletonDataKindEditor
+                  class="org.positronicnet.sample.contacts.Note"
+                  itemLayout="@layout/note"
+                  android:orientation="vertical"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content"/>
+
   </LinearLayout>
  </org.positronicnet.sample.contacts.RawContactEditor>
 </ScrollView>

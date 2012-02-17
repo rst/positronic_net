@@ -41,20 +41,19 @@ class RawContactEditor( ctx: Context, attrs: AttributeSet )
   with WidgetUtils
 {
   def bindState( state: ContactEditState ) = 
-    for (editor <- childrenOfType[ DataKindEditor[_] ](findView( TR.editors )))
+    for (editor <- childrenOfType[ DataKindEditor ](findView( TR.editors )))
       editor.bind( state )
 
   def updateState = 
-    for (editor <- childrenOfType[ DataKindEditor[_] ](findView( TR.editors )))
+    for (editor <- childrenOfType[ DataKindEditor ](findView( TR.editors )))
       editor.updateState
 }
 
-// Widget to display all ContactData of a particular type (Phone, Email, etc.)
+// Widget to display all ContactData of a particular "kind" (Phone, Email, etc.)
 
-abstract class DataKindEditor[ T <: ContactData : ClassManifest ]
-  (ctx: Context, attrs: AttributeSet)
-    extends LinearLayout( ctx, attrs )
-    with WidgetUtils
+class DataKindEditor( ctx: Context, attrs: AttributeSet )
+  extends LinearLayout( ctx, attrs )
+  with WidgetUtils
 {
   var state: ContactEditState = null    // really set at bind()
 
@@ -62,20 +61,17 @@ abstract class DataKindEditor[ T <: ContactData : ClassManifest ]
     ctx.getSystemService( Context.LAYOUT_INFLATER_SERVICE )
       .asInstanceOf[ LayoutInflater ]
 
-  val dataLayoutResId = attrs.getAttributeResourceValue(null, "dataLayout", 0)
-  val targetKlass = classManifest[T].erasure
+  val itemLayoutResId = attrs.getAttributeResourceValue( null, "itemLayout", 0 )
+  val targetKlass = Class.forName( attrs.getAttributeValue( null, "class" ))
 
-  if (dataLayoutResId == 0)
-    throw new RuntimeException( "No data layout specified for " +
+  if (itemLayoutResId == 0)
+    throw new RuntimeException( "No item layout specified for " +
                                 this.toString + " in XML" )
 
-  val itemBuilder = ReflectUtils.getObjectBuilder[T]
+  val rawItemBuilder = ReflectUtils.getObjectBuilderForClass( targetKlass )
+  val itemBuilder = rawItemBuilder.asInstanceOf[ () => ContactData ]
 
-  def newView = {
-    val v = inflater.inflate( dataLayoutResId, this, false )
-    addView( v )
-    v.asInstanceOf[ ContactDatumEditor ] // it better be!
-  }
+  // Hooks for our enclosing RawContactEditor, to manage startup and save
 
   def bind( state: ContactEditState ) = {
     this.state = state
@@ -87,6 +83,8 @@ abstract class DataKindEditor[ T <: ContactData : ClassManifest ]
   def updateState =
     for (cde <- childrenOfType[ ContactDatumEditor ]( this ))
       state.updateItem( cde.updatedItem )
+
+  // Hooks for our subsidiary add- and remove-item buttons
 
   def addDatumEditor = 
     state.prepareForInsert( itemBuilder() ) match {
@@ -104,11 +102,18 @@ abstract class DataKindEditor[ T <: ContactData : ClassManifest ]
     state.deleteItem( child.updatedItem )
     this.removeView( child )
   }
+
+  // Creating a view to manage a single item. 
+
+  def newView = {
+    val v = inflater.inflate( itemLayoutResId, this, false )
+    addView( v )
+    v.asInstanceOf[ ContactDatumEditor ] // it better be!
+  }
 }
 
-abstract class SingletonDataKindEditor[ T <: ContactData : ClassManifest ]
-  (ctx: Context, attrs: AttributeSet)
-    extends DataKindEditor[T]( ctx, attrs )
+class SingletonDataKindEditor( ctx: Context, attrs: AttributeSet )
+  extends DataKindEditor( ctx, attrs )
 {
   // We expect one instance of our particular data type (though we show
   // more if we get them).  If we get none, we create a starter item.
@@ -119,15 +124,6 @@ abstract class SingletonDataKindEditor[ T <: ContactData : ClassManifest ]
       addDatumEditor
   }
 }
-
-class StructuredNameDisplay( ctx: Context, attrs: AttributeSet )
-  extends SingletonDataKindEditor[StructuredName]( ctx, attrs )
-
-class PhoneDisplay( ctx: Context, attrs: AttributeSet )
-  extends DataKindEditor[ Phone ]( ctx, attrs )
-
-class EmailDisplay( ctx: Context, attrs: AttributeSet )
-  extends DataKindEditor[ Email ]( ctx, attrs )
 
 // Widgets coordinating editing of a single ContactData item, of
 // whatever type.  (All LinearLayouts for now, but we can mix
@@ -144,7 +140,7 @@ trait ContactDatumEditor extends WidgetUtils {
 
   def updatedItem = ContactsUiBinder.update( this.item, this )
   
-  def doDelete = parentOfType[ DataKindEditor[_] ].killDatumEditor( this )
+  def doDelete = parentOfType[ DataKindEditor ].killDatumEditor( this )
 }
 
 class ContactDatumEditLayout( ctx: Context, attrs: AttributeSet )
@@ -156,7 +152,7 @@ class ContactDatumEditLayout( ctx: Context, attrs: AttributeSet )
 class AddItemButton( ctx: Context, attrs: AttributeSet ) 
   extends PositronicButton(ctx, attrs) with WidgetUtils 
 {
-  onClick { parentOfType[ DataKindEditor[_] ].addDatumEditor }
+  onClick { parentOfType[ DataKindEditor ].addDatumEditor }
 }
 
 class RemoveItemButton( ctx: Context, attrs: AttributeSet ) 
@@ -179,7 +175,7 @@ class CategoryChooser( ctx: Context, attrs: AttributeSet )
   // we are effectively a component).
 
   lazy val datumEditor = parentOfType[ ContactDatumEditor ]
-  lazy val editState   = parentOfType[ DataKindEditor[_] ].state
+  lazy val editState   = parentOfType[ DataKindEditor ].state
   lazy val info        = editState.dataKindInfo( datumEditor.item ).get
 
   // Hooks for the UiBinder

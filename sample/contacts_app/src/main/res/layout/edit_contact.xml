@@ -14,14 +14,16 @@
                 android:layout_width="fill_parent" 
                 android:layout_height="wrap_content">
 
-    <org.positronicnet.sample.contacts.StructuredNameDisplay
-                  dataLayout="@layout/structured_name"
+    <org.positronicnet.sample.contacts.SingletonDataKindEditor
+                  class="org.positronicnet.sample.contacts.StructuredName"
+                  itemLayout="@layout/structured_name"
                   android:orientation="vertical"
                   android:layout_width="fill_parent" 
                   android:layout_height="wrap_content"/>
 
-    <org.positronicnet.sample.contacts.PhoneDisplay
-                  dataLayout="@layout/phone"
+    <org.positronicnet.sample.contacts.DataKindEditor
+                  class="org.positronicnet.sample.contacts.Phone"
+                  itemLayout="@layout/phone"
                   android:orientation="vertical"
                   android:layout_width="fill_parent" 
                   android:layout_height="wrap_content">
@@ -39,10 +41,11 @@
                 android:textSize="40dp"
                 android:text="@string/add_item"/>
      </LinearLayout>
-    </org.positronicnet.sample.contacts.PhoneDisplay>
+    </org.positronicnet.sample.contacts.DataKindEditor>
 
-    <org.positronicnet.sample.contacts.EmailDisplay
-                  dataLayout="@layout/email"
+    <org.positronicnet.sample.contacts.DataKindEditor
+                  class="org.positronicnet.sample.contacts.Email"
+                  itemLayout="@layout/email"
                   android:orientation="vertical"
                   android:layout_width="fill_parent" 
                   android:layout_height="wrap_content">
@@ -60,7 +63,7 @@
                 android:textSize="40dp"
                 android:text="@string/add_item"/>
      </LinearLayout>
-    </org.positronicnet.sample.contacts.EmailDisplay>
+    </org.positronicnet.sample.contacts.DataKindEditor>
 
   </LinearLayout>
  </org.positronicnet.sample.contacts.RawContactEditor>

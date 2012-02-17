@@ -10,6 +10,7 @@ import android.app.{Activity, Dialog}
 
 import android.content.Context
 import android.util.{AttributeSet, Log}
+import android.widget.Toast
 
 // Utility class for binding widgets to data items.  Standard
 // facilities plus a few extra...
@@ -42,10 +43,19 @@ class TypeFieldChooser( ctx: Context, attrs: AttributeSet )
 
   private var typeField: TypeField = null
 
+  // Our metadata (mostly fished out of the ContactDatumEditor of which
+  // we are effectively a component).
+
+  lazy val datumEditor = parentOfType[ ContactDatumEditor ]
+  lazy val editState   = parentOfType[ CategoryDisplay[_] ].state
+  lazy val info        = editState.dataKindInfo( datumEditor.item ).get
+
+  // Hooks for the UiBinder
+
   def getTypeField = typeField
   def setTypeField( tf: TypeField ) = { 
     typeField = tf 
-    setText( tf.displayString )
+    setText( info.typeFieldToString( typeField ))
   }
 
   // User interaction
@@ -54,17 +64,15 @@ class TypeFieldChooser( ctx: Context, attrs: AttributeSet )
 
   onClick {
 
-    val title = R.string.choose_category
-    val info = typeField.info
-    val labeler = ((recType: Int) => 
-      Res.ources.getString( info.toResource( recType )))
+    val title   = R.string.choose_category
+    val choices = editState.availableCategories( datumEditor.item )
 
-    withChoiceFromDialog[ Int ]( title, info.recTypes, labeler ){
-      newType => {
-        if (newType == info.customType)
+    withChoiceFromDialog[ CategoryInfo ]( title, choices, _.displayString ){
+      category => {
+        if ( category.isCustom )
           editCustomDialog.doEditLabel( typeField )
         else
-          setTypeField( typeField.recType_:=( newType ) )
+          setTypeField( typeField.recType_:=( category.typeTag ) )
       }
     }
   }
@@ -95,8 +103,6 @@ class EditCustomTypeDialog( typeFieldChooser: TypeFieldChooser )
     show
   }
 }
-
-// Widget to display all data associated with a RawContact
 
 class RawContactEditor( ctx: Context, attrs: AttributeSet ) 
   extends LinearLayout( ctx, attrs )
@@ -132,8 +138,7 @@ abstract class CategoryDisplay[ T <: ContactData : ClassManifest ]
     throw new RuntimeException( "No data layout specified for " +
                                 this.toString + " in XML" )
 
-  val builder = ReflectUtils.getObjectBuilder[T]
-  def newItem = builder()
+  val itemBuilder = ReflectUtils.getObjectBuilder[T]
 
   def newView = {
     val v = inflater.inflate( dataLayoutResId, this, false )
@@ -152,17 +157,21 @@ abstract class CategoryDisplay[ T <: ContactData : ClassManifest ]
     for (cde <- childrenOfType[ ContactDatumEditor ]( this ))
       state.updateItem( cde.updatedItem )
 
-  def addItem = newView.bind( newItem )
+  def addDatumEditor = 
+    state.prepareForInsert( itemBuilder() ) match {
+
+      case Some( newItem ) => 
+        val view = newView
+        view.bind( newItem )
+        view.requestFocus
+
+      case None => 
+        Toast.makeText( getContext, R.string.no_more_items, Toast.LENGTH_LONG )
+    }
 
   def killDatumEditor( child: ContactDatumEditor ) = {
     state.deleteItem( child.updatedItem )
     this.removeView( child )
-  }
-
-  def addDatumEditor: Unit = {
-    val view = newView
-    view.bind( newItem )
-    view.requestFocus
   }
 }
 
@@ -176,7 +185,7 @@ abstract class SingletonCategoryDisplay[ T <: ContactData : ClassManifest ]
   override def bind( state: ContactEditState ) = {
     super.bind( state )
     if (!state.currentItems.exists( targetKlass.isInstance( _ )))
-      newView.bind( newItem )
+      addDatumEditor
   }
 }
 
@@ -195,7 +204,7 @@ class EmailDisplay( ctx: Context, attrs: AttributeSet )
 
 trait ContactDatumEditor extends WidgetUtils {
 
-  private var item: ContactData = null
+  var item: ContactData = null
 
   def bind ( item: ContactData ) = {
     this.item = item

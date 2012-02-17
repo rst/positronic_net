@@ -8,6 +8,7 @@ import org.positronicnet.content.PositronicContentResolver
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 
 import android.provider.ContactsContract
+import android.provider.ContactsContract.{CommonDataKinds => CDK}
 import android.util.Log
 
 // Classes that implement the "business logic" of dealing with
@@ -82,6 +83,43 @@ class ContactEditState( val rawContact: RawContact,
     batch
   }
 
+  // Determine what categories for a given type are available...
+  // All of them, for the moment.
+
+  def availableCategories( item: ContactData ) =
+    item match {
+      case typedItem: ContactDataWithRecordType =>
+        accountInfo.dataKinds.get( typedItem.typeTag ) match {
+          case Some( kindInfo ) => kindInfo.categories
+          case None => IndexedSeq.empty
+        }
+      case _ => IndexedSeq.empty
+    }
+
+  // Data kind info for an item, if any
+
+  def dataKindInfo( item: ContactData ) =
+    accountInfo.dataKinds.get( item.typeTag )
+
+  // Prepare a new item for insertion, if we have room for one.
+  // May return None, in which case, insertion is disallowed
+  // (most likely, because we're up against some limit).
+  // But not yet.
+
+  def prepareForInsert( item: ContactData ) =
+
+    item match {
+
+      case itemWithRecType: ContactDataWithRecordType =>
+        accountInfo.dataKinds.get( item.typeTag ) map { info =>
+          item.setProperty[ Int ]("recType", info.categories(0).typeTag )
+        }
+
+      case _ => Some( item )
+    }
+
+  // Dump current state to the log...
+
   def logIt = {
 
     if ( rawContact.isNewRecord )
@@ -102,20 +140,8 @@ class ContactEditState( val rawContact: RawContact,
 // These are backed by two underlying fields, one an integer "type"
 // (which we generally style "recType" since "type" is a reserved
 // word in Scala), and one the custom label, if any.
-//
-// This also requires a list of possible "types", to support
-// changes --- which is a bit of an awkward subject, since the set
-// of allowed values depends on the accountType, and the details of
-// that are baked into the source code of the standard Contacts app.
 
-case class TypeFieldInfo(
-  val recTypes: IndexedSeq[Int],
-  val customType: Int,
-  val toResource: (Int => Int)
-)
-{
-  val customTypeIdx = recTypes.indexOf( customType )
-}
+case class TypeFieldInfo( val customType: Int = CDK.BaseTypes.TYPE_CUSTOM )
 
 case class TypeField(
   val recType: Int,
@@ -123,46 +149,11 @@ case class TypeField(
   val info:    TypeFieldInfo
 )
 {
-  // Sanity-checking:  if we get a recType we didn't expect, shove it in
-  // our list, at least for this particular item.  We just assume that
-  // our TypeFieldInfo will be able to map it to some resource.  (Which
-  // may be the case if the TypeFieldInfo is a sublist of a longer list
-  // of stuff supported by the platform.)
-
-  lazy val recTypes = 
-    if (info.recTypes.contains( recType ))
-      info.recTypes
-    else
-      info.recTypes :+ recType
-
   def recType_:=( newType: Int ) = 
-    this.copy( recType = newType, 
-               label = (if (newType == info.customType) label else null ))
+    this.copy( recType = newType, label = null ) 
 
   def label_:=( s: String ) = 
     this.copy( recType = info.customType, label = s )
-
-  def isCustom = {recType == info.customType}
-
-  // Utility routines for translating these values to displayable
-  // strings, using "Res.ources" from the Widgets.
-
-  def displayString = displayStringOfRecType( recType )
-
-  def displayStrings = recTypes.map{ displayStringOfRecType(_) }
-
-  def selectedStringIdx = recTypes.indexOf( recType )
-
-  def displayStringOfRecType( recType: Int ) =
-    if (recType == info.customType && label != null)
-      label
-    else {
-      val str = Res.ources.getString( info.toResource( recType ))
-      if (str != null)
-        str
-      else
-        "Unknown type " + recType
-    }
 }
 
 // Information on account types...
@@ -179,14 +170,92 @@ object AccountInfo {
     }
 }
 
+class DataKindInfo ( val typeTagToResource: (Int => Int) = (x => -1),
+                     val maxRecords: Int = -1 )
+{
+  private var categoriesBuf = new ArrayBuffer[ CategoryInfo ]
+
+  lazy val categories: IndexedSeq[ CategoryInfo ] = categoriesBuf
+  lazy val infoForCategory = Map( categories.map { x => (x.typeTag -> x) }: _* )
+
+  def typeTagToString( typeTag: Int ) = {
+    val str = Res.ources.getString( typeTagToResource( typeTag ))
+    if (str == null)
+      "Unknown type " + typeTag
+    else
+      str
+  }
+
+  def typeFieldToString( typeField: TypeField ): String = {
+    val info = infoForCategory( typeField.recType )
+    if (info.isCustom)
+      typeField.label
+    else
+      typeTagToString( info.typeTag )
+  }
+
+  protected
+  def category( typeTag: Int, 
+                maxRecord: Int = -1,
+                isCustom: Boolean = false ) =
+    categoriesBuf += CategoryInfo( this, typeTag, maxRecords, isCustom )
+}
+
+case class CategoryInfo ( dataKindInfo: DataKindInfo,
+                          typeTag: Int, 
+                          maxRecords: Int, 
+                          isCustom: Boolean )
+{
+  lazy val displayString = dataKindInfo.typeTagToString( typeTag )
+}
+
 abstract class AccountInfo extends Serializable {
   def initialGroups: Seq[ Group ]
+  val dataKinds: Map[ String, DataKindInfo ]
 }
 
 class OtherAccountInfo( acctType: String, acctName: String ) 
   extends AccountInfo
 {
   def initialGroups = Seq.empty
+  val dataKinds = 
+    Map( 
+      CDK.StructuredName.CONTENT_ITEM_TYPE -> 
+        new DataKindInfo(),
+
+      CDK.Phone.CONTENT_ITEM_TYPE ->
+        new DataKindInfo( CDK.Phone.getTypeLabelResource _ ) {
+          category( CDK.Phone.TYPE_HOME )
+          category( CDK.Phone.TYPE_WORK )
+          category( CDK.Phone.TYPE_MOBILE )
+          category( CDK.Phone.TYPE_FAX_WORK )
+          category( CDK.Phone.TYPE_FAX_HOME )
+          category( CDK.Phone.TYPE_OTHER )
+          category( CDK.BaseTypes.TYPE_CUSTOM, isCustom = true )
+          category( CDK.Phone.TYPE_CALLBACK )
+          category( CDK.Phone.TYPE_CAR )
+          category( CDK.Phone.TYPE_COMPANY_MAIN )
+          category( CDK.Phone.TYPE_ISDN )
+          category( CDK.Phone.TYPE_MAIN )
+          category( CDK.Phone.TYPE_OTHER_FAX )
+          category( CDK.Phone.TYPE_RADIO )
+          category( CDK.Phone.TYPE_TELEX )
+          category( CDK.Phone.TYPE_TTY_TDD )
+          category( CDK.Phone.TYPE_WORK_MOBILE )
+          category( CDK.Phone.TYPE_WORK_PAGER )
+          category( CDK.Phone.TYPE_ASSISTANT )
+          category( CDK.Phone.TYPE_MMS )
+        },
+
+      CDK.Email.CONTENT_ITEM_TYPE ->
+        new DataKindInfo( CDK.Email.getTypeLabelResource _ ) {
+          category( CDK.Email.TYPE_HOME )
+          category( CDK.Email.TYPE_WORK )
+          category( CDK.Email.TYPE_MOBILE )
+          category( CDK.Email.TYPE_OTHER )
+          category( CDK.BaseTypes.TYPE_CUSTOM, isCustom = true )
+        }
+    )
 }
 
 class GoogleAccountInfo( acctType: String, acctName: String ) 
@@ -222,4 +291,30 @@ class GoogleAccountInfo( acctType: String, acctName: String )
 
   groupQuery ! Fetch { groups => 
     myContactGroupSeq = groups }
+
+  val dataKinds = 
+    Map( 
+      CDK.StructuredName.CONTENT_ITEM_TYPE -> 
+        new DataKindInfo,
+
+      CDK.Phone.CONTENT_ITEM_TYPE ->
+        new DataKindInfo( CDK.Phone.getTypeLabelResource _ ) {
+          category( CDK.Phone.TYPE_HOME )
+          category( CDK.Phone.TYPE_WORK )
+          category( CDK.Phone.TYPE_MOBILE )
+          category( CDK.Phone.TYPE_FAX_WORK )
+          category( CDK.Phone.TYPE_FAX_HOME )
+          category( CDK.Phone.TYPE_OTHER )
+          category( CDK.BaseTypes.TYPE_CUSTOM, isCustom = true )
+        },
+
+      CDK.Email.CONTENT_ITEM_TYPE ->
+        new DataKindInfo( CDK.Email.getTypeLabelResource _ ) {
+          category( CDK.Email.TYPE_HOME )
+          category( CDK.Email.TYPE_WORK )
+          category( CDK.Email.TYPE_OTHER )
+          category( CDK.BaseTypes.TYPE_CUSTOM, isCustom = true )
+        }
+    )
 }
+

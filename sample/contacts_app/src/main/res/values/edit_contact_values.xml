@@ -13,6 +13,12 @@
   <color name="remove_item_color">#ff0000</color>
   <color name="add_remove_item_background">#000000</color>
 
+  <!-- If we can't add any more of a given item type
+       (or something *really* weird is happening...)
+   -->
+
+  <string name="no_more_items">Contact can\'t hold more items of this type</string>
+
   <!-- category header labels -->
 
   <string name="phone_header">Phone</string>

@@ -14,17 +14,6 @@ import android.util.AttributeSet
 import android.provider.{ContactsContract => CC}
 import android.provider.ContactsContract.CommonDataKinds
 
-// Convenience class for digging as much as we can out of
-// Android standard data...
-
-class ReflectiveTypeFieldInfo[ Stuff : ClassManifest ]( 
-    func: (Int => Int),
-    types: IndexedSeq[String]
-  )
-  extends TypeFieldInfo( types.map{ ReflectUtils.getStatic[ Int, Stuff ](_) },
-                         ReflectUtils.getStatic[ Int, Stuff ]( "TYPE_CUSTOM" ),
-                         func )
-
 // Contacts table.  For now, we're treating the whole thing as
 // read-only, so we don't bother with read-only marks on particular
 // columns.  (There are only a few modifiable columns; it might be
@@ -131,19 +120,28 @@ object Groups extends RecordManagerForFields[ Group, CC.Groups ]
 
 // Contact-data table.  
 //
-// Note that "mimetype" isn't here because it isn't actually mapped
-// for any subtype other than the catch-all; instead, we treat it as a
-// discriminant that the variant-record machinery handles on its own.
+// Note that "mimetype" isn't mapped for any subtype other than the
+// catch-all; instead, we treat it as a discriminant that the
+// variant-record machinery handles on its own.
 
 abstract class ContactData 
   extends ManagedRecord with ReflectiveProperties
 {
   // Generic fields...
+
   val contactId:      RecordId[ Contact ]    = Contacts.unsavedId
   val rawContactId:   RecordId[ RawContact ] = RawContacts.unsavedId
   val isPrimary:      Boolean                = false
   val isSuperPrimary: Boolean                = false
   val dataVersion:    Int                    = -1 // read-only
+
+  // Mime type for this content item, as the discriminant which
+  // the variant machinery manages...
+
+  def typeTag = 
+    this.id.mgr.asInstanceOf[ ContactData.DataKindMapper[_,_] ].discriminant
+
+  // More informative 'toString'
 
   override def toString = 
     super.toString + " id: " + id + " rcid: " + rawContactId
@@ -232,9 +230,9 @@ class GroupMembership extends ContactData
 
 abstract class ContactDataWithRecordType extends ContactData 
 {
-  val recTypeInfo: TypeFieldInfo
+  lazy val recTypeInfo = new TypeFieldInfo
 
-  val recType: Int = recTypeInfo.recTypes(0) // first choice is the default
+  val recType: Int = 0
   val label:   String = null
 
   def recordType = TypeField( recType, label, recTypeInfo )
@@ -246,8 +244,6 @@ abstract class ContactDataWithRecordType extends ContactData
     else
       this.setProperty[Int]("recType", newType.recType)
           .setProperty[String]("label", null)
-
-  def displayType = recordType.displayString
 }
 
 // Phone records.  Here's where we now have a subset of what's really allowed
@@ -257,17 +253,9 @@ class Phone extends ContactDataWithRecordType {
   val number:  String            = null
   val id:      RecordId[ Phone ] = ContactData.phones.unsavedId
 
-  lazy val recTypeInfo = PhoneTypeInfo
-
   override def toString = 
-    super.toString + " ("+ recordType.displayString +", "+ number +")"
+    super.toString + " ("+ recType +", "+ number +")"
 }
-
-object PhoneTypeInfo 
-  extends ReflectiveTypeFieldInfo[ CommonDataKinds.Phone ](
-    (CommonDataKinds.Phone.getTypeLabelResource _),
-    IndexedSeq( "TYPE_HOME", "TYPE_WORK", "TYPE_MOBILE", 
-                "TYPE_OTHER", "TYPE_CUSTOM" ))
 
 // Email records.  Here we have the complete documented set, though
 // not the Exchange restriction of a limit of three.
@@ -276,26 +264,21 @@ class Email extends ContactDataWithRecordType {
   val address: String = null
   val id:      RecordId[ Email ] = ContactData.emails.unsavedId
 
-  lazy val recTypeInfo = EmailTypeInfo
-
   override def toString = 
-    super.toString + " ("+ recordType.displayString +", "+ address+")"
+    super.toString + " ("+ recType +", "+ address+")"
 }
-
-object EmailTypeInfo 
-  extends ReflectiveTypeFieldInfo[ CommonDataKinds.Email ](
-    (CommonDataKinds.Phone.getTypeLabelResource _),
-    IndexedSeq( "TYPE_HOME", "TYPE_WORK", "TYPE_MOBILE", 
-                "TYPE_OTHER", "TYPE_CUSTOM" ))
 
 // Unknown data records.  There's actually a defined way for third-party
 // apps to specify how to display these, which is undocumented, and changed
 // in a major way with ICS...
 
 class UnknownData extends ContactData {
+
   val mimetype: String = null
   val data1:    String = null
   val id:       RecordId[ UnknownData ] = ContactData.unknowns.unsavedId
+
+  override def typeTag = mimetype
 }
 
 // Record mapper for the whole shebang.
@@ -322,16 +305,14 @@ object ContactData
 
   class TypedDataKindMapper[ TRec <: ContactDataWithRecordType : ClassManifest,
                              TKind : ClassManifest ]
-    extends TaggedVariantForFields[ TRec, TKind ](
-      ReflectUtils.getStatic[ String, TKind ]("CONTENT_ITEM_TYPE")
-    ) 
-    {
-      mapField( "contactId", CONTACT_ID, MapAs.ReadOnly )
-      mapField( "recType", ReflectUtils.getStatic[ String, TKind ]("TYPE") ) 
-      mapField( "dataVersion", 
-                ReflectUtils.getStatic[ String, CC.Data ]("DATA_VERSION"),
-                MapAs.ReadOnly )
-    }
+    extends DataKindMapper[ TRec, TKind ]
+  {
+    mapField( "contactId", CONTACT_ID, MapAs.ReadOnly )
+    mapField( "recType", ReflectUtils.getStatic[ String, TKind ]("TYPE") ) 
+    mapField( "dataVersion", 
+              ReflectUtils.getStatic[ String, CC.Data ]("DATA_VERSION"),
+              MapAs.ReadOnly )
+  }
 
   val phones = new TypedDataKindMapper[ Phone, CommonDataKinds.Phone ] 
   val emails = new TypedDataKindMapper[ Email, CommonDataKinds.Email ] 

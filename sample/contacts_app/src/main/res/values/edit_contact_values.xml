@@ -48,6 +48,16 @@
   <string name="middle_name">Middle Name</string>
   <string name="last_name">Last Name</string>
   <string name="suffix">Suffix</string>
+  
+  <string name="phonetic_first_name">Phonetic First Name</string>
+  <string name="phonetic_middle_name">Phonetic Middle Name</string>
+  <string name="phonetic_last_name">Phonetic Last Name</string>
+
+  <string name="show_detail">Show Detail</string>
+  <string name="hide_detail">Hide Detail</string>
+
+  <string name="show_phonetic">Show Phonetic</string>
+  <string name="hide_phonetic">Hide Phonetic</string>
 
   <!-- "Enter custom label" dialog for user-entered record types
        ("takeout" phone number, etc.) 

@@ -4,13 +4,14 @@ import org.positronicnet.ui._
 import org.positronicnet.util._
 import org.positronicnet.facility._
 
-import android.widget.{Spinner, LinearLayout}
+import android.widget.{Spinner, LinearLayout, TextView, Button, Toast}
 import android.view.{View, ViewGroup, LayoutInflater, KeyEvent}
 import android.app.{Activity, Dialog}
+import android.text.TextUtils
 
 import android.content.Context
 import android.util.{AttributeSet, Log}
-import android.widget.Toast
+
 
 // Utility class for binding widgets to data items.  Standard
 // facilities plus a few extra...
@@ -129,7 +130,7 @@ class SingletonDataKindEditor( ctx: Context, attrs: AttributeSet )
 // whatever type.  (All LinearLayouts for now, but we can mix
 // the trait into other stuff if need be.)
 
-trait ContactDatumEditor extends WidgetUtils {
+trait ContactDatumEditor extends WidgetUtils with TypedViewHolder {
 
   var item: ContactData = null
 
@@ -146,6 +147,61 @@ trait ContactDatumEditor extends WidgetUtils {
 class ContactDatumEditLayout( ctx: Context, attrs: AttributeSet )
   extends LinearLayout( ctx, attrs )
   with ContactDatumEditor
+
+// Special-case behavior for structured name ContactDatumEditor
+
+class StructuredNameEditLayout( ctx: Context, attrs: AttributeSet )
+  extends ContactDatumEditLayout( ctx, attrs )
+{
+  // Our "hide/show" buttons start in "hide" state, so faking clicks hides the
+  // unpopulated fields...
+
+  override def bind ( item: ContactData ) = {
+    super.bind( item )
+    detailClick
+    phoneticClick
+    findView( TR.detailButton ).onClick { detailClick }
+    findView( TR.phoneticButton ).onClick { phoneticClick }
+  }
+
+  // Mechanics of "hide/show" buttons
+
+  def detailClick = 
+    handleExpCollapseButton( findView( TR.detailButton ), 
+                             R.string.show_detail, R.string.hide_detail,
+                             Set( R.id.prefix, R.id.middleName, R.id.suffix ))
+
+  def phoneticClick = 
+    handleExpCollapseButton( findView( TR.phoneticButton ), 
+                             R.string.show_phonetic, R.string.hide_phonetic,
+                             Set( R.id.phoneticGivenName, 
+                                  R.id.phoneticMiddleName, 
+                                  R.id.phoneticFamilyName ))
+
+  def handleExpCollapseButton( button: Button,
+                               showStringRes: Int, 
+                               hideStringRes: Int,
+                               controlledIds: Set[ Int ] ) = 
+  {
+    val res = getContext.getResources
+    val showString = res.getString( showStringRes )
+    val hideString = res.getString( hideStringRes )
+
+    if (button.getText.toString == showString) {
+      button.setText( hideString )
+      for (textView <- this.childrenOfType[ TextView ])
+        if (controlledIds.contains( textView.getId ))
+          textView.setVisibility( View.VISIBLE )
+    }
+    else {
+      button.setText( showString )
+      for (textView <- this.childrenOfType[ TextView ])
+        if (controlledIds.contains( textView.getId ) &&
+            !TextUtils.isGraphic( textView.getText ))
+          textView.setVisibility( View.GONE )
+    }
+  }
+}
 
 // Widgets for "Add" and "Remove" buttons for category items.
 

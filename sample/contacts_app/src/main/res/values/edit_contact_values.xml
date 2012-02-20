@@ -21,6 +21,7 @@
 
   <!-- category header labels -->
 
+  <string name="name_header">Name</string>
   <string name="phone_header">Phone</string>
   <string name="email_header">Email</string>
   <string name="nickname_header">Nickname</string>

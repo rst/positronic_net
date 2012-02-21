@@ -69,6 +69,7 @@ class RawContactEditor( ctx: Context, attrs: AttributeSet )
           editors.removeView( dataKindEditor ) // ... from wherever it is
           editors.addView( dataKindEditor )    // ... at end
           dataKindEditor.setVisibility( View.VISIBLE )
+          dataKindEditor.requestFocus()
           setupAddSectionWidget
         }
       }

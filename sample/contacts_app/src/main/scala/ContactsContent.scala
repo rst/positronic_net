@@ -305,6 +305,26 @@ class Email extends ContactDataWithCategoryLabel {
     super.toString + " ("+ categoryTag +", "+ address+")"
 }
 
+// Mailing address records.
+
+class Postal extends ContactDataWithCategoryLabel {
+
+  val street:       String = null
+  val pobox:        String = null
+  val neighborhood: String = null
+  val city:         String = null
+  val region:       String = null
+  val postcode:     String = null
+  val country:      String = null
+
+  val id:           RecordId[ Postal ] = ContactData.postals.unsavedId
+
+  def isEmpty = 
+    isBlank( street ) && isBlank( pobox ) && isBlank( neighborhood ) &&
+    isBlank( city ) && isBlank( region ) && isBlank( postcode ) &&
+    isBlank( country )
+}
+
 // Unknown data records.  There's actually a defined way for third-party
 // apps to specify how to display these, which is undocumented, and changed
 // in a major way with ICS...
@@ -353,8 +373,10 @@ object ContactData
               MapAs.ReadOnly )
   }
 
-  val phones = new TypedDataKindMapper[ Phone, CommonDataKinds.Phone ] 
-  val emails = new TypedDataKindMapper[ Email, CommonDataKinds.Email ] 
+  val phones  = new TypedDataKindMapper[ Phone, CommonDataKinds.Phone ] 
+  val emails  = new TypedDataKindMapper[ Email, CommonDataKinds.Email ] 
+  val postals = new TypedDataKindMapper[ Postal, 
+                                         CommonDataKinds.StructuredPostal ] 
 
   val nicknames = new DataKindMapper[ Nickname, CommonDataKinds.Nickname ]
   val notes     = new DataKindMapper[ Note,     CommonDataKinds.Note     ]

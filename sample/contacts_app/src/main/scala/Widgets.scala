@@ -12,7 +12,6 @@ import android.text.TextUtils
 import android.content.Context
 import android.util.{AttributeSet, Log}
 
-
 // Utility class for binding widgets to data items.  Standard
 // facilities plus a few extra...
 
@@ -87,7 +86,7 @@ class RawContactEditor( ctx: Context, attrs: AttributeSet )
     val addString = resources.getString( R.string.sec_add )
     hiddenEditors.size match {
       case 0 =>
-        this.removeView( findView( TR.section_add_row ))
+        findView( TR.section_add_row ).setVisibility( View.GONE )
       case 1 =>
         findView( TR.add_section ).setText( 
           addString + " " + hiddenEditors(0).sectionName )
@@ -158,7 +157,7 @@ class DataKindEditor( ctx: Context, attrs: AttributeSet )
 
   // Hooks for our subsidiary add- and remove-item buttons
 
-  def addDatumEditor = 
+  def addDatumEditor =
     state.prepareForInsert( itemBuilder() ) match {
 
       case Some( newItem ) => 
@@ -206,35 +205,10 @@ class ContactDatumEditLayout( ctx: Context, attrs: AttributeSet )
   extends LinearLayout( ctx, attrs )
   with ContactDatumEditor
 
-// Special-case behavior for structured name ContactDatumEditor
+// Some of these have "detail" fields that we don't show until
+// the user asks for them explicitly
 
-class StructuredNameEditLayout( ctx: Context, attrs: AttributeSet )
-  extends ContactDatumEditLayout( ctx, attrs )
-{
-  // Our "hide/show" buttons start in "hide" state, so faking clicks hides the
-  // unpopulated fields...
-
-  override def bind ( item: ContactData ) = {
-    super.bind( item )
-    detailClick
-    phoneticClick
-    findView( TR.detailButton ).onClick { detailClick }
-    findView( TR.phoneticButton ).onClick { phoneticClick }
-  }
-
-  // Mechanics of "hide/show" buttons
-
-  def detailClick = 
-    handleExpCollapseButton( findView( TR.detailButton ), 
-                             R.string.show_detail, R.string.hide_detail,
-                             Set( R.id.prefix, R.id.middleName, R.id.suffix ))
-
-  def phoneticClick = 
-    handleExpCollapseButton( findView( TR.phoneticButton ), 
-                             R.string.show_phonetic, R.string.hide_phonetic,
-                             Set( R.id.phoneticGivenName, 
-                                  R.id.phoneticMiddleName, 
-                                  R.id.phoneticFamilyName ))
+trait HiddenContactDataFields extends ContactDatumEditor {
 
   def handleExpCollapseButton( button: Button,
                                showStringRes: Int, 
@@ -260,6 +234,58 @@ class StructuredNameEditLayout( ctx: Context, attrs: AttributeSet )
     }
   }
 }
+
+// Special-case behavior for structured name ContactDatumEditor
+
+class StructuredNameEditLayout( ctx: Context, attrs: AttributeSet )
+  extends ContactDatumEditLayout( ctx, attrs )
+  with HiddenContactDataFields
+{
+  // Our "hide/show" buttons start in "hide" state, so faking clicks hides the
+  // unpopulated fields...
+
+  override def bind ( item: ContactData ) = {
+    super.bind( item )
+    detailClick
+    phoneticClick
+    findView( TR.detailButton ).onClick { detailClick }
+    findView( TR.phoneticButton ).onClick { phoneticClick }
+  }
+
+  // Mechanics of "hide/show" buttons
+
+  def detailClick = 
+    handleExpCollapseButton( findView( TR.detailButton ), 
+                             R.string.show_detail, R.string.hide_detail,
+                             Set( R.id.prefix, R.id.middleName, R.id.suffix ))
+
+  def phoneticClick = 
+    handleExpCollapseButton( findView( TR.phoneticButton ), 
+                             R.string.show_phonetic, R.string.hide_phonetic,
+                             Set( R.id.phoneticGivenName, 
+                                  R.id.phoneticMiddleName, 
+                                  R.id.phoneticFamilyName ))
+}
+
+// Special-case behavior for postal address ContactDatumEditor
+
+class PostalEditLayout( ctx: Context, attrs: AttributeSet )
+  extends ContactDatumEditLayout( ctx, attrs )
+  with HiddenContactDataFields
+{
+  override def bind ( item: ContactData ) = {
+    super.bind( item )
+    detailClick
+    findView( TR.detailButton ).onClick{ detailClick }
+  }
+
+  def detailClick =
+    handleExpCollapseButton( findView( TR.detailButton ),
+                             R.string.show_detail, R.string.hide_detail,
+                             Set( R.id.pobox,
+                                  R.id.neighborhood,
+                                  R.id.country ))
+ }
 
 // Widgets for "Add" and "Remove" buttons for ContactDataEditors.
 

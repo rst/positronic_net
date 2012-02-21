@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<org.positronicnet.sample.contacts.PostalEditLayout
+              xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:layout_width="fill_parent" 
+              android:layout_height="wrap_content">
+
+  <include layout="@layout/separator_bar"/>
+
+  <org.positronicnet.sample.contacts.CategoryChooser
+              android:id="@+id/categoryLabel"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:layout_weight="0"
+  />
+
+  <EditText android:id="@+id/street"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/street"
+  />
+
+  <EditText android:id="@+id/pobox"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/pobox"
+  />
+
+  <EditText android:id="@+id/neighborhood"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/neighborhood"
+  />
+
+  <EditText android:id="@+id/city"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/city"
+  />
+
+  <EditText android:id="@+id/region"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/region"
+  />
+
+  <EditText android:id="@+id/postcode"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/postcode"
+  />
+
+  <EditText android:id="@+id/country"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/country"
+  />
+
+  <org.positronicnet.ui.PositronicButton 
+          android:id="@+id/detailButton"
+          android:layout_alignParentLeft="true"
+          android:layout_width="wrap_content"
+          android:layout_height="40dp"
+          android:textSize="16dp"
+          android:text="@string/hide_detail"/>
+
+</org.positronicnet.sample.contacts.PostalEditLayout>

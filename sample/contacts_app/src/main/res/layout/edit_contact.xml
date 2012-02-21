@@ -76,6 +76,33 @@
     </org.positronicnet.sample.contacts.DataKindEditor>
 
     <org.positronicnet.sample.contacts.DataKindEditor
+                  class="org.positronicnet.sample.contacts.Postal"
+                  itemLayout="@layout/postal"
+                  android:visibility="gone"
+                  android:orientation="vertical"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content">
+
+     <include layout="@layout/separator_bar"/>
+
+     <LinearLayout android:layout_width="fill_parent"
+                   android:layout_height="wrap_content">
+      <TextView android:id="@+id/section_header"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/postal_header"/>
+      <org.positronicnet.sample.contacts.AddItemButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/add_item_color"
+                android:background="@color/add_remove_item_background"
+                android:textSize="40dp"
+                android:text="@string/add_item"/>
+     </LinearLayout>
+    </org.positronicnet.sample.contacts.DataKindEditor>
+
+    <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.Nickname"
                   itemLayout="@layout/nickname"
                   android:visibility="gone"

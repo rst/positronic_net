@@ -26,6 +26,7 @@
   <string name="email_header">Email</string>
   <string name="nickname_header">Nickname</string>
   <string name="note_header">Note</string>
+  <string name="postal_header">Postal Address</string>
 
   <!-- "structured name" component labels 
 
@@ -59,6 +60,16 @@
 
   <string name="show_phonetic">Show Phonetic</string>
   <string name="hide_phonetic">Hide Phonetic</string>
+
+  <!-- Postal address component labels -->
+
+  <string name="street">Street</string>
+  <string name="pobox">P.O. Box</string>
+  <string name="neighborhood">Neighborhood</string>
+  <string name="city">City</string>
+  <string name="region">State</string>
+  <string name="postcode">ZIP Code</string>
+  <string name="country">Country</string>
 
   <!-- "Enter custom label" dialog for user-entered record types
        ("takeout" phone number, etc.) 

@@ -271,6 +271,46 @@ class Website extends ContactData
   def isEmpty = isBlank( url )
 }
 
+// IM.  These are odd; they have the standard "type/label" columns,
+// but the standard app doesn't let you set them; nor (as I write) 
+// does the GMail contacts web page.  Instead, what shows up in both
+// UIs as what we're calling the category label is a separate pair of
+// "protocol/customprotocol" columns, which we expose to the UI as the 
+// synthetic field "protocolLabel", a CategoryLabel.
+//
+// (It actually wouldn't be much trouble for us to support both.  We'd
+// need to change the ContentModel stuff to make the lists of supported
+// tags depend on the field, and not just the DataKind, but that's an
+// easy change.  But again, we're holding off on that for now, to avoid
+// creating anything that the syncadapter might gag on.)
+
+class ImAddress extends ContactData
+{
+  val id: RecordId[ImAddress] = ContactData.imAddresses.unsavedId
+
+  val data: String = null               // Handle.  That's what they call it...
+
+  def isEmpty = isBlank( data )
+
+  // The "CategoryLabel" fields we aren't going to use...
+
+  val `type` = CommonDataKinds.Im.TYPE_OTHER
+  val label: String = null
+
+  // The "protocol" fields we will use...
+
+  val protocol: Int = 0
+  val customProtocol: String = null
+
+  // And machinery to export those as a CategoryLabel...
+
+  def protocolLabel = CategoryLabel( protocol, customProtocol )
+
+  def protocolLabel_:=( newLabel: CategoryLabel ) = 
+    this.setProperty[Int]("protocol", newLabel.tag)
+        .setProperty[String]("customProtocol", newLabel.label)
+}
+
 // Notes.
 
 class Note extends ContactData {
@@ -415,9 +455,10 @@ object ContactData
   val organizations = new TypedDataKindMapper[ Organization,
                                                CommonDataKinds.Organization ]
 
-  val nicknames = new DataKindMapper[ Nickname, CommonDataKinds.Nickname ]
-  val websites  = new DataKindMapper[ Website,  CommonDataKinds.Website  ]
-  val notes     = new DataKindMapper[ Note,     CommonDataKinds.Note     ]
+  val nicknames   = new DataKindMapper[ Nickname,  CommonDataKinds.Nickname ]
+  val websites    = new DataKindMapper[ Website,   CommonDataKinds.Website  ]
+  val notes       = new DataKindMapper[ Note,      CommonDataKinds.Note     ]
+  val imAddresses = new DataKindMapper[ ImAddress, CommonDataKinds.Im       ]
 
   val groupMemberships =
     new DataKindMapper[ GroupMembership, CommonDataKinds.GroupMembership ]

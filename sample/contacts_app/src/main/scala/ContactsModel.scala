@@ -90,13 +90,9 @@ class ContactEditState( val rawContact: RawContact,
   // All of them, for the moment.
 
   def availableCategories( item: ContactData ) =
-    item match {
-      case typedItem: ContactDataWithCategoryLabel =>
-        accountInfo.dataKinds.get( typedItem.typeTag ) match {
-          case Some( kindInfo ) => kindInfo.categories
-          case None => IndexedSeq.empty
-        }
-      case _ => IndexedSeq.empty
+    accountInfo.dataKinds.get( item.typeTag ) match {
+      case Some( kindInfo ) => kindInfo.categories
+      case None => IndexedSeq.empty
     }
 
   // Data kind info for an item, if any
@@ -266,6 +262,19 @@ object BaseAccountInfo {
           category( CDK.Organization.TYPE_WORK )
           category( CDK.Organization.TYPE_OTHER )
           category( CDK.BaseTypes.TYPE_CUSTOM, isCustom = true )
+        },
+
+      CDK.Im.CONTENT_ITEM_TYPE ->
+        new DataKindInfo( CDK.Im.getProtocolLabelResource _ ) {
+          category( CDK.Im.PROTOCOL_AIM )
+          category( CDK.Im.PROTOCOL_MSN )
+          category( CDK.Im.PROTOCOL_YAHOO )
+          category( CDK.Im.PROTOCOL_SKYPE )
+          category( CDK.Im.PROTOCOL_QQ )
+          category( CDK.Im.PROTOCOL_GOOGLE_TALK )
+          category( CDK.Im.PROTOCOL_ICQ )
+          category( CDK.Im.PROTOCOL_JABBER )
+          category( CDK.Im.PROTOCOL_CUSTOM, isCustom = true )
         },
 
       CDK.Website.CONTENT_ITEM_TYPE  -> new DataKindInfo(),

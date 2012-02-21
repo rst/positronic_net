@@ -265,7 +265,7 @@ class Website extends ContactData
   val url: String = null
 
   // The "CategoryLabel" fields we aren't going to use...
-  val `type` = CommonDataKinds.Nickname.TYPE_DEFAULT
+  val `type` = CommonDataKinds.Website.TYPE_OTHER
   val label: String = null
 
   def isEmpty = isBlank( url )

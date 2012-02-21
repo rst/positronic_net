@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<org.positronicnet.sample.contacts.ContactDatumEditLayout
+              xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:layout_width="fill_parent" 
+              android:layout_height="wrap_content">
+
+  <include layout="@layout/item_separator_bar"/>
+
+  <org.positronicnet.sample.contacts.CategoryChooser
+              android:id="@+id/categoryLabel"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:layout_weight="0"
+  />
+
+  <EditText android:id="@+id/company"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/company"
+  />
+
+  <EditText android:id="@+id/title"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/title"
+  />
+
+</org.positronicnet.sample.contacts.ContactDatumEditLayout>

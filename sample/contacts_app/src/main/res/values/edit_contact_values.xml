@@ -27,6 +27,7 @@
   <string name="nickname_header">Nickname</string>
   <string name="note_header">Note</string>
   <string name="postal_header">Postal Address</string>
+  <string name="organization_header">Organization</string>
 
   <!-- "structured name" component labels 
 
@@ -70,6 +71,11 @@
   <string name="region">State</string>
   <string name="postcode">ZIP Code</string>
   <string name="country">Country</string>
+
+  <!-- Organization component labels -->
+
+  <string name="company">Company</string>
+  <string name="title">Title</string>
 
   <!-- "Enter custom label" dialog for user-entered record types
        ("takeout" phone number, etc.) 

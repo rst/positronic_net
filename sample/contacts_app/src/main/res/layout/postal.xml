@@ -5,7 +5,7 @@
               android:layout_width="fill_parent" 
               android:layout_height="wrap_content">
 
-  <include layout="@layout/separator_bar"/>
+  <include layout="@layout/item_separator_bar"/>
 
   <org.positronicnet.sample.contacts.CategoryChooser
               android:id="@+id/categoryLabel"

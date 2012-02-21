@@ -255,9 +255,16 @@ object BaseAccountInfo {
 
       CDK.StructuredPostal.CONTENT_ITEM_TYPE ->
         new DataKindInfo( CDK.StructuredPostal.getTypeLabelResource _ ) {
-          category( CDK.Email.TYPE_HOME )
-          category( CDK.Email.TYPE_WORK )
-          category( CDK.Email.TYPE_OTHER )
+          category( CDK.StructuredPostal.TYPE_HOME )
+          category( CDK.StructuredPostal.TYPE_WORK )
+          category( CDK.StructuredPostal.TYPE_OTHER )
+          category( CDK.BaseTypes.TYPE_CUSTOM, isCustom = true )
+        },
+
+      CDK.Organization.CONTENT_ITEM_TYPE ->
+        new DataKindInfo( CDK.Organization.getTypeLabelResource _ ) {
+          category( CDK.Organization.TYPE_WORK )
+          category( CDK.Organization.TYPE_OTHER )
           category( CDK.BaseTypes.TYPE_CUSTOM, isCustom = true )
         },
 

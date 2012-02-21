@@ -325,6 +325,26 @@ class Postal extends ContactDataWithCategoryLabel {
     isBlank( country )
 }
 
+// Organization records.
+
+class Organization extends ContactDataWithCategoryLabel {
+
+  val company:        String = null
+  val title:          String = null
+  val department:     String = null
+  val jobDescription: String = null
+  val symbol:         String = null
+  val officeLocation: String = null
+  val phoneticName:   String = null
+
+  val id: RecordId[ Organization ] = ContactData.organizations.unsavedId
+
+  def isEmpty = 
+    isBlank( company ) && isBlank( title ) && isBlank( department ) &&
+    isBlank( jobDescription ) && isBlank( symbol ) && 
+    isBlank( officeLocation ) && isBlank( phoneticName )
+}
+
 // Unknown data records.  There's actually a defined way for third-party
 // apps to specify how to display these, which is undocumented, and changed
 // in a major way with ICS...
@@ -377,6 +397,8 @@ object ContactData
   val emails  = new TypedDataKindMapper[ Email, CommonDataKinds.Email ] 
   val postals = new TypedDataKindMapper[ Postal, 
                                          CommonDataKinds.StructuredPostal ] 
+  val organizations = new TypedDataKindMapper[ Organization,
+                                               CommonDataKinds.Organization ]
 
   val nicknames = new DataKindMapper[ Nickname, CommonDataKinds.Nickname ]
   val notes     = new DataKindMapper[ Note,     CommonDataKinds.Note     ]

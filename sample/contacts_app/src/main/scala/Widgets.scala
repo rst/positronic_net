@@ -41,13 +41,72 @@ class RawContactEditor( ctx: Context, attrs: AttributeSet )
   with TypedViewHolder
   with WidgetUtils
 {
-  def bindState( state: ContactEditState ) = 
+  def bindState( state: ContactEditState ) = {
+
     for (editor <- childrenOfType[ DataKindEditor ](findView( TR.editors )))
       editor.bind( state )
+
+    // Dealing with the "add section" widgetry.  The list of available
+    // sections is computed dynamically off whichever are hidden (with
+    // visibility set to View.GONE), after they've had a chance to
+    // initialize themselves (and ensure they're visible if pre-populated).
+
+    setupAddSectionWidget
+
+    findView( TR.add_section ).onClick {
+
+      val choices = this.hiddenDataKindEditors
+      val title = R.string.add_section
+
+      withChoiceFromDialog[ DataKindEditor ]( title, choices, _.sectionName ){
+        dataKindEditor => {
+
+          // Reposition the chosen DataKindEditor just above the choice bar
+          // (so it's close by if the user wants to add something else)
+          // and make it visible.  Then reset the list of what's available...
+        
+          val editors = findView( TR.editors )
+
+          editors.removeView( dataKindEditor ) // ... from wherever it is
+          editors.addView( dataKindEditor )    // ... at end
+          dataKindEditor.setVisibility( View.VISIBLE )
+          setupAddSectionWidget
+        }
+      }
+    }
+  }
 
   def updateState = 
     for (editor <- childrenOfType[ DataKindEditor ](findView( TR.editors )))
       editor.updateState
+
+  def setupAddSectionWidget = {
+    val hiddenEditors = this.hiddenDataKindEditors
+    val resources = getContext.getResources
+    val chooseString = resources.getString( R.string.sec_choose )
+    val addString = resources.getString( R.string.sec_add )
+    hiddenEditors.size match {
+      case 0 =>
+        this.removeView( findView( TR.section_add_row ))
+      case 1 =>
+        findView( TR.add_section ).setText( 
+          addString + " " + hiddenEditors(0).sectionName )
+      case 2 =>
+        findView( TR.add_section ).setText(
+          chooseString + " " +
+          hiddenEditors(0).sectionName + ", " + hiddenEditors(1).sectionName )
+      case _ =>
+        findView( TR.add_section ).setText(
+          chooseString + " " +
+          hiddenEditors(0).sectionName + ", " + hiddenEditors(1).sectionName +
+          ", ...")
+    }
+  }
+
+  def hiddenDataKindEditors = {
+    val allEditors = childrenOfType[ DataKindEditor ](findView( TR.editors ))
+    allEditors.filter{ _.getVisibility == View.GONE }
+  }
 }
 
 // Widget to display all ContactData of a particular "kind" (Phone, Email, etc.)
@@ -55,6 +114,7 @@ class RawContactEditor( ctx: Context, attrs: AttributeSet )
 class DataKindEditor( ctx: Context, attrs: AttributeSet )
   extends LinearLayout( ctx, attrs )
   with WidgetUtils
+  with TypedViewHolder
 {
   var state: ContactEditState = null    // really set at bind()
 
@@ -64,6 +124,8 @@ class DataKindEditor( ctx: Context, attrs: AttributeSet )
 
   val itemLayoutResId = attrs.getAttributeResourceValue( null, "itemLayout", 0 )
   val targetKlass = Class.forName( attrs.getAttributeValue( null, "class" ))
+
+  lazy val sectionName = findView( TR.section_header ).getText.toString
 
   if (itemLayoutResId == 0)
     throw new RuntimeException( "No item layout specified for " +
@@ -75,10 +137,19 @@ class DataKindEditor( ctx: Context, attrs: AttributeSet )
   // Hooks for our enclosing RawContactEditor, to manage startup and save
 
   def bind( state: ContactEditState ) = {
+
     this.state = state
-    for ( item <- state.currentItems ) 
-      if (targetKlass.isInstance( item ))
+    val ourData = state.currentItems.filter( targetKlass.isInstance( _ ))
+
+    if (ourData.isEmpty) {
+      // No initial data; prepare a starter item for later use
+      addDatumEditor
+    }
+    else {
+      setVisibility( View.VISIBLE )   // have data; make sure user sees it!
+      for ( item <- ourData ) 
         newView.bind( item )
+    }
   }
 
   def updateState =
@@ -110,19 +181,6 @@ class DataKindEditor( ctx: Context, attrs: AttributeSet )
     val v = inflater.inflate( itemLayoutResId, this, false )
     addView( v )
     v.asInstanceOf[ ContactDatumEditor ] // it better be!
-  }
-}
-
-class SingletonDataKindEditor( ctx: Context, attrs: AttributeSet )
-  extends DataKindEditor( ctx, attrs )
-{
-  // We expect one instance of our particular data type (though we show
-  // more if we get them).  If we get none, we create a starter item.
-
-  override def bind( state: ContactEditState ) = {
-    super.bind( state )
-    if (!state.currentItems.exists( targetKlass.isInstance( _ )))
-      addDatumEditor
   }
 }
 
@@ -203,7 +261,7 @@ class StructuredNameEditLayout( ctx: Context, attrs: AttributeSet )
   }
 }
 
-// Widgets for "Add" and "Remove" buttons for category items.
+// Widgets for "Add" and "Remove" buttons for ContactDataEditors.
 
 class AddItemButton( ctx: Context, attrs: AttributeSet ) 
   extends PositronicButton(ctx, attrs) with WidgetUtils 

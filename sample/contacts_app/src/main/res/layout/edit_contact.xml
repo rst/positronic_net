@@ -14,7 +14,7 @@
                 android:layout_width="fill_parent" 
                 android:layout_height="wrap_content">
 
-    <org.positronicnet.sample.contacts.SingletonDataKindEditor
+    <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.StructuredName"
                   itemLayout="@layout/structured_name"
                   android:orientation="vertical"
@@ -75,20 +75,40 @@
      </LinearLayout>
     </org.positronicnet.sample.contacts.DataKindEditor>
 
-    <org.positronicnet.sample.contacts.SingletonDataKindEditor
+    <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.Nickname"
                   itemLayout="@layout/nickname"
+                  android:visibility="gone"
                   android:orientation="vertical"
                   android:layout_width="fill_parent" 
                   android:layout_height="wrap_content"/>
 
-    <org.positronicnet.sample.contacts.SingletonDataKindEditor
+    <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.Note"
                   itemLayout="@layout/note"
+                  android:visibility="gone"
                   android:orientation="vertical"
                   android:layout_width="fill_parent" 
                   android:layout_height="wrap_content"/>
 
+  </LinearLayout>  <!-- End "editors" LinearLayout -->
+
+  <include layout="@layout/separator_bar"/>
+
+  <LinearLayout android:id="@+id/section_add_row"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="3dp">
+    <TextView android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:text="@string/add_section"/>
+    <org.positronicnet.ui.PositronicButton 
+            android:id="@+id/add_section"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="choose section"/> <!-- dummy text; code will alter -->
   </LinearLayout>
+
  </org.positronicnet.sample.contacts.RawContactEditor>
 </ScrollView>

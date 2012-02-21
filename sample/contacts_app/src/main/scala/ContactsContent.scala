@@ -256,6 +256,21 @@ class Nickname extends ContactData
   def isEmpty = isBlank( name )
 }
 
+// Website records.  Again, there's an unused pair of "type/label" columns
+
+class Website extends ContactData
+{
+  val id: RecordId[Website] = ContactData.websites.unsavedId
+
+  val url: String = null
+
+  // The "CategoryLabel" fields we aren't going to use...
+  val `type` = CommonDataKinds.Nickname.TYPE_DEFAULT
+  val label: String = null
+
+  def isEmpty = isBlank( url )
+}
+
 // Notes.
 
 class Note extends ContactData {
@@ -401,6 +416,7 @@ object ContactData
                                                CommonDataKinds.Organization ]
 
   val nicknames = new DataKindMapper[ Nickname, CommonDataKinds.Nickname ]
+  val websites  = new DataKindMapper[ Website,  CommonDataKinds.Website  ]
   val notes     = new DataKindMapper[ Note,     CommonDataKinds.Note     ]
 
   val groupMemberships =

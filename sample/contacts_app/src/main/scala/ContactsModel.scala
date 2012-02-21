@@ -268,6 +268,7 @@ object BaseAccountInfo {
           category( CDK.BaseTypes.TYPE_CUSTOM, isCustom = true )
         },
 
+      CDK.Website.CONTENT_ITEM_TYPE  -> new DataKindInfo(),
       CDK.Note.CONTENT_ITEM_TYPE     -> new DataKindInfo(),
       CDK.Nickname.CONTENT_ITEM_TYPE -> new DataKindInfo()
     )

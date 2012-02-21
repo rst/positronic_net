@@ -28,6 +28,7 @@
   <string name="note_header">Note</string>
   <string name="postal_header">Postal Address</string>
   <string name="organization_header">Organization</string>
+  <string name="website_header">Web Site</string>
 
   <!-- "structured name" component labels 
 

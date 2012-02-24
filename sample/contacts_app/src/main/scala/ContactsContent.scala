@@ -4,17 +4,19 @@ import org.positronicnet.content._
 import org.positronicnet.orm._
 import org.positronicnet.notifications._
 import org.positronicnet.notifications.Actions._
+import org.positronicnet.orm.Actions._
 
 import org.positronicnet.util.ReflectiveProperties
 import org.positronicnet.util.ReflectUtils
 
 import android.content.Context
-import android.util.AttributeSet
+import android.util.{AttributeSet, Log}
 
 import android.provider.{ContactsContract => CC}
 import android.provider.ContactsContract.CommonDataKinds
 
 import android.text.TextUtils
+import android.graphics.BitmapFactory
 
 // Contacts table.  For now, we're treating the whole thing as
 // read-only, so we don't bother with read-only marks on particular
@@ -25,6 +27,7 @@ import android.text.TextUtils
 case class Contact (
   val lookupKey:          String            = "",
   val displayNamePrimary: String            = "",
+  val photoId:            RecordId[Photo]   = ContactData.photos.unsavedId,
   val photoUri:           String            = "",
   val photoThumbnailUri:  String            = "",
   val inVisibleGroup:     Boolean           = false,
@@ -35,13 +38,17 @@ case class Contact (
 ) 
 extends ManagedRecord with ReflectiveProperties
 {
-  lazy val raw = 
+  @transient lazy val raw = 
     new HasMany( RawContacts, 
                  ReflectUtils.getStatic[ String, CC.RawContacts ]("CONTACT_ID"))
-  lazy val data = 
+  @transient lazy val data = 
     new HasMany( ContactData, 
                  ReflectUtils.getStatic[ String, CC.Data ]("CONTACT_ID"))
-
+  @transient lazy val photoQuery =
+    if (this.photoId.id != 0)
+      (ContactData.photos ? FindById( this.photoId ))
+    else
+      Future( new Photo )
 }
 
 object Contacts
@@ -235,6 +242,21 @@ class GroupMembership extends ContactData
   override def toString = super.toString + " group id: " + groupRowId
 
   def isEmpty = false
+}
+
+// Photos.  Up through Gingerbread, there's only one data field, the
+// smallest photo data (which ICS docs refer to as the "thumbnail").
+// So, that's what we're handling for now...
+
+class Photo extends ContactData
+{
+  val id: RecordId[Photo] = ContactData.photos.unsavedId
+  val photo: Array[Byte]  = null
+
+  lazy val thumbnailBitmap =
+    BitmapFactory.decodeByteArray( photo, 0, photo.length )
+
+  def isEmpty = (photo == null)
 }
 
 // Nicknames.  These have an internal "category label", as we're calling
@@ -459,6 +481,7 @@ object ContactData
   val websites    = new DataKindMapper[ Website,   CommonDataKinds.Website  ]
   val notes       = new DataKindMapper[ Note,      CommonDataKinds.Note     ]
   val imAddresses = new DataKindMapper[ ImAddress, CommonDataKinds.Im       ]
+  val photos      = new DataKindMapper[ Photo,     CommonDataKinds.Photo    ]
 
   val groupMemberships =
     new DataKindMapper[ GroupMembership, CommonDataKinds.GroupMembership ]

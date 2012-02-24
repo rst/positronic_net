@@ -1,7 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-          android:id="@+id/displayNamePrimary" 
-          android:paddingLeft="50dp"
-          android:textSize="14dp"
-          android:layout_width="wrap_content"
-          android:layout_height="30dp"/>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="fill_parent"
+  android:layout_height="wrap_content">
+  <!-- Note:  sizing minWidth on the ImageView in px, not dp, to
+       match the actual images, which we aren't scaling.
+    -->
+  <ImageView android:minWidth="96px"
+             android:layout_width="wrap_content"
+             android:layout_height="wrap_content"/>
+  <TextView android:id="@+id/displayNamePrimary" 
+            android:paddingLeft="50dp"
+            android:textSize="14dp"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"/>
+</LinearLayout>

@@ -9,11 +9,23 @@ import org.positronicnet.orm.Actions._
 import android.content.{Context, Intent}
 import android.util.{AttributeSet, Log}
 import android.view.View
-import android.widget.{TextView, ListView}
+import android.widget.{TextView, ListView, ImageView}
 
 import android.accounts.{AccountManager, Account}
 
 import scala.collection.mutable.ArrayBuffer
+
+object ContactsActivityUiBinder extends UiBinder {
+  bind[ ImageView, Contact ](
+    ( (imageView, contact) =>
+      contact.photoQuery.onSuccess { 
+        photoRecord =>
+          if (!photoRecord.isEmpty)
+            imageView.setImageBitmap( photoRecord.thumbnailBitmap )
+      }),
+    ( (imageView, contact) => contact ) // no update
+  )
+}
 
 class ContactsActivity 
   extends android.app.ListActivity 
@@ -35,7 +47,9 @@ class ContactsActivity
       if (contacts.size > 0) {
         val sortedContacts = contacts.sortBy{ _.displayNamePrimary.toLowerCase }
         setListAdapter( new IndexedSeqAdapter( sortedContacts, 
-                                               R.layout.contact_view_row ))
+                                               R.layout.contact_view_row,
+                                               binder = ContactsActivityUiBinder
+                                             ))
       }
       else {
         // android package IDs don't show up in TypedResources, so...

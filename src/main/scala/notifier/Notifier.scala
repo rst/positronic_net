@@ -15,6 +15,23 @@ abstract class Action[T]
 
 abstract class NotifierAction[T] extends Action[T]
 
+/** Base class for all "query" actions, i.e., those yielding a future.
+  * Not much use directly; see subclasses.
+  *
+  * Note that a `QueryAction[T,V]` is an action on a `Notifier[T]` returning
+  * a `Future[V]`.
+  */
+
+abstract class QueryAction[T,V] extends NotifierAction[T]
+{
+  val complete: PartialFunction[ BaseNotifierImpl[T], V ]
+
+  private [positronicnet]
+  def doComplete( future: Future[V], notifier: BaseNotifierImpl[T] ) =
+    try { future.succeed( complete( notifier ) ) }
+    catch { case t: Throwable => future.fail( t ) }
+}
+
 /** Actions that can be sent to [[org.positronicnet.notifications.Notifer]]s.
   *
   * Typical syntax is `notifier ! action` (to have the action performed
@@ -58,7 +75,23 @@ object Actions {
   def AddWatcherAndFetch[T]( key: AnyRef )( handler: T => Unit ) =
     AddWatcherAndFetchAction( key, handler )
 
-  /** Give a current snapshot of the notifier's state to the `handler` */
+  /** Query action --- gives a future for the current value of the
+    * notifier.
+    */
+
+  def Query[T] = new DoQuery[T]
+
+  private [notifications]
+  class DoQuery[T] extends QueryAction[T,T] {
+    val complete: PartialFunction[BaseNotifierImpl[T], T] = {
+      case n: BaseNotifierImpl[T] =>
+        n.fetchOnThisThread
+    }
+  }
+
+  /** Give a current snapshot of the notifier's state to the `handler`.
+    * Consider using `Query` instead.
+    */
 
   case class Fetch[T]( handler: T => Unit ) 
     extends NotifierAction[T]
@@ -221,6 +254,12 @@ trait BaseNotifierImpl[T] extends NotifierImpl[T] {
   private def wrapHandler( handler: T => Unit ): T => Unit = 
     CallbackManager.wrapHandler( handler )
 
+  def ?[V]( action: QueryAction[T,V] ) = {
+    val future = new Future[V]
+    onThread{ action.doComplete( future, this ) }
+    future
+  }
+
   def !( action: Action[T] ): Unit = 
     action match {
       case Fetch( handler ) => {
@@ -285,6 +324,18 @@ protected[positronicnet] object CallbackManager
     (( v: T ) => {
       cbManager.post( new Runnable{ 
         override def run = { handler( v ) }
+      })
+    })
+  }
+
+  def wrapPartialHandler[T,V]( handler: PartialFunction[T,V] ): T => Unit = {
+    val cbManager = CallbackManager.forThisThread
+    (( v: T ) => {
+      cbManager.post( new Runnable{ 
+        override def run = { 
+          if (handler.isDefinedAt(v))
+            handler( v ) 
+        }
       })
     })
   }

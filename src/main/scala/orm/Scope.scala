@@ -316,6 +316,9 @@ trait Scope[ T <: ManagedRecord ]
       onThread{ onThisThread( action ) }
   }
 
+  def ?[V]( action: QueryAction[ IndexedSeq[T], V ]) : Future[V] =
+    records ? action
+
   override def onThisThread( action: Action[ IndexedSeq [T]] ) = action match {
 
     case a: NotifierAction[ IndexedSeq [T] ] => records.onThisThread( a )

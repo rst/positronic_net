@@ -7,6 +7,7 @@ import org.positronicnet.facility.AppFacility
 import scala.collection.mutable.HashMap
 
 abstract class ScopeAction[T] extends Action[IndexedSeq[T]]
+abstract class ScopeQueryAction[T,V] extends QueryAction[IndexedSeq[T],V]
 
 /** Actions that can be sent to [[org.positronicnet.orm.RecordManager]]s
   * and other [[org.positronicnet.orm.Scope]]s.
@@ -63,12 +64,31 @@ object Actions {
   def DeleteAll[T] = DeleteAllAction[T](0)
 
   /** Find the record with the given `id`, if it exists.
+    * 
     * XXX should only find it if it matches conditions of the
     * scope, as per Rails.
     */
 
   def Find[T <: ManagedRecord]( id: RecordId[T] )( handler: T => Unit ) =
     FindAction( id, handler )
+
+
+  /** QueryAction yielding a future for the record with the given `id`,
+    * if it exists.
+    * 
+    * XXX should only find it if it matches conditions of the
+    * scope, as per Rails.
+    */
+
+  case class FindById[T <: ManagedRecord]( id: RecordId[T] )
+    extends ScopeQueryAction[T,T]
+  {
+    val complete: PartialFunction[ BaseNotifierImpl[ IndexedSeq[T] ], T ] = {
+      case dummy: BaseNotifierImpl[ IndexedSeq[T] ] =>
+        id.mgr.find( id, id.mgr.baseQuery )
+    }
+  }
+    
 }
 
 import Actions._

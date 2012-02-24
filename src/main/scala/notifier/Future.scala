@@ -1,6 +1,7 @@
 package org.positronicnet.notifications
 
 import scala.collection.mutable.ArrayBuffer
+import android.util.Log
 
 /** A cut-down version of the Futures from the Scala 2.10 standard library
   * (mostly), implementing the basics of both the Future and Promise sides
@@ -88,14 +89,17 @@ class Future[T] {
   def onComplete[V]( callback: PartialFunction[ Result, V ] ) =
     if (result != null) {
       // Already had a value.  Go to work immediately.
-      callback( result )
+      if (callback.isDefinedAt( result ))
+        callback( result )
     }
     else {
       synchronized {
         // Check to see if we got a result since the first check,
         // to guard against race conditions.
-        if (result != null)
-          callback( result )
+        if (result != null) {
+          if (callback.isDefinedAt( result ))
+            callback( result )
+        }
         else
           // Nope.  Bank callback for later.
           callbacks += CallbackManager.wrapPartialHandler( callback )
@@ -108,7 +112,10 @@ class Future[T] {
 
   /** We've failed.  Notify all callbacks, and any thread that blocked. */
 
-  def fail( exception: Throwable ) = complete( Right( exception ))
+  def fail( exception: Throwable ) = {
+    Log.e( "XXX", "Exception completing future", exception )
+    complete( Right( exception ))
+  }
 
   /** We've finished.  Notify all callbacks, and any thread that blocked. */
 

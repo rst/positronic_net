@@ -31,7 +31,7 @@ class ContactsActivity
   }
 
   onResume {
-    Contacts ! Fetch { contacts => 
+    (Contacts ? Query).onSuccess{ contacts => 
       if (contacts.size > 0) {
         val sortedContacts = contacts.sortBy{ _.displayNamePrimary.toLowerCase }
         setListAdapter( new IndexedSeqAdapter( sortedContacts, 
@@ -47,7 +47,7 @@ class ContactsActivity
 
   override def onListItemClick( l: ListView, v: View, posn: Int, id: Long ) = {
     val contact = getListAdapter.getItem( posn ).asInstanceOf[Contact]
-    RawContacts.forContact( contact ) ! Fetch { rawContacts => 
+    (RawContacts.forContact( contact ) ? Query).onSuccess { rawContacts => 
       if (rawContacts.size == 1)
         startEditingRawContact( rawContacts(0) )
       else {

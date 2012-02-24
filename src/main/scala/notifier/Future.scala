@@ -135,3 +135,10 @@ class Future[T] {
   def block = synchronized { this.wait }
 }
 
+object Future {
+  def apply[T]( obj: T ) = {
+    val f = new Future[T]
+    f.succeed( obj )
+    f
+  }
+}

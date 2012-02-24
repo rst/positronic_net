@@ -64,6 +64,14 @@ case class CvString( value: String ) extends ContentValue {
   def putContentValues( cv:ContentValues, key:String ) = cv.put( key, value )
 }
 
+/** ByteArrays as [[org.positronicnet.content.ContentValue]]s */
+
+case class CvBlob( value: Array[Byte] ) extends ContentValue {
+  def asConditionString = 
+    throw new RuntimeException("Can't do equality comparisons to blobs!")
+  def putContentValues( cv:ContentValues, key:String ) = cv.put( key, value )
+}
+
 /** Booleans as [[org.positronicnet.content.ContentValue]]s.
   * 
   * Implemented using the recommended SQLite convention that
@@ -123,6 +131,8 @@ object ContentValue {
   implicit def doubleToContentValue( value: Double ) = CvDouble( value )
   implicit def stringToContentValue( value: String ):ContentValue = 
     CvString( value )
+  implicit def byteArrayToContentValue( value: Array[Byte] ):ContentValue = 
+    CvBlob( value )
 }
 
 /** Generic interface to "content repositories", including databases

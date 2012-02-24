@@ -72,6 +72,8 @@ object MappedField {
                  ( s, n, r, f ) => new MappedDoubleField( s, n, r, f ))
   declareMapper( classOf[ String ], 
                  ( s, n, r, f ) => new MappedStringField( s, n, r, f ))
+  declareMapper( classOf[ Array[Byte] ], 
+                 ( s, n, r, f ) => new MappedByteArrayField( s, n, r, f ))
   declareMapper( classOf[ RecordId[_] ],
                  ( s, n, r, f ) => new MappedIdField( s, n, r, f ))
 
@@ -209,6 +211,23 @@ class MappedStringField( colName: String,
 
   def setValue( o: AnyRef, l: ContentValue ): Unit = 
     rfield.set( o, l.asInstanceOf[ CvString ].value )
+}
+
+private [orm]
+class MappedByteArrayField( colName: String, 
+                            colNumber: Int,
+                            how: MapAs.How,
+                            rfield: java.lang.reflect.Field )
+  extends MappedField( colName, colNumber, how, rfield )
+{
+  def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = 
+    rfield.set( o, c.getBlob( realColNumber ))
+  
+  def getValue( o: AnyRef ): ContentValue = 
+    new CvBlob( rfield.get( o ).asInstanceOf[ Array[Byte] ] )
+
+  def setValue( o: AnyRef, l: ContentValue ): Unit = 
+    rfield.set( o, l.asInstanceOf[ CvBlob ].value )
 }
 
 private [orm]

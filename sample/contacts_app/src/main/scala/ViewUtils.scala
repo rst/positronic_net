@@ -13,6 +13,10 @@ import android.util.Log
 
 import scala.collection.mutable.ArrayBuffer
 
+// Class which actually represents the cases in a "dialogResultMatch"
+
+case class DialogCase( titleResource: Int, handler: () => Unit )
+
 trait WidgetUtils extends View with ViewUtils {
 
   def parentOfType[ ViewType <: View : ClassManifest ]: ViewType = 
@@ -27,6 +31,9 @@ trait WidgetUtils extends View with ViewUtils {
                              (handler: T => Unit): Unit = 
     withChoiceFromDialogInContext( this.getContext, titleRes, 
                                    vals, labeler )( handler )
+
+  def dialogResultMatch( titleRes: Int )( cases: DialogCase* ) =
+    dialogResultMatchFromContext( this.getContext, titleRes )( cases: _* )
 }
 
 trait ActivityViewUtils extends Activity with ViewUtils {
@@ -36,6 +43,9 @@ trait ActivityViewUtils extends Activity with ViewUtils {
                               labeler: T => String)
                              (handler: T => Unit): Unit = 
     withChoiceFromDialogInContext( this, titleRes, vals, labeler )( handler )
+
+  def dialogResultMatch( titleRes: Int )( cases: DialogCase* ) =
+    dialogResultMatchFromContext( this, titleRes )( cases: _* )
 }
 
 trait ViewUtils {
@@ -88,5 +98,19 @@ trait ViewUtils {
     )
     dbuilder.create.show
   }
+
+  def dialogResultMatchFromContext( context: Context, titleRes: Int )
+                                  ( cases: DialogCase* ) = 
+  {
+    val res = context.getResources
+    val caseToString = (( dc: DialogCase ) => res.getString( dc.titleResource ))
+    val casesISeq = cases.toIndexedSeq
+    withChoiceFromDialogInContext( context, titleRes, casesISeq, caseToString ){
+      _.handler()
+    }
+  }
+
+  def dialogCase( titleResource: Int )( handler: => Unit ) =
+    DialogCase( titleResource, () => handler )
 }
 

@@ -216,6 +216,22 @@ trait PositronicActivityHelpers
     if ( b != null ) restoreInstanceState( b )
   }
 
+  /** If we're starting up (and not restoring instance state), this
+    * method will be called at the same point in the lifecycle.
+    *
+    * (Technically, it actually gets invoked from onPostCreate, if no
+    * "saved state" bundle is supplied, but before the superclass's
+    * onPostCreate --- thus letting the framework's post-create
+    * handling still run last, the way it expects.)
+    */
+
+  def createInstanceState = {}
+
+  override def onPostCreate( b: Bundle ) = {
+    if (b == null) createInstanceState
+    super.onPostCreate( b )
+  }
+
   /** Run the `thunk` on this activity's UI thread. */
 
   def runOnUiThread( thunk: => Unit ):Unit = {

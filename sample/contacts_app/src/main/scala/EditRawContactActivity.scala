@@ -25,32 +25,9 @@ class EditRawContactActivity
 
   var state: ContactEditState = null
 
-  onResume { bindInitialStateIfNeeded }
+  override def createInstanceState = {
 
-  override def saveInstanceState( b: Bundle ) = {
-    syncState
-    b.putSerializable( "contact_edit_state", this.state )
-  }
-
-  override def restoreInstanceState( b: Bundle ) = {
-    val state = b.getSerializable( "contact_edit_state" )
-    this.bindState( state.asInstanceOf[ ContactEditState ] )
-  }
-
-  // Doing a save
-
-  def doSave = {
-    syncState
-    state.logIt
-    PositronicContentResolver ! state.saveBatch.onSuccess{ finish }.onFailure{ 
-      toastShort("Error saving; see log") }
-  }
-
-  // The fiddly details
-
-  def bindInitialStateIfNeeded: Unit = {
-
-    if (state != null) return           // already bound (due to restart)
+    // Have no saved instance state.  Create it.
 
     val rawContact = 
       getIntent.getSerializableExtra( "raw_contact" ).asInstanceOf[ RawContact ]
@@ -65,6 +42,16 @@ class EditRawContactActivity
     }
   }
 
+  override def saveInstanceState( b: Bundle ) = {
+    syncState
+    b.putSerializable( "contact_edit_state", this.state )
+  }
+
+  override def restoreInstanceState( b: Bundle ) = {
+    val state = b.getSerializable( "contact_edit_state" )
+    this.bindState( state.asInstanceOf[ ContactEditState ] )
+  }
+
   // Loading a state into our editor widgets
 
   def bindState( state: ContactEditState ) = {
@@ -76,6 +63,14 @@ class EditRawContactActivity
 
   def syncState = findView( TR.rawContactEditor ).updateState
 
+  // Doing a save
+
+  def doSave = {
+    syncState
+    state.logIt
+    PositronicContentResolver ! state.saveBatch.onSuccess{ finish }.onFailure{ 
+      toastShort("Error saving; see log") }
+  }
 }
 
 

@@ -10,6 +10,7 @@ import android.os.Bundle
 class EditRawContactActivity
   extends PositronicActivity( layoutResourceId = R.layout.edit_contact )
   with TypedViewHolder
+  with ActivityResultDispatch
 {
   onCreate {
     useAppFacility( PositronicContentResolver )

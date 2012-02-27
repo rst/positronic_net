@@ -4,20 +4,49 @@ import org.positronicnet.ui._
 import org.positronicnet.util._
 import org.positronicnet.facility._
 
-import android.widget.{Spinner, LinearLayout, TextView, Button, Toast}
+import android.widget.{Spinner, LinearLayout, TextView, Button, Toast, 
+                       ImageView}
 import android.view.{View, ViewGroup, LayoutInflater, KeyEvent}
 import android.app.{Activity, Dialog}
 import android.text.TextUtils
 
-import android.content.Context
+import android.content.{Context, Intent}
 import android.util.{AttributeSet, Log}
+
+// The following imports are used for intermediate storage of photos
+// we're taking for association with contacts... 
+
+import android.provider.MediaStore
+import android.media.MediaScannerConnection;
+import android.media.MediaScannerConnection.MediaScannerConnectionClient;
+import android.os.Environment
+import android.net.Uri
+import android.graphics.Bitmap
+
+import java.io.{File, ByteArrayOutputStream}
+import java.util.Date
+import java.text.SimpleDateFormat
 
 // Utility class for binding widgets to data items.  Standard
 // facilities plus a few extra...
 
 object ContactsUiBinder extends UiBinder {
+
   bindProperties[ CategoryChooser, CategoryLabel ](
     (_.getCategoryLabel), (_.setCategoryLabel( _ )))
+
+  bind[ ImageView, Photo ](
+
+    // Display
+    ( (imageView, photo) =>
+      if (photo.isEmpty)
+        imageView.setImageDrawable(null)
+      else
+        imageView.setImageBitmap( photo.thumbnailBitmap )),
+
+    // Dummy update
+    ( (imageView, photo) => photo )
+  )
 }
 
 // Utility plumbing for dealing with resources.
@@ -287,6 +316,143 @@ class PostalEditLayout( ctx: Context, attrs: AttributeSet )
                                   R.id.neighborhood,
                                   R.id.country ))
  }
+
+// Special-case behavior for photo ContactDatumEditor.
+// Boy, is this one the oddball...
+//
+// Interacts with other activities much like the stock
+// Gingerbread contacts app, though the organization of the
+// code is obviously rather different.  (For one thing, it's
+// all in one place!)
+//
+// XXX Which, unfortunately means that at least for the moment,
+// we're calling the nonstandard com.android.camera.action.CROP
+// intent.  Not sure what to do about this; the only full solution
+// I've found involves bundling a cut-down version of the gallery
+// app.  Perhaps we can probe for support for this, and only take
+// images from the gallery if it's unavailable.
+
+class PhotoEditor( ctx: Context, attrs: AttributeSet )
+  extends ContactDatumEditLayout( ctx, attrs )
+{
+  val iconWidth  = 96                   // Dimensions; no standard source...
+  val iconHeight = 96
+
+  var newBitmap: Bitmap = null
+
+  override def bind ( item: ContactData ) = {
+    super.bind( item )
+    findView( TR.snapPhoto ).onClick { takePhoto }
+    findView( TR.deletePhoto ).onClick { deletePhoto }
+  }
+
+  override def updatedItem = 
+    if (newBitmap == null) 
+      this.item
+    else {
+      // Any new photo becomes superPrimary.  It's what the standard app does.
+      this.item.setProperty( "photo", bitmapToBytes( newBitmap ))
+               .setProperty( "isSuperPrimary", true )
+    }
+
+  def deletePhoto = 
+    Toast.makeText( getContext, "not yet", Toast.LENGTH_LONG ).show
+
+  def takePhoto = {
+
+    // The processing here parallels that in the standard Gingerbread
+    // contacts app, though the pieces are a little scattered.  
+
+    val photoFile = generatePhotoFile
+    val photoUri = Uri.fromFile( photoFile )
+    withActivityResult( takePhotoIntent( photoUri )) { 
+      (resultCode, resultIntent) => {
+
+        if (resultCode != Activity.RESULT_OK) {
+          Toast.makeText( getContext, "failure!", Toast.LENGTH_LONG ).show
+        }
+        else {
+
+          callMediaScanner( photoFile.getAbsolutePath )
+
+          withActivityResult( cropPhotoIntent( photoUri )) {
+            (resultCode, resultIntent) => {
+              if (resultCode != Activity.RESULT_OK) {
+                Toast.makeText( getContext, "failure!", Toast.LENGTH_LONG ).show
+              }
+              else {
+                newBitmap = resultIntent.getParcelableExtra("data")
+                findView( TR.image ).setImageBitmap( newBitmap )
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  lazy val photoDir = {
+    val extDir = Environment.getExternalStorageDirectory
+    val file = new File( extDir + "/DCIM/Camera" )
+    file.mkdirs
+    file
+  }
+
+  def generatePhotoFile = {
+    val fmt = new SimpleDateFormat("'SNAP'_yyyyMMddHHmmss")
+    new File( photoDir,
+              fmt.format( new Date( System.currentTimeMillis )) + ".jpg" )
+  }
+
+  def takePhotoIntent( uri: Uri ) = {
+    val intent = new Intent( MediaStore.ACTION_IMAGE_CAPTURE, null )
+    intent.putExtra( MediaStore.EXTRA_OUTPUT, uri )
+    intent
+  }
+
+  def cropPhotoIntent( uri: Uri ) = {
+
+    // XXX This intent is not supported on all phones!!!
+
+    val intent = new Intent( "com.android.camera.action.CROP" )
+    intent.setDataAndType( uri, "image/*" );
+    intent.putExtra( "crop",        "true" );
+    intent.putExtra( "aspectX",     1 );
+    intent.putExtra( "aspectY",     1 );
+    intent.putExtra( "outputX",     iconWidth );
+    intent.putExtra( "outputY",     iconHeight );
+    intent.putExtra( "return-data", true );
+    intent
+  }
+
+  def callMediaScanner( path: String ) = {
+
+    // We're targeting Eclair, where the static 'scanFile' doesn't
+    // exist yet.  So...
+
+    var connection: MediaScannerConnection = null
+    val client = new MediaScannerConnectionClient {
+      def onMediaScannerConnected: Unit = {
+        connection.scanFile( path, null )
+        connection.disconnect
+      }
+      def onScanCompleted( path: String, uri: Uri ) = ()
+    }
+    connection = new MediaScannerConnection( getContext, client )
+    connection.connect
+  }
+
+  def bitmapToBytes( bitmap: Bitmap ) = {
+
+    val out: ByteArrayOutputStream = 
+      new ByteArrayOutputStream( 4 * iconHeight * iconWidth );
+
+    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+    out.flush();
+    out.close();
+    out.toByteArray
+  }
+}
 
 // Widgets for "Add" and "Remove" buttons for ContactDataEditors.
 

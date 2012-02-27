@@ -30,6 +30,7 @@
   <string name="organization_header">Organization</string>
   <string name="website_header">Web Site</string>
   <string name="im_address_header">Chat</string>
+  <string name="photo_header">Photo</string>
 
   <!-- "structured name" component labels 
 
@@ -78,6 +79,11 @@
 
   <string name="company">Company</string>
   <string name="title">Title</string>
+
+  <!-- Photo text labels -->
+
+  <string name="snap_photo">Take photo</string>
+  <string name="delete_photo">Kill photo</string>
 
   <!-- "Enter custom label" dialog for user-entered record types
        ("takeout" phone number, etc.) 

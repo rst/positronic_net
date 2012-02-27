@@ -71,7 +71,7 @@ case class RawContact (
 ) 
 extends ManagedRecord with ReflectiveProperties
 {
-  lazy val data = 
+  @transient lazy val data = 
     new HasMany( ContactData, 
                  ReflectUtils.getStatic[ String, CC.Data ]("RAW_CONTACT_ID"))
 }
@@ -134,7 +134,7 @@ object Groups extends RecordManagerForFields[ Group, CC.Groups ]
 // variant-record machinery handles on its own.
 
 abstract class ContactData 
-  extends ManagedRecord with ReflectiveProperties
+  extends ManagedRecord with ReflectiveProperties with Serializable
 {
   // Generic fields...
 

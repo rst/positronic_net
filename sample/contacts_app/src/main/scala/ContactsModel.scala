@@ -23,7 +23,8 @@ class ContactEditState( val rawContact: RawContact,
 {
   private var deletedState = new ArrayBuffer[ ContactData ]
   private var currentState = new ArrayBuffer[ ContactData ]
-  private val accountInfo = AccountInfo.forRawContact( rawContact )
+  @transient private lazy val accountInfo = 
+    AccountInfo.forRawContact( rawContact )
 
   currentState ++= initialItems.filter{
     case unknown: UnknownData => false

@@ -20,7 +20,9 @@ object ContactsActivityUiBinder extends UiBinder {
     ( (imageView, contact) =>
       contact.photoQuery.onSuccess { 
         photoRecord =>
-          if (!photoRecord.isEmpty)
+          if (photoRecord.isEmpty)
+            imageView.setImageDrawable(null)
+          else
             imageView.setImageBitmap( photoRecord.thumbnailBitmap )
       }),
     ( (imageView, contact) => contact ) // no update

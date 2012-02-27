@@ -1,6 +1,6 @@
 package org.positronicnet.ui
 
-import _root_.android.content.Context
+import _root_.android.content.{Context,Intent}
 import _root_.android.view.View
 import _root_.android.view.Menu
 import _root_.android.view.ContextMenu
@@ -200,7 +200,7 @@ trait PositronicActivityHelpers
 
   def recreateInstanceState( b: Bundle ) = {}
 
-  /** Called `onRestoreInstanceState to restore instance state from
+  /** Called from `onRestoreInstanceState` to restore instance state from
     * the `Bundle`, only if a `Bundle` is supplied.
     */
 
@@ -368,6 +368,89 @@ trait PositronicActivityHelpers
   def toastLong( msg: String ):Unit =
     Toast.makeText( this, msg,      Toast.LENGTH_LONG ).show
 } 
+
+/** Trait to help an activity manage requests on other activities.
+  *
+  * This trait provides utility wrappers around the standard
+  * `startActivityForResult` and `onActivityResult` functions which
+  * automate some of the necessary bookkeeping.  The general outline
+  * is that within one of these activities, you can call:
+  * {{{
+  *    withActivityResult( intent ) {
+  *      (resultCode, intent) =>
+  *        // ... handle what we got
+  *    }
+  * }}}
+  * This allocates a "result code", registers the body as a callback
+  * to be invoked when `onActivityResult` gets that result code, and
+  * then calls `startActivityForResult`.
+  *
+  * The upshot is that the code that makes the request and the code
+  * that handles the result can be in the same place, making the whole
+  * flow of control easier to read.
+  * 
+  * However, to make this work, the trait needs to allocate "request
+  * codes" on its own --- meaning that it's a rather bad idea to use
+  * these routines, and *also* to use `startActivityForResult` directly.
+  * (If you must, overriding `minAutomaticActivityRequestCode`
+  * to exceed the largest you're using on your own at least makes
+  * it possible to avoid collisions; you should also make sure your
+  * `onActivityResult` calls `super` to handle the automatically
+  * assigned ones.)
+  *
+  * The possibility of this sort of conflict, and the need to manage
+  * it, are the main reason that you have to mix these routines in
+  * explicitly, as opposed to getting them for free with the rest of
+  * [[org.positronicnet.ui.PositronicActivityHelpers]].
+  */
+
+trait ActivityResultDispatch extends android.app.Activity {
+
+  private val activityResultHandlers = 
+    new HashMap[ Int, ((Int, Intent) => Unit) ]
+
+  private var nextActivityRequestCode = minAutomaticActivityRequestCode
+
+  /** Invoked on construction to determine the lowest value that
+    * will be used for automatically assigned activity request codes.
+    * 
+    * Integers below this threshold can be used for direct calls to
+    * `startActivityForResult` without fear of conflicts.  Default
+    * value is 1000.
+    */
+
+  def minAutomaticActivityRequestCode = 1000
+  
+  /** Hook invoked by framework when another Activity returns a result to us.
+    *
+    * Checks to see whether the request code is one we have a handler for.
+    * If so, invokes it (and forgets about it; another request, even with
+    * the same callback, will be assigned a different code, so we presumably
+    * won't be needing it again).
+    */
+
+  override def onActivityResult( reqCode: Int, resultCode: Int, data: Intent)= {
+    val maybeHandler = activityResultHandlers.remove( reqCode )
+    maybeHandler.map { _.apply( resultCode, data ) }
+  }
+
+  /** Start an activity for a result, and declare a callback to handle
+    * the result, in a single operation.
+    *
+    * This routine automatically assigns a unique request code, remembers
+    * the body supplied as the handler for responses with that request
+    * code, and then invokes `startActivityForResult` as normally.
+    */
+
+  def withActivityResult( intent: Intent )( handler: (Int, Intent)=>Unit ) = {
+
+    val requestCode = nextActivityRequestCode
+    nextActivityRequestCode += 1
+
+    activityResultHandlers( requestCode ) = handler
+    startActivityForResult( intent, requestCode )
+  }
+}
 
 /** Shorthand `android.app.Activity` class with
   * [[org.positronicnet.ui.PositronicActivityHelpers]] mixed in, and

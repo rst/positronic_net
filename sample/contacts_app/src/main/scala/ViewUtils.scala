@@ -4,7 +4,7 @@ import org.positronicnet.ui._
 
 import android.app.Activity
 import android.view.{View, ViewGroup}
-import android.content.Context
+import android.content.{Context, ContextWrapper, Intent}
 
 import android.app.AlertDialog
 import android.content.DialogInterface  // android.content?!
@@ -34,6 +34,23 @@ trait WidgetUtils extends View with ViewUtils {
 
   def dialogResultMatch( titleRes: Int )( cases: DialogCase* ) =
     dialogResultMatchFromContext( this.getContext, titleRes )( cases: _* )
+
+  private
+  def findActivityResultDispatch( ctx: Context ): ActivityResultDispatch =
+    ctx match {
+      case dispatch: ActivityResultDispatch =>
+        dispatch
+      case wrapper: ContextWrapper =>
+        findActivityResultDispatch( wrapper.getBaseContext )
+      case _ =>
+        throw new RuntimeException( "Looked for ActivityResultDispatch, found "+
+                                    ctx )
+    }
+
+  def withActivityResult( intent: Intent )( handler: (Int,Intent) => Unit) =
+    findActivityResultDispatch( getContext ).withActivityResult( intent ){ 
+      handler 
+    }
 }
 
 trait ActivityViewUtils extends Activity with ViewUtils {

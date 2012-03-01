@@ -1,6 +1,6 @@
 package org.positronicnet.ui
 
-import _root_.android.content.{Context,Intent}
+import _root_.android.content.{Context,Intent,ContextWrapper}
 import _root_.android.view.View
 import _root_.android.view.Menu
 import _root_.android.view.ContextMenu
@@ -374,21 +374,29 @@ trait PositronicActivityHelpers
   * This trait provides utility wrappers around the standard
   * `startActivityForResult` and `onActivityResult` functions which
   * automate some of the necessary bookkeeping.  The general outline
-  * is that within one of these activities, you can call:
+  * is that at Activity `onCreate` time, or when creating or recreating
+  * instance state, some associated object with the
+  * [[org.positronicnet.ui.ActivityResultDispatchClient]] trait
+  * can register for activity result dispatch.  Having done so, it
+  * can then later call:
   * {{{
-  *    withActivityResult( intent ) {
-  *      (resultCode, intent) =>
-  *        // ... handle what we got
-  *    }
+  *    awaitActivityResult( intent, "methodName", arg1, arg2, ... )
   * }}}
-  * This allocates a "result code", registers the body as a callback
-  * to be invoked when `onActivityResult` gets that result code, and
-  * then calls `startActivityForResult`.
+  * The named method must be declared roughly like so:
+  * {{{
+  *    def methodName( resultCode: Int, resultIntent: Intent,
+  *                    arg1: Arg1Type, arg2: Arg2Type, ... ): Unit = ...
+  * }}}
+  * Also, the argN items, if any, must be serializable.  This call
+  * delegates to the running activity, which then
+  * then allocates a "request code", associates the method name and
+  * arguments with that request code, and calls `startActivityForResult`
+  * as normal.
   *
   * The upshot is that the code that makes the request and the code
   * that handles the result can be in the same place, making the whole
   * flow of control easier to read.
-  * 
+  *
   * However, to make this work, the trait needs to allocate "request
   * codes" on its own --- meaning that it's a rather bad idea to use
   * these routines, and *also* to use `startActivityForResult` directly.
@@ -402,14 +410,48 @@ trait PositronicActivityHelpers
   * it, are the main reason that you have to mix these routines in
   * explicitly, as opposed to getting them for free with the rest of
   * [[org.positronicnet.ui.PositronicActivityHelpers]].
+  *
+  * (It would be more convenient to define the callbacks as lambdas,
+  * and that actually works... so long as the process that registers
+  * the lambda is the one that receives the result.  If that process
+  * dies though --- and the system has license to kill it at any time
+  * while the other activity is running --- the lambda dies with it.)
   */
 
 trait ActivityResultDispatch extends android.app.Activity {
 
-  private val activityResultHandlers = 
-    new HashMap[ Int, ((Int, Intent) => Unit) ]
+  private [positronicnet] case class PendingResponse (
+    responderKey: AnyRef,
+    methodName:   String,
+    extraArgs:    Seq[ Any ])
 
-  private var nextActivityRequestCode = minAutomaticActivityRequestCode
+  private[positronicnet] 
+  val activityResponders =
+    new HashMap[ AnyRef, ActivityResultDispatchClient ]
+
+  private[positronicnet] 
+  var pendingResponses = 
+    new HashMap[ Int, PendingResponse ]
+
+  private[positronicnet] 
+  var nextActivityRequestCode = minAutomaticActivityRequestCode
+
+  // Arrange for our set of pending responses to be saved on activity
+  // shutdown, and recreated on restart
+
+  private [positronicnet]
+  val savedResponseKey = "org.positronicnet.pendingActivityResponses"
+
+  override def onSaveInstanceState( b: Bundle ) = {
+    super.onSaveInstanceState( b )
+    b.putSerializable( savedResponseKey, pendingResponses )
+  }
+
+  override def onRestoreInstanceState( b: Bundle ) = {
+    super.onRestoreInstanceState( b )
+    val slug = b.getSerializable( savedResponseKey )
+    pendingResponses = slug.asInstanceOf[ HashMap[ Int, PendingResponse ]]
+  }
 
   /** Invoked on construction to determine the lowest value that
     * will be used for automatically assigned activity request codes.
@@ -419,7 +461,7 @@ trait ActivityResultDispatch extends android.app.Activity {
     * value is 1000.
     */
 
-  def minAutomaticActivityRequestCode = 1000
+  protected def minAutomaticActivityRequestCode = 1000
   
   /** Hook invoked by framework when another Activity returns a result to us.
     *
@@ -430,9 +472,21 @@ trait ActivityResultDispatch extends android.app.Activity {
     */
 
   override def onActivityResult( reqCode: Int, resultCode: Int, data: Intent)= {
-    val maybeHandler = activityResultHandlers.remove( reqCode )
-    maybeHandler.map { _.apply( resultCode, data ) }
+    pendingResponses.remove( reqCode ).map {
+      case PendingResponse( responderKey, methodName, extraArgs ) => {
+        val responder = activityResponders( responderKey )
+        val args = (Seq( new Integer(resultCode), data ) ++ extraArgs)
+        val method = 
+          responder.getClass.getMethods.find( _.getName == methodName ).get
+        method.invoke( responder, args.asInstanceOf[ Seq[Object] ]: _* )
+      }
+    }
   }
+
+  /** Register an object as a receiver for activity results */
+
+  def registerForActivityDispatch( responder: ActivityResultDispatchClient ) =
+    activityResponders( responder.activityResultDispatchKey ) = responder
 
   /** Start an activity for a result, and declare a callback to handle
     * the result, in a single operation.
@@ -440,16 +494,127 @@ trait ActivityResultDispatch extends android.app.Activity {
     * This routine automatically assigns a unique request code, remembers
     * the body supplied as the handler for responses with that request
     * code, and then invokes `startActivityForResult` as normally.
+    *
+    * (It would be nice to have the callback be a closure, but our process
+    * may be destroyed and recreated before we receive the result, and
+    * closures in general don't serialize well.  So we approximate, by
+    * taking a "responderKey" which will let us find the "equivalent"
+    * object in a recreated process, a method to invoke, and a bunch of
+    * extra arguments to feed it --- all restricted to be Serializable.)
     */
 
-  def withActivityResult( intent: Intent )( handler: (Int, Intent)=>Unit ) = {
-
+  def awaitActivityResult( intent: Intent, 
+                           responderKey: AnyRef,
+                           methodName: String,
+                           extraArgs: Seq[ Any ]
+                         ) = 
+  {
     val requestCode = nextActivityRequestCode
     nextActivityRequestCode += 1
 
-    activityResultHandlers( requestCode ) = handler
+    activityResponders.getOrElse( responderKey, 
+      () => throw new RuntimeException( 
+        "Undeclared activity dispatch responder key " + responderKey ))
+
+    pendingResponses( requestCode ) =
+      PendingResponse( responderKey, methodName, extraArgs )
+
     startActivityForResult( intent, requestCode )
   }
+}
+
+/** Trait to allow activity components to register to receive
+  * activity results, in coordination with Activities that implement
+  * [[org.positronicnet.ui.ActivityResultDispatch]]
+  *
+  * This trait provides utility wrappers around the standard
+  * `startActivityForResult` and `onActivityResult` functions which
+  * automate some of the necessary bookkeeping.  The general outline
+  * is that at Activity `onCreate` time, or when creating or recreating
+  * instance state, some associated object with the
+  * [[org.positronicnet.ui.ActivityResultDispatch]] trait
+  * can register for activity result dispatch.  Having done so, it
+  * can then later call:
+  * {{{
+  *    awaitActivityResult( intent, "methodName", arg1, arg2, ... )
+  * }}}
+  * The named method must be declared roughly like so:
+  * {{{
+  *    def methodName( resultCode: Int, resultIntent: Intent,
+  *                    arg1: Arg1Type, arg2: Arg2Type, ... ): Unit = ...
+  * }}}
+  */
+
+trait ActivityResultDispatchClient {
+
+  /** Context, which must be an [[org.positronicnet.ui.ActivityResultDispatch]]
+    * Activity, or a "context wrapper" around one...
+    */
+
+  def getContext: Context
+  
+  /** Returns a serializable "dispatch key", which will be used to find the
+    * "equivalent object" to handle "activity results" when we get them,
+    * possibly in a different process.
+    *
+    * These must be serializable, as far as the VM is concerned; the return
+    * value is declared just as "Object" because Strings are sometimes useful
+    * in this context, but they do not implement the Scala "Serializable"
+    * trait.
+    */
+
+  def activityResultDispatchKey: AnyRef
+
+  /** Must be called *before* onActivityResultDispatch, during activity
+    * (re)start, to mark this object as a possible recipient of ActivityResults.
+    *
+    * One place to do this is in createInstanceState/restoreInstanceState
+    * methods.
+    */
+
+  protected
+  def registerForActivityResultDispatch =
+    findActivityResultDispatch.registerForActivityDispatch( this )
+
+  /** Fire off the given intent, and await a result.  When we receive
+    * the result, call method "methodName" on this object (or its
+    * "equivalent" with the same `activityResultDispatchKey`) with
+    * the following arguments:
+    *
+    *   * The integer "response code"
+    *   * The response data intent
+    *   * The arguments given in extraArgs
+    *
+    * Note that the extraArgs must be serializable as far as the JVM
+    * is concerned; they are declared as `Any*` because some serializable
+    * values (strings, primitives) do not implement the Scala serializable
+    * trait.
+    */
+
+  protected
+  def awaitActivityResult( intent: Intent, 
+                           methodName: String,
+                           extraArgs: Any*
+                         ) = 
+    findActivityResultDispatch.awaitActivityResult( intent,
+                                                    activityResultDispatchKey,
+                                                    methodName,
+                                                    extraArgs )
+
+  private
+  def findActivityResultDispatch = 
+    findARDispatchFromContext( getContext )
+
+  private
+  def findARDispatchFromContext( ctx: Context ):ActivityResultDispatch =
+    ctx match {
+      case dispatch: ActivityResultDispatch => dispatch
+      case wrapper: ContextWrapper => 
+        findARDispatchFromContext( wrapper.getBaseContext )
+      case _ =>
+        throw new RuntimeException( "Wanted an ActivityResultDispatch, got a "+
+                                    ctx.getClass.getName )
+    }
 }
 
 /** Shorthand `android.app.Activity` class with

@@ -329,19 +329,27 @@ class PostalEditLayout( ctx: Context, attrs: AttributeSet )
 // we're calling the nonstandard com.android.camera.action.CROP
 // intent.  Not sure what to do about this; the only full solution
 // I've found involves bundling a cut-down version of the gallery
-// app.  Perhaps we can probe for support for this, and only take
-// images from the gallery if it's unavailable.
+// app.  Perhaps we can ask the PackageManager if there's support
+// for this intent from *somebody*, and only offer "take snapshot"
+// if it is available.
 
 class PhotoEditor( ctx: Context, attrs: AttributeSet )
   extends ContactDatumEditLayout( ctx, attrs )
+  with ActivityResultDispatchClient
 {
   val iconWidth  = 96                   // Dimensions; no standard source...
   val iconHeight = 96
+
+  // "Key" object which the activity will use onActivityResult, to
+  // determine that a result that arrived is one of ours.
+
+  def activityResultDispatchKey = item.id 
 
   var newBitmap: Bitmap = null
 
   override def bind ( item: ContactData ) = {
     super.bind( item )
+    registerForActivityResultDispatch
     findView( TR.snapPhoto ).onClick { takePhoto }
     findView( TR.deletePhoto ).onClick { deletePhoto }
   }
@@ -358,36 +366,41 @@ class PhotoEditor( ctx: Context, attrs: AttributeSet )
   def deletePhoto = 
     Toast.makeText( getContext, "not yet", Toast.LENGTH_LONG ).show
 
-  def takePhoto = {
+  // Coordinating other activities to manage snapshots.
+  //
+  // The processing here parallels that in the standard Gingerbread
+  // contacts app, though the pieces are a little scattered there.
 
-    // The processing here parallels that in the standard Gingerbread
-    // contacts app, though the pieces are a little scattered.  
+  def takePhoto = {
 
     val photoFile = generatePhotoFile
     val photoUri = Uri.fromFile( photoFile )
-    withActivityResult( takePhotoIntent( photoUri )) { 
-      (resultCode, resultIntent) => {
 
-        if (resultCode != Activity.RESULT_OK) {
-          Toast.makeText( getContext, "failure!", Toast.LENGTH_LONG ).show
-        }
-        else {
+    awaitActivityResult( takePhotoIntent( photoUri ), "photoTaken", photoFile )
+  }
 
-          callMediaScanner( photoFile.getAbsolutePath )
+  // Activity result handler when a photo was taken.
 
-          withActivityResult( cropPhotoIntent( photoUri )) {
-            (resultCode, resultIntent) => {
-              if (resultCode != Activity.RESULT_OK) {
-                Toast.makeText( getContext, "failure!", Toast.LENGTH_LONG ).show
-              }
-              else {
-                newBitmap = resultIntent.getParcelableExtra("data")
-                findView( TR.image ).setImageBitmap( newBitmap )
-              }
-            }
-          }
-        }
-      }
+  def photoTaken( resultCode: Int, resultIntent: Intent, photoFile: File ) = {
+    if (resultCode != Activity.RESULT_OK) {
+      Toast.makeText( getContext, "failure!", Toast.LENGTH_LONG ).show
+    }
+    else {
+      callMediaScanner( photoFile.getAbsolutePath )
+      awaitActivityResult( cropPhotoIntent( Uri.fromFile( photoFile )),
+                           "photoCropped" )
+    }
+  }
+
+  // Activity result handler for receiving cropped photo data.
+
+  def photoCropped( resultCode: Int, resultIntent: Intent ) = {
+    if (resultCode != Activity.RESULT_OK) {
+      Toast.makeText( getContext, "failure!", Toast.LENGTH_LONG ).show
+    }
+    else {
+      newBitmap = resultIntent.getParcelableExtra("data")
+      findView( TR.image ).setImageBitmap( newBitmap )
     }
   }
 

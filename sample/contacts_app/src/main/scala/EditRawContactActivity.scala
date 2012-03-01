@@ -10,7 +10,7 @@ import android.os.Bundle
 class EditRawContactActivity
   extends PositronicActivity( layoutResourceId = R.layout.edit_contact )
   with TypedViewHolder
-  with ActivityResultDispatch
+  with ActivityResultDispatch           // for photo edit widgetry
 {
   onCreate {
     useAppFacility( PositronicContentResolver )

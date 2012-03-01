@@ -34,23 +34,6 @@ trait WidgetUtils extends View with ViewUtils {
 
   def dialogResultMatch( titleRes: Int )( cases: DialogCase* ) =
     dialogResultMatchFromContext( this.getContext, titleRes )( cases: _* )
-
-  private
-  def findActivityResultDispatch( ctx: Context ): ActivityResultDispatch =
-    ctx match {
-      case dispatch: ActivityResultDispatch =>
-        dispatch
-      case wrapper: ContextWrapper =>
-        findActivityResultDispatch( wrapper.getBaseContext )
-      case _ =>
-        throw new RuntimeException( "Looked for ActivityResultDispatch, found "+
-                                    ctx )
-    }
-
-  def withActivityResult( intent: Intent )( handler: (Int,Intent) => Unit) =
-    findActivityResultDispatch( getContext ).withActivityResult( intent ){ 
-      handler 
-    }
 }
 
 trait ActivityViewUtils extends Activity with ViewUtils {

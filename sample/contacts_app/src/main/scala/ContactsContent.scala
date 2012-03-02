@@ -358,6 +358,17 @@ abstract class ContactDataWithCategoryLabel extends ContactData
         .setProperty[String]("label", newLabel.label)
 }
 
+// Class that represents the value of a "label-or-custom" field.
+// These are backed by two underlying fields, one an integer named
+// "type" (which we generally style "tag" since "type" is a reserved
+// word in Scala), and one the custom label, if any.
+
+case class CategoryLabel( val tag: Int,  val label: String )
+{
+  def tag_:=( newTag: Int ) = this.copy( tag = newTag ) 
+  def label_:=( s: String ) = this.copy( label = s )
+}
+
 // Phone records.  
 
 class Phone extends ContactDataWithCategoryLabel {

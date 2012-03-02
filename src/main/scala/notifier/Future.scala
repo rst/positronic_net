@@ -132,7 +132,11 @@ class Future[T] {
 
   /** Block until completion */
 
-  def block = synchronized { this.wait }
+  def block = 
+    synchronized { 
+      if (this.result == null)
+        this.wait 
+    }
 }
 
 object Future {

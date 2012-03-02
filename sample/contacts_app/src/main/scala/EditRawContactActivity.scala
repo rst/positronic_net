@@ -24,7 +24,7 @@ class EditRawContactActivity
   // including suspend/recreate cycles (due to orientation changes,
   // or whatever else).
 
-  var state: ContactEditState = null
+  var state: RawContactEditState = null
 
   override def createInstanceState = {
 
@@ -34,11 +34,11 @@ class EditRawContactActivity
       getIntent.getSerializableExtra( "raw_contact" ).asInstanceOf[ RawContact ]
 
     if (rawContact.isNewRecord) {
-      this.bindState( new ContactEditState( rawContact, Seq.empty ))
+      this.bindState( new RawContactEditState( rawContact, Seq.empty ))
     }
     else {
       rawContact.data ! Fetch { data => 
-        this.bindState( new ContactEditState( rawContact, data ))
+        this.bindState( new RawContactEditState( rawContact, data ))
       }
     }
   }
@@ -50,12 +50,12 @@ class EditRawContactActivity
 
   override def restoreInstanceState( b: Bundle ) = {
     val state = b.getSerializable( "contact_edit_state" )
-    this.bindState( state.asInstanceOf[ ContactEditState ] )
+    this.bindState( state.asInstanceOf[ RawContactEditState ] )
   }
 
   // Loading a state into our editor widgets
 
-  def bindState( state: ContactEditState ) = {
+  def bindState( state: RawContactEditState ) = {
     this.state = state
     findView( TR.rawContactEditor ).bindState( state )
   }

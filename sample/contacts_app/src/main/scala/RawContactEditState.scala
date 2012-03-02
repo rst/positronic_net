@@ -11,8 +11,8 @@ import android.util.Log
 // Class that represents an "edit state" for editing the ContactData
 // items associated with a Contact or RawContact
 
-class ContactEditState( val rawContact: RawContact,
-                        initialItems: Seq[ ContactData ] ) 
+class RawContactEditState( val rawContact: RawContact,
+                           initialItems: Seq[ ContactData ] ) 
   extends Serializable
 {
   private var deletedState = new ArrayBuffer[ ContactData ]

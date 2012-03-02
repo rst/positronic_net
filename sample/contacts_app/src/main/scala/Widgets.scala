@@ -69,7 +69,7 @@ class RawContactEditor( ctx: Context, attrs: AttributeSet )
   with TypedViewHolder
   with WidgetUtils
 {
-  def bindState( state: ContactEditState ) = {
+  def bindState( state: RawContactEditState ) = {
 
     for (editor <- childrenOfType[ DataKindEditor ](findView( TR.editors )))
       editor.bind( state )
@@ -145,7 +145,7 @@ class DataKindEditor( ctx: Context, attrs: AttributeSet )
   with WidgetUtils
   with TypedViewHolder
 {
-  var state: ContactEditState = null    // really set at bind()
+  var state: RawContactEditState = null    // really set at bind()
 
   val inflater = 
     ctx.getSystemService( Context.LAYOUT_INFLATER_SERVICE )
@@ -165,7 +165,7 @@ class DataKindEditor( ctx: Context, attrs: AttributeSet )
 
   // Hooks for our enclosing RawContactEditor, to manage startup and save
 
-  def bind( state: ContactEditState ) = {
+  def bind( state: RawContactEditState ) = {
 
     this.state = state
     val ourData = state.currentItems.filter( targetKlass.isInstance( _ ))

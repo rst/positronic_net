@@ -6,14 +6,11 @@ import android.provider.ContactsContract
 import android.provider.ContactsContract.{CommonDataKinds => CDK}
 
 import org.positronicnet.notifications.Actions._
-
-// Classes that implement the "business logic" of dealing with
-// contacts, or at least the things we do with them.
+import org.positronicnet.notifications.Future
 
 // Information on account types...
 
 object AccountInfo {
-
   def forRawContact( rawc: RawContact ) =
     rawc.accountType match {
       case "com.google" => 
@@ -21,6 +18,18 @@ object AccountInfo {
       case _ => 
         new OtherAccountInfo( rawc.accountType, rawc.accountName )
     }
+}
+
+abstract class AccountInfo extends Serializable {
+  val initialGroupQuery: Future[ IndexedSeq[ Group ]]
+  val dataKinds: Map[ String, DataKindInfo ]
+}
+
+class OtherAccountInfo( acctType: String, acctName: String ) 
+  extends AccountInfo
+{
+  val initialGroupQuery = Future[ IndexedSeq[ Group ]]( IndexedSeq.empty )
+  val dataKinds = BaseAccountInfo.dataKinds
 }
 
 class DataKindInfo ( val categoryTagToResource: (Int => Int) = (x => -1),
@@ -60,18 +69,6 @@ case class CategoryInfo ( dataKindInfo: DataKindInfo,
                           isCustom: Boolean )
 {
   lazy val displayString = dataKindInfo.categoryTagToString( tag )
-}
-
-abstract class AccountInfo extends Serializable {
-  def initialGroups: Seq[ Group ]
-  val dataKinds: Map[ String, DataKindInfo ]
-}
-
-class OtherAccountInfo( acctType: String, acctName: String ) 
-  extends AccountInfo
-{
-  def initialGroups = Seq.empty
-  val dataKinds = BaseAccountInfo.dataKinds
 }
 
 object BaseAccountInfo {
@@ -168,18 +165,13 @@ class GoogleAccountInfo( acctType: String, acctName: String )
 
   val myContactsName = "System Group: My Contacts"
 
-  var myContactGroupSeq: Seq[Group] = Seq.empty
-
-  def initialGroups = myContactGroupSeq
-
   // Try to find our default group, in the background
 
-  val groupQuery = Groups.whereEq( "accountName" -> acctName,
-                                   "accountType" -> acctType,
-                                   "title" -> myContactsName )
+  val initialGroupScope = Groups.whereEq( "accountName" -> acctName,
+                                          "accountType" -> acctType,
+                                          "title" -> myContactsName ) 
 
-  groupQuery ! Fetch { groups => 
-    myContactGroupSeq = groups }
+  val initialGroupQuery = initialGroupScope ? Query
 
   val dataKinds = 
     BaseAccountInfo.dataKinds

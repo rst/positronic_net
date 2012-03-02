@@ -65,8 +65,12 @@ class RawContactEditState( val rawContact: RawContact,
 
       batch.add( Save( rawContact ))
 
-      for ( group <- accountInfo.initialGroups )
-        updateItem((new GroupMembership).setProperty("groupRowId", group.id))
+      accountInfo.initialGroupQuery.block
+
+      accountInfo.initialGroupQuery.onSuccess { groups =>
+        for ( group <- groups )
+          updateItem((new GroupMembership).setProperty("groupRowId", group.id))
+      }
     }
 
     for ( item <- deletedState )

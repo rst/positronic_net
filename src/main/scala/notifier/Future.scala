@@ -30,7 +30,7 @@ class Future[T] {
 
   type Result = Either[ T, Throwable ] // Like Try[T] in the Scala 2.10 lib
 
-  @volatile private[this] var result: Result = null
+  private[this] var result: Result = null
   private[this] val callbacks = new ArrayBuffer[ Result => Unit ]
 
   /** When this future has completed and succeeded, call the callback.
@@ -130,6 +130,45 @@ class Future[T] {
       callback( this.result )
   }
 
+  /** Chaining:  complete this future with the result of some other
+    * similarly typed future
+    */
+
+  def completeWith( other: Future[T] ) =
+    other.onComplete {
+      case Left( value ) => this.succeed( value )
+      case Right( exc )  => this.fail( exc )
+    }
+
+  /** Applied to a future of v, this gives a future of f(v) */
+
+  def map[V]( f: T => V ): Future[V] = {
+    val vfuture = new Future[V]
+    this.onComplete {
+      case Right( exception ) => vfuture.complete( Right( exception ))
+      case Left( value ) => 
+        try {
+          vfuture.complete( Left( f(value) ))
+        }
+        catch {
+          case exception: Throwable => 
+            vfuture.fail( exception )
+        }
+    }
+    vfuture
+  }
+
+  /** Applied to a future of v, this gives a future equivalent to f(v) */
+
+  def flatMap[V]( f: T => Future[V] ) = {
+    val vfuture = new Future[V]
+    this.onComplete {
+      case Right( exception ) => vfuture.complete( Right( exception ))
+      case Left( value )      => vfuture.completeWith( f( value ))
+    }
+    vfuture
+  }
+
   /** Block until completion */
 
   def block = 
@@ -140,9 +179,36 @@ class Future[T] {
 }
 
 object Future {
+
+  /** Construct a future from an ordinary value.
+    *
+    * Useful if you have code that's expecting a future, but you already
+    * have the value now.
+    */
+
   def apply[T]( obj: T ) = {
     val f = new Future[T]
     f.succeed( obj )
     f
+  }
+
+  import scala.collection.mutable.Builder
+  import scala.collection.generic.CanBuildFrom
+
+  /** Transform a collection of futures to a future of a collection.
+    * For example, transforms `Seq(Future(3),Future(4))` to
+    * `Future(Seq(3,4))`.
+    */
+
+  def sequence[A, M[_] <: Traversable[_]](in: M[Future[A]])
+      (implicit cbf: CanBuildFrom[M[Future[A]], A, M[A]]): Future[M[A]] = 
+  {
+    val builderFuture =
+      in.foldLeft( Future(cbf(in)) )((fr, fa) => 
+        for (r <- fr; 
+             a <- fa.asInstanceOf[ Future[A] ]) 
+        yield (r += a))
+    
+    builderFuture.map{ _.result }
   }
 }

@@ -253,7 +253,7 @@ class Photo extends ContactData
   val id: RecordId[Photo] = ContactData.photos.unsavedId
   val photo: Array[Byte]  = null
 
-  lazy val thumbnailBitmap =
+  @transient lazy val thumbnailBitmap =
     BitmapFactory.decodeByteArray( photo, 0, photo.length )
 
   def isEmpty = (photo == null)

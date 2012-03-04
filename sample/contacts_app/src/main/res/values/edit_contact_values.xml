@@ -1,5 +1,10 @@
 <resources>
 
+  <!-- Identifying data source -->
+
+  <string name="data_for_acct">Contact in:\u0020</string>
+  <string name="phone_only_contact">Phone-only contact</string>
+
   <!-- options menu -->
 
   <string name="save_raw_contact">Save</string>

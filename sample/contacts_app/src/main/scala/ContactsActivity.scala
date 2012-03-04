@@ -63,15 +63,8 @@ class ContactsActivity
 
   override def onListItemClick( l: ListView, v: View, posn: Int, id: Long ) = {
     val contact = getListAdapter.getItem( posn ).asInstanceOf[Contact]
-    (RawContacts.forContact( contact ) ? Query).onSuccess { rawContacts => 
-      if (rawContacts.size == 1)
-        startEditingRawContact( rawContacts(0) )
-      else {
-        val title = R.string.edit_contact_in_account
-        withChoiceFromDialog[ RawContact ]( title, rawContacts, _.accountName ){
-          startEditingRawContact( _ )
-        }
-      }
+    (RawContacts.forContact( contact ) ? Query).onSuccess { 
+      startEditingRawContacts( _ )
     }
   }
 
@@ -90,15 +83,16 @@ class ContactsActivity
   }
 
   def newContactForAccount( acct: Account ) =
-    startEditingRawContact( 
+    startEditingRawContacts( Seq (
       if (acct != null)
         new RawContact( accountName = acct.name, accountType = acct.`type` )
       else
-        new RawContact)
+        new RawContact))
 
-  def startEditingRawContact( rawContact: RawContact ) = {
-    val intent = new Intent( this, classOf[ EditRawContactActivity ])
-    intent.putExtra( "raw_contact", rawContact )
+  def startEditingRawContacts( rawContacts: Seq[ RawContact ] ) = {
+    val intent = new Intent( this, classOf[ EditContactActivity ])
+    intent.putExtra( "raw_contacts", 
+                     rawContacts.asInstanceOf[ java.io.Serializable ])
     startActivity( intent )
   }
 

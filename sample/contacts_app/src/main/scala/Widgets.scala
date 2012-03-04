@@ -71,6 +71,9 @@ class RawContactEditor( ctx: Context, attrs: AttributeSet )
 {
   def bindState( state: RawContactEditState ) = {
 
+    if (state.accountName != null)
+      findView( TR.raw_contact_source ).setText( state.accountName )
+
     for (editor <- childrenOfType[ DataKindEditor ](findView( TR.editors )))
       editor.bind( state )
 
@@ -184,6 +187,9 @@ class DataKindEditor( ctx: Context, attrs: AttributeSet )
   def updateState =
     for (cde <- childrenOfType[ ContactDatumEditor ]( this ))
       state.updateItem( cde.updatedItem )
+
+  def markSuperPrimary( item: ContactData ) =
+    state.markSuperPrimary( item )
 
   // Hooks for our subsidiary add- and remove-item buttons
 
@@ -359,8 +365,9 @@ class PhotoEditor( ctx: Context, attrs: AttributeSet )
       this.item
     else {
       // Any new photo becomes superPrimary.  It's what the standard app does.
-      this.item.setProperty( "photo", bitmapToBytes( newBitmap ))
-               .setProperty( "isSuperPrimary", true )
+      val item = this.item.setProperty( "photo", bitmapToBytes( newBitmap ))
+      parentOfType[ DataKindEditor ].markSuperPrimary( item )
+      item
     }
 
   def deletePhoto = 
@@ -556,3 +563,8 @@ class EditCustomCategoryDialog( categoryChooser: CategoryChooser )
   }
 }
 
+// General utility...
+
+class LinearLayoutWithWidgetUtils( ctx: Context, attrs: AttributeSet )
+  extends LinearLayout( ctx, attrs ) 
+  with WidgetUtils

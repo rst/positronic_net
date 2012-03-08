@@ -11,64 +11,17 @@ import android.content.Context
 import android.view.{View, LayoutInflater}
 
 class EditContactActivity
-  extends PositronicActivity( layoutResourceId = R.layout.edit_contact )
-  with TypedViewHolder
-  with ActivityResultDispatch           // for photo edit widgetry
+  extends AggregatedContactActivity( layoutResourceId = R.layout.edit_contact )
 {
   onCreate {
-    useAppFacility( PositronicContentResolver )
-    useAppFacility( Res )               // stash a copy of the Resources
-
     useOptionsMenuResource( R.menu.edit_contact_menu )
     onOptionsItemSelected( R.id.save_raw_contact ) { doSave }
   }
 
-  // Management of our edit state across the Activity lifecycle,
-  // including suspend/recreate cycles (due to orientation changes,
-  // or whatever else).
-
-  var state: AggregateContactEditState = null
-
-  override def createInstanceState = {
-
-    // Have no saved instance state.  Create it.  Retrieve our raw
-    // contacts, and fire off background queries for their data...
-
-    val contactsSlug = getIntent.getSerializableExtra( "raw_contacts" )
-    val rawContacts = contactsSlug.asInstanceOf[ Seq[ RawContact ]]
-    val noData: IndexedSeq[ContactData] = IndexedSeq.empty
-    val dataQueries =
-      rawContacts.map { rawContact =>
-        if (rawContact.isNewRecord) 
-          Future( noData )               // Immediate empty query result
-        else 
-          (rawContact.data ? Query)      // Background query for data
-      }
-
-    // ... then when all are finished, pair them up with their contacts, and
-    // post further setup onto this thread.
-
-    Future.sequence( dataQueries ).onSuccess { data => {
-      this.bindState( new AggregateContactEditState( rawContacts.zip( data )))
-      findView( TR.scroller ).fullScroll( View.FOCUS_UP )
-    }}
-  }
-
-  override def saveInstanceState( b: Bundle ) = {
-    syncState
-    b.putSerializable( "contact_edit_state", this.state )
-  }
-
-  override def restoreInstanceState( b: Bundle ) = {
-    val state = b.getSerializable( "contact_edit_state" )
-    this.bindState( state.asInstanceOf[ AggregateContactEditState ] )
-  }
-
   // Loading a state into our editor widgets
+  // (invoked by AggregatedContactActivity base code, on start or restart)
 
-  def bindState( state: AggregateContactEditState ) = {
-
-    this.state = state
+  def bindContactState = {
 
     val editorContainer = findView( TR.raw_contact_editors )
     editorContainer.removeAllViews
@@ -76,7 +29,7 @@ class EditContactActivity
     val inflater = getSystemService( Context.LAYOUT_INFLATER_SERVICE )
       .asInstanceOf[ LayoutInflater ]
 
-    for (rawState <- state.rawContactEditStates) {
+    for (rawState <- contactState.rawContactEditStates) {
       val rawEditor = inflater.inflate( R.layout.edit_raw_contact, 
                                         editorContainer, false )
       rawEditor.asInstanceOf[ RawContactEditor ].bindState( rawState )
@@ -85,8 +38,9 @@ class EditContactActivity
   }
 
   // Updating the state from what's displayed in the editor widgets.
+  // (Invoked by AggregatedContactActivity code on save, and by doSave below.)
 
-  def syncState = {
+  def syncContactState = {
     val editorContainer = findView( TR.raw_contact_editors )
     for (ed <- editorContainer.childrenOfType[ RawContactEditor ])
       ed.updateState
@@ -95,8 +49,9 @@ class EditContactActivity
   // Doing a save
 
   def doSave = {
-    syncState
-    PositronicContentResolver ! state.saveBatch.onSuccess{ finish }.onFailure{ 
+    syncContactState
+    val batch = contactState.saveBatch
+    PositronicContentResolver ! batch.onSuccess{ finish }.onFailure{ 
       toastShort("Error saving; see log") }
   }
 }

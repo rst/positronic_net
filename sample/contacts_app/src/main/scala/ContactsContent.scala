@@ -150,6 +150,17 @@ abstract class ContactData
   def typeTag = 
     this.id.mgr.asInstanceOf[ ContactData.DataKindMapper[_,_] ].discriminant
 
+  // Code to determine "equivalence class" of an item --- if two rawContacts
+  // have the same phone number, and a user is viewing the aggregate, we 
+  // want to show it only once.  And, ideally, that will encompass trivial
+  // variations (e.g., in white space).  So, this method returns an AnyRef,
+  // which is some object that will be the same for all data of a particular
+  // type in the same "equivalence class".
+  //
+  // Default is the object's ID, which won't be equivalent to anything else.
+
+  def equivalenceKey: AnyRef = this.id
+
   // Routine to allow editor code to determine if this record is "empty",
   // and should not be saved.
 
@@ -276,6 +287,7 @@ class Nickname extends ContactData
   val label: String = null
 
   def isEmpty = isBlank( name )
+  override def equivalenceKey = name.toLowerCase
 }
 
 // Website records.  Again, there's an unused pair of "type/label" columns
@@ -291,6 +303,7 @@ class Website extends ContactData
   val label: String = null
 
   def isEmpty = isBlank( url )
+  override def equivalenceKey = url
 }
 
 // IM.  These are odd; they have the standard "type/label" columns,
@@ -339,6 +352,7 @@ class Note extends ContactData {
   val id: RecordId[Note] = ContactData.notes.unsavedId
   val note: String = null
   def isEmpty = isBlank( note )
+  override def equivalenceKey = note.toLowerCase
 }
 
 // Common machinery for rows that have a "record type", or what 
@@ -379,6 +393,8 @@ class Phone extends ContactDataWithCategoryLabel {
 
   override def toString = 
     super.toString + " ("+ categoryTag +", "+ number +")"
+
+  override def equivalenceKey = number.filter{ _.isDigit }
 }
 
 // Email records.  
@@ -391,6 +407,8 @@ class Email extends ContactDataWithCategoryLabel {
 
   override def toString = 
     super.toString + " ("+ categoryTag +", "+ address+")"
+
+  override def equivalenceKey = address.toLowerCase
 }
 
 // Mailing address records.
@@ -431,6 +449,8 @@ class Organization extends ContactDataWithCategoryLabel {
     isBlank( company ) && isBlank( title ) && isBlank( department ) &&
     isBlank( jobDescription ) && isBlank( symbol ) && 
     isBlank( officeLocation ) && isBlank( phoneticName )
+
+  override def equivalenceKey = company + title
 }
 
 // Unknown data records.  There's actually a defined way for third-party

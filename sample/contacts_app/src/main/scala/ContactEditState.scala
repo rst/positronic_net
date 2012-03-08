@@ -24,10 +24,28 @@ class AggregateContactEditState( rawData: Seq[(RawContact, Seq[ContactData])] )
     for ((rawc, data) <- rawData)
     yield new RawContactEditState( this, rawc, data )
 
-  val newSuperPrimary = new HashMap[ Class[_], RecordId[_] ]
+  // Aggregated data for this contact, with an attempt to eliminate
+  // duplicates, suitable for populating an inspector ...
+
+  def aggregatedData = {
+
+    val aggregate = new AggregatedData
+    
+    for ( rawState <- this.rawContactEditStates )
+      for ( item <- rawState.currentItems )
+        aggregate.addItem( item )
+
+    aggregate
+  }
+
+  // Mark a given datum "superprimary" for its data type --- i.e.,
+  // the one to use if you're using only one for the whole aggregate
+  // contact.
 
   def markSuperPrimary( datum: ContactData ) = 
     newSuperPrimary( datum.getClass ) = datum.id
+
+  private val newSuperPrimary = new HashMap[ Class[_], RecordId[_] ]
 
   // "Save" support.  Yields a content resolver batch operation that
   // does the job in a single round, per recommended best practice.
@@ -203,3 +221,99 @@ class RawContactEditState( val aggregateEditState: AggregateContactEditState,
       }
   }
 }
+
+// Class which provides a snapshot of a group of data, typically from
+// an aggregated contact, regardless of source, merging "lookalike"
+// records that are duplicated across more than one contact.
+
+class AggregatedData {
+
+  private val aggregators = new HashMap[ Class[_], ItemAggregator[_] ]
+
+  // Return all aggregated data of the given type
+
+  def dataOfType[ Item <: ContactData : ClassManifest ] = {
+    val klass = classManifest[ Item ].erasure.asInstanceOf[ Class[Item] ]
+    dataOfClass[ Item ]( klass )
+  }
+
+  // Return all aggregated data of the given class.
+
+  def dataOfClass[Item]( klass: Class[Item] ): Seq[ Item ] = 
+    aggregators.get( klass ) match {
+      case Some( aggregator ) => aggregator.items.asInstanceOf[ Seq[Item] ]
+      case None => Seq.empty
+    }
+
+  def addItem[ Item <: ContactData]( item: Item ) = {
+    val klass = item.getClass
+
+    aggregators.get( klass ) match {
+
+      case Some( aggregator ) => 
+        aggregator.asInstanceOf[ ItemAggregator[ Item ]].add( item )
+
+      case None =>
+        // Have to produce an aggregator...
+        aggregators( klass ) = item match {
+          case it: ContactDataWithCategoryLabel =>
+            newCategorizedAggregator( it )
+          case _ =>
+            newAggregator( item )
+        }
+    }
+  }
+
+  private
+  class ItemAggregator[ Item <: ContactData ] {
+
+    val data = new HashMap[ AnyRef, Item ]
+
+    def add( item: Item ): this.type = {
+      val key = item.equivalenceKey
+      data.get( key ) match {
+        case None => 
+          data( key ) = item
+        case Some( other ) =>
+          data( key ) = chooseItem( item, data( key ))
+      }
+      this
+    }
+
+    // Have two "substantially similar" items with (i.e., same key) 
+    // --- need to pick one.  Default: choose arbitrarily.
+
+    def chooseItem( item: Item, item2: Item ) = item
+
+    def items: IndexedSeq[Item] = data.values.toIndexedSeq
+  }
+  
+  private
+  class CategorizedItemAggregator[ Item <: ContactDataWithCategoryLabel ]
+    extends ItemAggregator[ Item ]
+  {
+    // Have two items which are "substantially similar", but may have
+    // different category labels.  We pick the one with whose category
+    // tag has the lowest numeric value; this gives custom labels 
+    // priority, and otherwise is as sensible as anything else we
+    // might do.
+
+    override def chooseItem( item: Item, item2: Item ) = 
+      if (item.categoryTag < item2.categoryTag)
+        item
+      else
+        item2
+
+    override def items = 
+      data.values.toIndexedSeq.sortBy{ (item:Item) => item.categoryTag }
+  }
+
+  private
+  def newAggregator[ Item <: ContactData ]( item: Item ) = 
+    new ItemAggregator[ Item ].add( item )
+
+  private
+  def newCategorizedAggregator [ T <: ContactDataWithCategoryLabel]( item: T )= 
+    new CategorizedItemAggregator[ T ].add( item )
+}
+

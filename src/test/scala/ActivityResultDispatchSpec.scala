@@ -16,6 +16,12 @@ import android.net.Uri
 class DummyActivity 
   extends PositronicActivity 
   with ActivityResultDispatch
+{
+  var lastStartIntent: Intent = null
+
+  override def startActivity( intent: Intent ) =
+    lastStartIntent = intent
+}
 
 class DispatchingButton( ctx: Context, attrs: AttributeSet )
   extends PositronicButton( ctx, attrs )
@@ -36,6 +42,9 @@ class DispatchingButton( ctx: Context, attrs: AttributeSet )
                                     extraArgs: Any*
                                   ) = 
     super.awaitActivityResult( intent, methodName, extraArgs: _* )
+
+  override def startActivity( intent: Intent ) =
+    super.startActivity( intent )
 
   // response handler...
 
@@ -104,5 +113,18 @@ class ActivityResultDispatchSpec
       dispatchClient.arg1 should be ("a string")
       dispatchClient.arg2 should be (42)
     } 
+  }
+
+  describe( "activity dispatch without result" ) {
+    it( "should find and go through the dispatcher" ) {
+
+      val activity = new DummyActivity
+      val dispatchClient = new DispatchingButton( activity, 
+                                                  new TestAttributeSet )
+      val intent = new Intent("org.positronicnet.dummy")
+
+      dispatchClient.startActivity( intent )
+      activity.lastStartIntent should be (intent)
+    }
   }
 }

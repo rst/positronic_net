@@ -601,6 +601,14 @@ trait ActivityResultDispatchClient {
                                                     methodName,
                                                     extraArgs )
 
+  /** Start an activity through the activity result dispatcher,
+    * with no intent to wait for any particular result.
+    */
+
+  protected
+  def startActivity( intent: Intent ) =
+    findActivityResultDispatch.startActivity( intent )
+
   private
   def findActivityResultDispatch = 
     findARDispatchFromContext( getContext )

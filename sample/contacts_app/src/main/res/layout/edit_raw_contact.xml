@@ -35,21 +35,21 @@
 
     <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.StructuredName"
-                  itemLayout="@layout/structured_name"
+                  itemLayout="@layout/edit_structured_name"
                   android:orientation="vertical"
                   android:layout_width="fill_parent" 
                   android:layout_height="wrap_content"/>
 
     <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.Photo"
-                  itemLayout="@layout/photo"
+                  itemLayout="@layout/edit_photo"
                   android:orientation="vertical"
                   android:layout_width="fill_parent" 
                   android:layout_height="wrap_content"/>
 
     <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.Phone"
-                  itemLayout="@layout/phone"
+                  itemLayout="@layout/edit_phone"
                   android:orientation="vertical"
                   android:paddingBottom="5dp"
                   android:layout_width="fill_parent" 
@@ -76,7 +76,7 @@
 
     <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.Email"
-                  itemLayout="@layout/email"
+                  itemLayout="@layout/edit_email"
                   android:orientation="vertical"
                   android:paddingBottom="5dp"
                   android:layout_width="fill_parent" 
@@ -103,7 +103,7 @@
 
     <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.ImAddress"
-                  itemLayout="@layout/im_address"
+                  itemLayout="@layout/edit_im_address"
                   android:visibility="gone"
                   android:orientation="vertical"
                   android:paddingBottom="5dp"
@@ -131,7 +131,7 @@
 
     <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.Postal"
-                  itemLayout="@layout/postal"
+                  itemLayout="@layout/edit_postal"
                   android:visibility="gone"
                   android:orientation="vertical"
                   android:layout_width="fill_parent" 
@@ -158,7 +158,7 @@
 
     <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.Organization"
-                  itemLayout="@layout/organization"
+                  itemLayout="@layout/edit_organization"
                   android:visibility="gone"
                   android:orientation="vertical"
                   android:layout_width="fill_parent" 
@@ -185,7 +185,7 @@
 
     <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.Website"
-                  itemLayout="@layout/website"
+                  itemLayout="@layout/edit_website"
                   android:visibility="gone"
                   android:orientation="vertical"
                   android:paddingBottom="5dp"
@@ -213,7 +213,7 @@
 
     <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.Nickname"
-                  itemLayout="@layout/nickname"
+                  itemLayout="@layout/edit_nickname"
                   android:visibility="gone"
                   android:orientation="vertical"
                   android:layout_width="fill_parent" 
@@ -221,7 +221,7 @@
 
     <org.positronicnet.sample.contacts.DataKindEditor
                   class="org.positronicnet.sample.contacts.Note"
-                  itemLayout="@layout/note"
+                  itemLayout="@layout/edit_note"
                   android:visibility="gone"
                   android:orientation="vertical"
                   android:layout_width="fill_parent" 

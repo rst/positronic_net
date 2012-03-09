@@ -30,7 +30,7 @@ import java.text.SimpleDateFormat
 // Utility class for binding widgets to data items.  Standard
 // facilities plus a few extra...
 
-object ContactsUiBinder extends UiBinder {
+object EditContactsUiBinder extends UiBinder {
 
   bindProperties[ CategoryChooser, CategoryLabel ](
     (_.getCategoryLabel), (_.setCategoryLabel( _ )))
@@ -229,10 +229,10 @@ trait ContactDatumEditor extends WidgetUtils with TypedViewHolder {
 
   def bind ( item: ContactData ) = {
     this.item = item
-    ContactsUiBinder.show( item, this )
+    EditContactsUiBinder.show( item, this )
   }
 
-  def updatedItem = ContactsUiBinder.update( this.item, this )
+  def updatedItem = EditContactsUiBinder.update( this.item, this )
   
   def doDelete = parentOfType[ DataKindEditor ].killDatumEditor( this )
 }

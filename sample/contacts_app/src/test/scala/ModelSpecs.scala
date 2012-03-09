@@ -32,31 +32,51 @@ class ModelSpec
 
     val rawContactA = new RawContact
     val rawContactB = new RawContact
-    val rawContactC = new RawContact
     
     def aggregate( adata: Seq[ContactData] = Seq.empty, 
-                   bdata: Seq[ContactData] = Seq.empty,
-                   cdata: Seq[ContactData] = Seq.empty ) = 
+                   bdata: Seq[ContactData] = Seq.empty ) = 
     {
       val state = new AggregateContactEditState( Seq(( rawContactA, adata ),
-                                                     ( rawContactB, bdata ),
-                                                     ( rawContactC, cdata )))
-      state.aggregatedData
+                                                     ( rawContactB, bdata )))
+      val aInfo = state.rawContactEditStates(0).accountInfo
+      val bInfo = state.rawContactEditStates(1).accountInfo
+      (state.aggregatedData, aInfo, bInfo)
     }
       
     def phone( number: String, category: CategoryLabel ) = 
       (new Phone).setProperty( "number", number )
                  .setProperty( "categoryLabel", category )
       
-    def phoneLike( number: String, category: CategoryLabel )( phone: Phone ) =
-      phone.number == number && phone.categoryLabel == category
+    def assertPhone( data: Seq[ AggregatedDatum[ Phone ]],
+                     number: String, 
+                     category: CategoryLabel, 
+                     acctInfo: AccountInfo ) =
+      assert( 1 == data.count( aDatum =>
+        (aDatum.acctInfo eq acctInfo) && 
+        aDatum.datum.number == number &&
+        aDatum.datum.categoryLabel == category ))
 
     def email( address: String, category: CategoryLabel ) = 
       (new Email).setProperty( "address", address )
                  .setProperty( "categoryLabel", category )
 
-    def emailLike( address: String, category: CategoryLabel )( email: Email ) =
-      email.address == address && email.categoryLabel == category
+    def assertEmail( data: Seq[ AggregatedDatum[ Email ]],
+                     address: String, 
+                     category: CategoryLabel, 
+                     acctInfo: AccountInfo ) =
+      assert( 1 == data.count( aDatum =>
+        (aDatum.acctInfo eq acctInfo) && 
+        aDatum.datum.address == address &&
+        aDatum.datum.categoryLabel == category ))
+
+    def note( text: String ) = (new Note).setProperty( "note", text )
+
+    def assertNote( data: Seq[ AggregatedDatum[ Note ]],
+                    text: String, 
+                    acctInfo: AccountInfo ) =
+      assert( 1 == data.count( aDatum =>
+        (aDatum.acctInfo eq acctInfo) && 
+        aDatum.datum.note == text ))
 
     def homePhone   = CategoryLabel( CDK.Phone.TYPE_HOME, null )
     def workPhone   = CategoryLabel( CDK.Phone.TYPE_WORK, null )
@@ -66,47 +86,84 @@ class ModelSpec
 
     it ("should aggregate unlike data" ) {
 
-      val data = aggregate( Seq( phone( "617 555 1212", homePhone ),
-                                 phone( "201 111 1212", workPhone )),
-                            Seq( phone( "333 333 3333", customPhone )))
+      aggregate( Seq( phone( "617 555 1212", homePhone ),
+                      phone( "201 111 1212", workPhone )),
+                 Seq( phone( "333 333 3333", customPhone ))) match 
+      {
+        case (data, aInfo, bInfo) => {
+          val aggPhones = data.dataOfType[ Phone ]
+          assertPhone( aggPhones, "617 555 1212", homePhone,   aInfo )
+          assertPhone( aggPhones, "201 111 1212", workPhone,   aInfo )
+          assertPhone( aggPhones, "333 333 3333", customPhone, bInfo )
+        }
+      }
 
-      val aggPhones = data.dataOfType[ Phone ]
-      assert( aggPhones.count( phoneLike( "617 555 1212", homePhone )_ ) == 1)
-      assert( aggPhones.count( phoneLike( "201 111 1212", workPhone )_ ) == 1)
-      assert( aggPhones.count( phoneLike( "333 333 3333", customPhone )_ ) == 1)
     }
     
     it ("should segregate data by type" ) {
-      val data = aggregate( Seq( phone( "617 555 1212", homePhone ),
-                                 email( "fred@slate.com", homeEmail )),
-                            Seq( phone( "333 333 3333", customPhone )))
 
-      val aggPhones = data.dataOfType[ Phone ]
-      val aggEmails = data.dataOfType[ Email ]
+      aggregate( Seq( phone( "617 555 1212", homePhone ),
+                      email( "fred@slate.com", homeEmail )),
+                 Seq( phone( "333 333 3333", customPhone ))) match
+      {
+        case (data, aInfo, bInfo) => {
 
-      aggPhones should have size (2)
-      aggEmails should have size (1)
-      assert( aggPhones.count( phoneLike( "617 555 1212", homePhone )_ ) == 1)
-      assert( aggPhones.count( phoneLike( "333 333 3333", customPhone)_ ) == 1)
-      assert( aggEmails.count( emailLike( "fred@slate.com", homeEmail)_ ) == 1)
+          val aggPhones = data.dataOfType[ Phone ]
+          val aggEmails = data.dataOfType[ Email ]
+
+          aggPhones.size should be (2)
+          aggEmails.size should be (1)
+          assertPhone( aggPhones, "617 555 1212",   homePhone,   aInfo )
+          assertPhone( aggPhones, "333 333 3333",   customPhone, bInfo )
+          assertEmail( aggEmails, "fred@slate.com", homeEmail,   aInfo )
+        }
+      }
     }
 
     it ("should coalesce 'similar' data items") {
-      val data = aggregate( Seq( phone( "617 555 1212", homePhone ),
-                                 phone( "201 111 1212", workPhone )),
-                            Seq( phone( "617-555-1212", customPhone )))
-      
-      val aggPhones = data.dataOfType[ Phone ]
+      aggregate( Seq( phone( "617 555 1212", homePhone ),
+                      phone( "201 111 1212", workPhone )),
+                 Seq( phone( "617-555-1212", customPhone ))) match
+      {
+        case (data, aInfo, bInfo) => {
+          val aggPhones = data.dataOfType[ Phone ]
 
-      // Have two "similar" phone numbers.  We're supposed to choose only
-      // one, and give the custom label preference, while leaving the
-      // "dissimilar" item alone.
+          // Have two "similar" phone numbers.  We're supposed to choose only
+          // one, and give the custom label preference, while leaving the
+          // "dissimilar" item alone.
 
-      aggPhones should have size (2)
+          aggPhones.size should be (2)
 
-      assert( aggPhones.count( phoneLike( "201 111 1212", workPhone )_ ) == 1)
-      assert( aggPhones.count( phoneLike( "617-555-1212", customPhone )_ ) == 1)
+          assertPhone( aggPhones, "201 111 1212",  workPhone,   aInfo )
+          assertPhone( aggPhones, "617-555-1212",  customPhone, bInfo )
+        }
+      }
     }
+
+    // Separate case in the code, so we need to test it explicitly
+    // to assure coverage.
+
+    it ("should aggregate uncategorized data" ) {
+
+      aggregate( Seq( note( "foo" ),
+                      email( "fred@slate.com", homeEmail )),
+                 Seq( note( "bar" ))) match
+      {
+        case (data, aInfo, bInfo) => {
+
+          val aggNotes  = data.dataOfType[ Note ]
+          val aggEmails = data.dataOfType[ Email ]
+
+          aggNotes.size should be (2)
+          aggEmails.size should be (1)
+          assertNote( aggNotes, "foo", aInfo )
+          assertNote( aggNotes, "bar", bInfo )
+          assertEmail( aggEmails, "fred@slate.com", homeEmail,   aInfo )
+        }
+      }
+    }
+
+
   }
 
   // Here, I'm letting the tests know that DISPLAY_NAME is an alias for DATA1,

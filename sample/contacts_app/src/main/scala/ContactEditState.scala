@@ -33,7 +33,7 @@ class AggregateContactEditState( rawData: Seq[(RawContact, Seq[ContactData])] )
     
     for ( rawState <- this.rawContactEditStates )
       for ( item <- rawState.currentItems )
-        aggregate.addItem( item )
+        aggregate.addItem( AggregatedDatum( item, rawState.accountInfo ))
 
     aggregate
   }
@@ -239,14 +239,18 @@ class AggregatedData {
 
   // Return all aggregated data of the given class.
 
-  def dataOfClass[Item]( klass: Class[Item] ): Seq[ Item ] = 
+  def dataOfClass[Item <: ContactData]( klass: Class[Item] ) 
+       :Seq[ AggregatedDatum [ Item ]] = 
+  {
     aggregators.get( klass ) match {
-      case Some( aggregator ) => aggregator.items.asInstanceOf[ Seq[Item] ]
+      case Some( aggregator ) =>
+        aggregator.items.asInstanceOf[ Seq[ AggregatedDatum[ Item ]]]
       case None => Seq.empty
     }
+  }
 
-  def addItem[ Item <: ContactData]( item: Item ) = {
-    val klass = item.getClass
+  def addItem[ Item <: ContactData]( item: AggregatedDatum[ Item ]) = {
+    val klass = item.datum.getClass
 
     aggregators.get( klass ) match {
 
@@ -254,10 +258,11 @@ class AggregatedData {
         aggregator.asInstanceOf[ ItemAggregator[ Item ]].add( item )
 
       case None =>
-        // Have to produce an aggregator...
-        aggregators( klass ) = item match {
+        aggregators( klass ) = item.datum match {
           case it: ContactDataWithCategoryLabel =>
-            newCategorizedAggregator( it )
+            newCategorizedAggregator( 
+              item.asInstanceOf[ AggregatedDatum[ 
+                                    _ <: ContactDataWithCategoryLabel]] )
           case _ =>
             newAggregator( item )
         }
@@ -267,10 +272,10 @@ class AggregatedData {
   private
   class ItemAggregator[ Item <: ContactData ] {
 
-    val data = new HashMap[ AnyRef, Item ]
+    val data = new HashMap[ AnyRef, AggregatedDatum [ Item ]]
 
-    def add( item: Item ): this.type = {
-      val key = item.equivalenceKey
+    def add( item: AggregatedDatum[ Item ] ): this.type = {
+      val key = item.datum.equivalenceKey
       data.get( key ) match {
         case None => 
           data( key ) = item
@@ -283,9 +288,12 @@ class AggregatedData {
     // Have two "substantially similar" items with (i.e., same key) 
     // --- need to pick one.  Default: choose arbitrarily.
 
-    def chooseItem( item: Item, item2: Item ) = item
+    def chooseItem( item: AggregatedDatum[ Item ], 
+                    item2: AggregatedDatum[ Item ] ) = 
+      item
 
-    def items: IndexedSeq[Item] = data.values.toIndexedSeq
+    def items: IndexedSeq[ AggregatedDatum[ Item ]] = 
+      data.values.toIndexedSeq
   }
   
   private
@@ -298,22 +306,29 @@ class AggregatedData {
     // priority, and otherwise is as sensible as anything else we
     // might do.
 
-    override def chooseItem( item: Item, item2: Item ) = 
-      if (item.categoryTag < item2.categoryTag)
+    override def chooseItem( item:  AggregatedDatum[ Item ], 
+                             item2: AggregatedDatum[ Item ] ) = 
+      if (item.datum.categoryTag < item2.datum.categoryTag)
         item
       else
         item2
 
     override def items = 
-      data.values.toIndexedSeq.sortBy{ (item:Item) => item.categoryTag }
+      data.values.toIndexedSeq.sortBy{ (item: AggregatedDatum[ Item ]) => 
+        item.datum.categoryTag }
   }
 
   private
-  def newAggregator[ Item <: ContactData ]( item: Item ) = 
+  def newAggregator[ Item <: ContactData ]( item: AggregatedDatum[ Item ] ) = 
     new ItemAggregator[ Item ].add( item )
 
   private
-  def newCategorizedAggregator [ T <: ContactDataWithCategoryLabel]( item: T )= 
+  def newCategorizedAggregator [ T <: ContactDataWithCategoryLabel]( 
+      item: AggregatedDatum[ T ] )= 
     new CategorizedItemAggregator[ T ].add( item )
 }
 
+case class AggregatedDatum[ T <: ContactData ]( 
+  datum: T, 
+  acctInfo: AccountInfo 
+)

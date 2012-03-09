@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:layout_width="fill_parent" 
+              android:layout_height="wrap_content">
+
+  <include layout="@layout/item_separator_bar"/>
+
+  <LinearLayout android:layout_width="fill_parent"
+                android:layout_height="wrap_content">
+    <org.positronicnet.sample.contacts.CategoryDisplay
+                android:id="@+id/categoryLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="0"
+    />
+    <TextView android:text="@string/postal_view_tag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+    />
+  </LinearLayout>
+
+  <TextView android:id="@+id/street"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+  />
+
+  <TextView android:id="@+id/pobox"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+  />
+
+  <TextView android:id="@+id/neighborhood"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+  />
+
+  <TextView android:id="@+id/city"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+  />
+
+  <TextView android:id="@+id/region"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+  />
+
+  <TextView android:id="@+id/postcode"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+  />
+
+  <TextView android:id="@+id/country"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+  />
+
+</LinearLayout>

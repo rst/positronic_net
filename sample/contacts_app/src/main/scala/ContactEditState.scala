@@ -24,6 +24,10 @@ class AggregateContactEditState( rawData: Seq[(RawContact, Seq[ContactData])] )
     for ((rawc, data) <- rawData)
     yield new RawContactEditState( this, rawc, data )
 
+  val rawContacts =
+    for ((rawc, data) <- rawData)
+    yield rawc
+
   // Aggregated data for this contact, with an attempt to eliminate
   // duplicates, suitable for populating an inspector ...
 

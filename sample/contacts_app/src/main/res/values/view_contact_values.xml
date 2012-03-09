@@ -1,0 +1,15 @@
+<resources>
+
+  <string name="edit_contact">Edit</string>
+  <string name="join_split_contact">Join/Split</string>
+
+  <string name="phone_view_tag">\u0020Phone:\u0020</string>
+  <string name="email_view_tag">\u0020Email:\u0020</string>
+  <string name="nickname_view_tag"> Nickname:\u0020</string>
+  <string name="note_view_tag">Note:\u0020</string>
+  <string name="postal_view_tag">\u0020Postal Address:\u0020</string>
+  <string name="organization_view_tag">\u0020at:\u0020</string>
+  <string name="website_view_tag">Web Site:\u0020</string>
+  <string name="im_address_view_tag">\u0020Chat:\u0020</string>
+
+</resources>

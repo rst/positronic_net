@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<org.positronicnet.sample.contacts.RawContactEditor
+               xmlns:android="http://schemas.android.com/apk/res/android"
+               android:id="@+id/rawContactEditor"
+               android:orientation="vertical"
+               android:layout_width="fill_parent" 
+               android:layout_height="wrap_content">
+
+  <TableLayout android:layout_width="fill_parent"
+               android:layout_height="wrap_content"
+               android:stretchColumns="1">
+   <TableRow>
+    <org.positronicnet.ui.PositronicButton
+               android:id="@+id/edit_button"
+               android:text="@string/edit_contact"
+               android:layout_margin="4dip"
+               android:layout_width="0dip"
+               android:layout_weight="1"/>
+    <org.positronicnet.ui.PositronicButton
+               android:id="@+id/join_split_button"
+               android:text="@string/join_split_contact"
+               android:layout_margin="4dip"
+               android:layout_width="0dip"
+               android:layout_weight="1"/>
+   </TableRow>
+  </TableLayout>
+
+  <LinearLayout android:id="@+id/contact_general"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content">
+
+     <ImageView android:minWidth="96px"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+
+     <TextView android:id="@+id/displayNamePrimary" 
+               android:paddingLeft="50dp"
+               android:textSize="14dp"
+               android:layout_width="wrap_content"
+               android:layout_height="30dp"/>
+  </LinearLayout>
+
+  <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/scroller"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent"
+              android:fillViewport="true">
+ 
+   <org.positronicnet.sample.contacts.ContactDataAggregateDisplay
+              android:id="@+id/contact_data_items"
+              android:orientation="vertical"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent">
+
+    <org.positronicnet.sample.contacts.DataKindDisplay
+                  class="org.positronicnet.sample.contacts.Phone"
+                  itemLayout="@layout/view_phone"
+                  android:orientation="vertical"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content"/>
+
+    <org.positronicnet.sample.contacts.DataKindDisplay
+                  class="org.positronicnet.sample.contacts.Email"
+                  itemLayout="@layout/view_email"
+                  android:orientation="vertical"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content"/>
+
+    <org.positronicnet.sample.contacts.DataKindDisplay
+                  class="org.positronicnet.sample.contacts.ImAddress"
+                  itemLayout="@layout/view_im_address"
+                  android:orientation="vertical"
+                  android:paddingBottom="5dp"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content"/>
+
+    <org.positronicnet.sample.contacts.DataKindDisplay
+                  class="org.positronicnet.sample.contacts.Postal"
+                  itemLayout="@layout/view_postal"
+                  android:orientation="vertical"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content"/>
+
+    <org.positronicnet.sample.contacts.DataKindDisplay
+                  class="org.positronicnet.sample.contacts.Organization"
+                  itemLayout="@layout/view_organization"
+                  android:orientation="vertical"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content"/>
+
+    <org.positronicnet.sample.contacts.DataKindDisplay
+                  class="org.positronicnet.sample.contacts.Website"
+                  itemLayout="@layout/view_website"
+                  android:orientation="vertical"
+                  android:paddingBottom="5dp"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content"/>
+
+    <org.positronicnet.sample.contacts.DataKindDisplay
+                  class="org.positronicnet.sample.contacts.Nickname"
+                  itemLayout="@layout/view_nickname"
+                  android:orientation="vertical"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content"/>
+
+    <org.positronicnet.sample.contacts.DataKindDisplay
+                  class="org.positronicnet.sample.contacts.Note"
+                  itemLayout="@layout/view_note"
+                  android:orientation="vertical"
+                  android:layout_width="fill_parent" 
+                  android:layout_height="wrap_content"/>
+
+  </org.positronicnet.sample.contacts.ContactDataAggregateDisplay>
+ </ScrollView>
+</org.positronicnet.sample.contacts.RawContactEditor>
+

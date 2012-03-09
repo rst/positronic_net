@@ -16,5 +16,7 @@
         </activity>
         <activity android:label="Edit Contact" 
                   android:name=".EditContactActivity"/>
+        <activity android:label="View Contact" 
+                  android:name=".ViewContactActivity"/>
     </application>
 </manifest>

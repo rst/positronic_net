@@ -14,8 +14,12 @@ class EditContactActivity
   extends AggregatedContactActivity( layoutResourceId = R.layout.edit_contact )
 {
   onCreate {
-    useOptionsMenuResource( R.menu.edit_contact_menu )
-    onOptionsItemSelected( R.id.save_raw_contact ) { doSave }
+    findView( TR.save_button ).onClick {
+      doSave                            // will finish on data saved
+    }
+    findView( TR.revert_button ).onClick {
+      finish
+    }
   }
 
   // Loading a state into our editor widgets

@@ -1,13 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-            android:id="@+id/scroller"
-            android:layout_width="fill_parent"
-            android:layout_height="fill_parent"
-            android:fillViewport="true">
+<LinearLayout
+         xmlns:android="http://schemas.android.com/apk/res/android"
+         android:orientation="vertical"
+         android:layout_width="fill_parent" 
+         android:layout_height="fill_parent">
+ <TableLayout android:layout_width="fill_parent"
+               android:layout_height="wrap_content"
+               android:stretchColumns="1">
+   <TableRow>
+    <org.positronicnet.ui.PositronicButton
+               android:id="@+id/save_button"
+               android:text="@string/save_contact"
+               android:layout_margin="4dip"
+               android:layout_width="0dip"
+               android:layout_weight="1"/>
+    <org.positronicnet.ui.PositronicButton
+               android:id="@+id/revert_button"
+               android:text="@string/revert_contact"
+               android:layout_margin="4dip"
+               android:layout_width="0dip"
+               android:layout_weight="1"/>
+   </TableRow>
+  </TableLayout>
+
+  <ScrollView android:id="@+id/scroller"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent"
+              android:fillViewport="true">
  
- <org.positronicnet.sample.contacts.LinearLayoutWithWidgetUtils
+    <org.positronicnet.sample.contacts.LinearLayoutWithWidgetUtils
                android:id="@+id/raw_contact_editors"
                android:orientation="vertical"
                android:layout_width="fill_parent"
                android:layout_height="wrap_content"/>
-</ScrollView>
+  </ScrollView>
+</LinearLayout>

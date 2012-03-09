@@ -29,6 +29,11 @@ import android.widget.{TextView, EditText, CheckBox, Spinner,
 case class Canary( flag: Boolean, blurb: String )
   extends ReflectiveProperties
 
+// Entity not bound to any UI component (to verify safety properties)
+
+case class Mockingbird( call: String )
+  extends ReflectiveProperties
+
 // Our binder
 
 class CanaryBinder extends UiBinder
@@ -193,7 +198,7 @@ class UiBinderSpec
       }
     }
 
-    describe( "of compound views" ) {
+    describe( "of compound views (and to objects)" ) {
       it ("should find explicit bindings to ViewGroups") {
         val view = new CanarySpinner( myContext )
         myBinder.show( Canary( true, "yellow" ), view )
@@ -204,6 +209,10 @@ class UiBinderSpec
         val myCanary = Canary( false, "green" )
         view.setCanary( myCanary )
         myBinder.update( Canary( true, "yellow" ), view) should equal (myCanary)
+      }
+      it ("shouldn't blow up on displaying objects of a different type") {
+        val view = new CanarySpinner( myContext )
+        myBinder.show( Mockingbird( "heckle" ), view )
       }
     }
   }

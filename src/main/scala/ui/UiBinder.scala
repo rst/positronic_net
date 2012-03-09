@@ -68,7 +68,9 @@ class BindingManager[TBinding] {
 private [ui]
 class SimpleBinding[ TWidget <: Object, TData <: Object ](
     showFunc: (TWidget, TData) => Unit,
-    updateFunc: (TWidget, TData) => TData)
+    updateFunc: (TWidget, TData) => TData,
+    val dataKlass: Class[_]
+   )
   extends UiBinding
 {
   def show( widget: Object, data: Object ) =
@@ -182,7 +184,7 @@ class PropertyBinderManager
   */
 
 class UiBinder
-  extends BindingManager[SimpleBinding[_,_]]
+  extends BindingManager[SimpleBinding[_ <: Object, _ <: Object]]
 {
   private val propertyBinders = new PropertyBinderManager
 
@@ -244,12 +246,14 @@ class UiBinder
     * enforce this.
     */
 
-  def bind[ TWidget <: Object : ClassManifest, TData <: Object ](
+  def bind[ TWidget <: Object : ClassManifest, TData <: Object : ClassManifest](
     showFunc: (TWidget, TData) => Unit,
     updateFunc: (TWidget, TData) => TData
   ) =
     noteBinding( classManifest[ TWidget ].erasure,
-                 new SimpleBinding( showFunc, updateFunc ),
+                 new SimpleBinding( showFunc, updateFunc,
+                                    classManifest[ TData ].erasure
+                                  ),
                  "class-level"
                )
 
@@ -260,8 +264,17 @@ class UiBinder
 
   protected
   def getBinder( widget: Object, target: Object ):Option[UiBinding] =
-    this.findBinder( widget ).orElse(
+    this.findBinder( widget, target ).orElse(
       propertyBinders.findPropertyBinder (widget, target))
+
+  private
+  def findBinder( widget: Object, target: Object ):Option[UiBinding] =
+    this.findBinder( widget ).flatMap { binding =>
+      if (binding.dataKlass.isInstance( target ))
+        Some( binding )
+      else
+        None
+    }
 
   /** Update an Android `Preference` (or `PreferenceGroup`) based on
     * the properties of the object `toShow`.

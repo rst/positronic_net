@@ -4,6 +4,7 @@ import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 
 import org.positronicnet.ui.{UiBinder, 
+                             UiBindingsForSelfAndChildren,
                              ResourceId,
                              DoubleBindingException,
                              NoBinderFor,
@@ -25,8 +26,11 @@ import android.widget.{TextView, EditText, CheckBox, Spinner,
                        LinearLayout, CheckedTextView}
 
 // Entity being nominally bound to UI components (for now, prefs).
+// (The 'flag' and 'blurb' are updated by our mutant CheckedTextView;
+// the 'wrapUpdate' flag is there solely to indicate that the 'update'
+// method of our CanaryBindingLinearLayout has been called.)
 
-case class Canary( flag: Boolean, blurb: String )
+case class Canary( flag: Boolean, blurb: String, wrapUpdate: Boolean = false )
   extends ReflectiveProperties
 
 // Entity not bound to any UI component (to verify safety properties)
@@ -38,9 +42,9 @@ case class Mockingbird( call: String )
 
 class CanaryBinder extends UiBinder
 {
-  bind[CanaryPref, Canary]( (_.showCanary(_)), (_.updateCanary(_)) )
+  bind[ CanaryPref, Canary ]( (_.showCanary(_)), (_.updateCanary(_)) )
 
-  bind[CheckedTextView, Canary](
+  bind[ CheckedTextView, Canary ](
     ((view, canary) => {
       view.setText( canary.blurb )
       view.setChecked( canary.flag )
@@ -50,7 +54,12 @@ class CanaryBinder extends UiBinder
                    flag  = view.isChecked )
     }))
 
-  bind[CanarySpinner, Canary](
+  bind[ CanaryBindingLinearLayout, Canary ](
+    ((view, canary) => view.bindCanary( canary )),
+    ((view, canary) => view.updateCanary( canary ))
+  )
+
+  bind[ CanarySpinner, Canary ](
     (_.setCanary(_)), ((x,y) => x.getCanary))
 }
 
@@ -215,6 +224,37 @@ class UiBinderSpec
         myBinder.show( Mockingbird( "heckle" ), view )
       }
     }
+
+    describe( "of groups which allow bindings to children") {
+
+      def makeCanaryBindingGroup = {
+        val grp = new CanaryBindingLinearLayout( myContext )
+        val btn = new HackedCheckedTextView( myContext )
+        grp.addView( btn )
+        (grp, btn)
+      }
+
+      it ("should show in both group and child") {
+        val myCanary = Canary( true, "yellow" )
+        makeCanaryBindingGroup match {
+          case (grp, btn) =>
+            myBinder.show( myCanary, grp )
+            grp.canary should be (myCanary)
+            btn.getText.toString should be (myCanary.blurb)
+        }
+      }
+
+      it ("should show update from both group and child") {
+        makeCanaryBindingGroup match {
+          case (grp, btn) =>
+            btn.setText("blue")
+            val upCanary = myBinder.update( Canary( false, "yellow"), grp )
+            upCanary.blurb should be ("blue")
+            upCanary.wrapUpdate should be (true)
+        }
+      }
+
+    }
   }
 
   describe( "binding to a random TextView" ) {
@@ -358,4 +398,16 @@ class CanarySpinner( ctx: Context ) extends Spinner( ctx )
 
   def getCanary = canary
   def setCanary( c: Canary ) = { this.canary = c }
+}
+
+// And a container that binds to Canary objects, while also allowing
+// bindings to its children...
+
+class CanaryBindingLinearLayout( ctx: Context )
+  extends LinearLayout( ctx )
+  with UiBindingsForSelfAndChildren
+{
+  var canary: Canary = null
+  def bindCanary( canary: Canary ) = this.canary = canary
+  def updateCanary( canary: Canary ) = canary.copy( wrapUpdate = true )
 }

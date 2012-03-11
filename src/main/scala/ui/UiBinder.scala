@@ -382,6 +382,12 @@ class UiBinder
 
       case Some(binder) => 
         binder.show( view, toShow )
+        view match {
+          case withKids: UiBindingsForSelfAndChildren =>
+            for (i <- 0 to withKids.getChildCount - 1)
+              showInner( toShow, withKids.getChildAt( i ), false )
+          case _ =>
+        }
 
       case None =>
         view match {
@@ -423,6 +429,12 @@ class UiBinder
 
       case Some(binder) => 
         workingCopy = binder.update( view, workingCopy )
+        view match {
+          case withKids: UiBindingsForSelfAndChildren =>
+            for (i <- 0 to withKids.getChildCount - 1)
+              workingCopy = this.update( workingCopy, withKids.getChildAt( i ) )
+          case _ =>
+        }
 
       case None =>
         view match {
@@ -458,3 +470,15 @@ class DoubleBindingException( klass: Class[_], kind: String )
                             kind + " binding.  " +
                             "(Consider subclassing if it needs more than one?)"
                           )
+
+/** Trait that can be mixed into a `ViewGroup` to indicate that even if
+  * the UiBinder finds a binding for the `ViewGroup` itself, it should
+  * still descend to try to find bindings for children.
+  *
+  * This can be occasionally useful for, e.g., situations where the
+  * elements of a list are meant to be clickable as a whole, but they
+  * also have substructure.
+  */
+
+trait UiBindingsForSelfAndChildren extends ViewGroup
+

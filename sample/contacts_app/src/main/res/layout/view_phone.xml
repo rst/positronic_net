@@ -1,19 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<org.positronicnet.sample.contacts.PhoneWidget 
+              xmlns:android="http://schemas.android.com/apk/res/android"
+              android:clickable="true"
+              android:focusable="true"
               android:layout_width="fill_parent" 
               android:layout_height="wrap_content">
   <org.positronicnet.sample.contacts.CategoryDisplay
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
+              android:clickable="false"
   />
   <TextView android:text="@string/phone_view_tag"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:clickable="false"
+            android:focusable="false"
   />
   <TextView android:id="@+id/number"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:clickable="false"
+            android:focusable="false"
   />
-</LinearLayout>
+</org.positronicnet.sample.contacts.PhoneWidget>
 
 

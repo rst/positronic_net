@@ -2,11 +2,12 @@ package org.positronicnet.sample.contacts
 
 import org.positronicnet.ui._
 
-import android.content.Context
-import android.util.AttributeSet
+import android.content.{Context, Intent}
+import android.util.{AttributeSet, Log}
 
 import android.view.{View, LayoutInflater}
-import android.widget.LinearLayout
+import android.widget.{LinearLayout, ImageView}
+import android.net.Uri
 
 object ViewContactUiBinder extends UiBinder {
 
@@ -14,6 +15,14 @@ object ViewContactUiBinder extends UiBinder {
     (( categoryDisplay, datum ) => categoryDisplay.showForDatum( datum )),
     (( categoryDisplay, datum ) => datum ) // no update
     )
+
+  bind[ PhoneWidget, Phone ](
+    ( _.bindItem( _ )),
+    ( (display, datum) => datum))
+
+  bind[ EmailWidget, Email ](
+    ( _.bindItem( _ )),
+    ( (display, datum) => datum))
 
 }
 
@@ -73,4 +82,65 @@ class CategoryDisplay( ctx: Context, attrs: AttributeSet )
           setText( info.categoryLabelToString( datum.categoryLabel )) }
       case _ =>
     }
+}
+
+// A lot of our widgets, when clicked, start an activity relevant in
+// some way to the contents of some ContactData row.  This trait abstracts
+// the basic pattern...
+
+trait ActivityStarterFor[ Item <: ContactData ] 
+  extends WidgetUtils
+  with ActivityResultDispatchClient
+  with PositronicHandlers
+{
+  var item: Item
+  def activityResultDispatchKey = item.id
+  def bindItem( item: Item ) = { 
+    Log.d( "XXX", "Bind " + item.toString )
+    this.item = item
+    onClick { startActivity( makeIntent ) }
+  }
+  def makeIntent: Intent
+}
+
+abstract class ActivityStartingGroup[ Item <: ContactData ]( 
+    ctx: Context,
+    attrs: AttributeSet ) 
+  extends LinearLayout( ctx, attrs )
+  with ActivityStarterFor[ Item ]
+  with UiBindingsForSelfAndChildren
+
+// Details...
+
+class PhoneWidget( ctx: Context, attrs: AttributeSet )
+  extends ActivityStartingGroup[ Phone ]( ctx, attrs )
+{
+  var item: Phone = null
+  def makeIntent =
+    new Intent( Intent.ACTION_CALL, Uri.parse( "tel:" + this.item.number ))
+}
+
+class SmsImage( ctx: Context, attrs: AttributeSet )
+  extends ImageView( ctx, attrs )
+  with ActivityStarterFor[ Phone ]
+{
+  var item: Phone = null
+  def makeIntent =
+    new Intent( Intent.ACTION_VIEW, Uri.parse( "smsto:" + this.item.number ))
+}
+
+class EmailWidget( ctx: Context, attrs: AttributeSet )
+  extends ActivityStartingGroup[ Email ]( ctx, attrs )
+{
+  var item: Email = null
+  def makeIntent =
+    new Intent( Intent.ACTION_SENDTO, Uri.parse( "mailto:" + this.item.address))
+}
+
+class WebsiteWidget( ctx: Context, attrs: AttributeSet )
+  extends ActivityStartingGroup[ Website ]( ctx, attrs )
+{
+  var item: Website = null
+  def makeIntent =
+    new Intent( Intent.ACTION_VIEW, Uri.parse( this.item.url ))
 }

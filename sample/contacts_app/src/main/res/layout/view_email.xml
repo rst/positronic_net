@@ -1,18 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<org.positronicnet.sample.contacts.EmailWidget 
+              xmlns:android="http://schemas.android.com/apk/res/android"
               android:layout_width="fill_parent" 
-              android:layout_height="wrap_content">
+              android:layout_height="wrap_content"
+              android:clickable="true"
+  >
   <org.positronicnet.sample.contacts.CategoryDisplay
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
+              android:clickable="false"
   />
   <TextView android:text="@string/email_view_tag"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:clickable="false"
   />
   <TextView android:id="@+id/address"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:clickable="false"
   />
-</LinearLayout>
+</org.positronicnet.sample.contacts.EmailWidget>
 

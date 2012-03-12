@@ -287,7 +287,8 @@ class Nickname extends ContactData
   val label: String = null
 
   def isEmpty = isBlank( name )
-  override def equivalenceKey = name.toLowerCase
+  override def equivalenceKey = 
+    if (name == null) "" else name.toLowerCase
 }
 
 // Website records.  Again, there's an unused pair of "type/label" columns
@@ -303,7 +304,7 @@ class Website extends ContactData
   val label: String = null
 
   def isEmpty = isBlank( url )
-  override def equivalenceKey = url
+  override def equivalenceKey = if (url == null) "" else url
 }
 
 // IM.  These are odd; they have the standard "type/label" columns,
@@ -352,7 +353,8 @@ class Note extends ContactData {
   val id: RecordId[Note] = ContactData.notes.unsavedId
   val note: String = null
   def isEmpty = isBlank( note )
-  override def equivalenceKey = note.toLowerCase
+  override def equivalenceKey = 
+    if (note == null) "" else note.toLowerCase
 }
 
 // Common machinery for rows that have a "record type", or what 
@@ -394,7 +396,8 @@ class Phone extends ContactDataWithCategoryLabel {
   override def toString = 
     super.toString + " ("+ categoryTag +", "+ number +")"
 
-  override def equivalenceKey = number.filter{ _.isDigit }
+  override def equivalenceKey = 
+    if (number == null) "" else number.filter{ _.isDigit }
 }
 
 // Email records.  
@@ -408,7 +411,8 @@ class Email extends ContactDataWithCategoryLabel {
   override def toString = 
     super.toString + " ("+ categoryTag +", "+ address+")"
 
-  override def equivalenceKey = address.toLowerCase
+  override def equivalenceKey = 
+    if (address == null) "" else address.toLowerCase
 }
 
 // Mailing address records.
@@ -450,7 +454,9 @@ class Organization extends ContactDataWithCategoryLabel {
     isBlank( jobDescription ) && isBlank( symbol ) && 
     isBlank( officeLocation ) && isBlank( phoneticName )
 
-  override def equivalenceKey = company + title
+  override def equivalenceKey = 
+    (if (company == null) "" else company) + 
+    (if (title   == null) "" else title)
 }
 
 // Unknown data records.  There's actually a defined way for third-party

@@ -39,8 +39,6 @@ class AggregateContactEditState( rawData: Seq[(RawContact, Seq[ContactData])] )
       for ( item <- rawState.currentItems )
         if (! item.isEmpty )
           aggregate.addItem( AggregatedDatum( item, rawState.accountInfo ))
-        else
-          println( "empty: " + item )
 
     aggregate
   }
@@ -111,18 +109,12 @@ class RawContactEditState( val aggregateEditState: AggregateContactEditState,
 
   def updateItem( rec: ContactData ): Unit = {
 
-    val tweakedRec =
-      if (rec.isUnsaved) 
-        rec.setProperty( "rawContactId", rawContact.id )
-      else
-        rec
-    
     val idx = currentState.indexWhere( _.id == rec.id )
     
     if (idx < 0) 
-      currentState += tweakedRec
+      currentState += rec
     else 
-      currentState( idx ) = tweakedRec
+      currentState( idx ) = rec
   }
 
   def deleteItem( rec: ContactData ): Unit = {
@@ -157,7 +149,9 @@ class RawContactEditState( val aggregateEditState: AggregateContactEditState,
   // (most likely, because we're up against some limit).
   // But not yet.
 
-  def prepareForInsert( item: ContactData ) = {
+  def prepareForInsert( rawItem: ContactData ) = {
+
+    val item = rawItem.setProperty( "rawContactId", rawContact.id )
 
     item match {
 

@@ -12,6 +12,7 @@ import android.view.{View, LayoutInflater}
 
 class EditContactActivity
   extends AggregatedContactActivity( layoutResourceId = R.layout.edit_contact )
+  with ViewUtils
 {
   onCreate {
     findView( TR.save_button ).onClick {
@@ -20,6 +21,16 @@ class EditContactActivity
     findView( TR.revert_button ).onClick {
       finish
     }
+  }
+
+  // Special treatment for the "Back" button
+
+  override def onBackPressed = {
+    dialogResultMatchFromContext( this, R.string.do_what_on_back ) (
+      dialogCase( R.string.save_contact ){ doSave },
+      dialogCase( R.string.revert_contact ){ finish },
+      dialogCase( R.string.cancel_back ){ /* nothing */ }
+    )
   }
 
   // Loading a state into our editor widgets

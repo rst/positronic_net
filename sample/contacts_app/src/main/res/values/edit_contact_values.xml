@@ -5,10 +5,12 @@
   <string name="data_for_acct">Contact in:\u0020</string>
   <string name="phone_only_contact">Phone-only contact</string>
 
-  <!-- options menu and "pseudo-action-bar" -->
+  <!-- end actions for menu and "pseudo-action-bar" -->
 
+  <string name="do_what_on_back">Action</string>
   <string name="save_contact">Save</string>
-  <string name="revert_contact">Save</string>
+  <string name="revert_contact">Revert</string>
+  <string name="cancel_back">Cancel</string>
 
   <!-- Generic "add item" and "remove item" buttons -->
 

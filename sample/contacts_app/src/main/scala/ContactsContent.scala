@@ -169,7 +169,7 @@ abstract class ContactData
   // Utility for 'isEmpty' routines...
 
   def isBlank( s: String ) = 
-    s == null || !TextUtils.isGraphic( s )
+    s == null || s == "" || s.trim == ""
 
   // More informative 'toString'
 

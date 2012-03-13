@@ -24,6 +24,40 @@ class ModelSpec
   override def afterEach = 
     PositronicContentResolver.close
 
+  def phone( number: String, category: CategoryLabel ) = 
+    (new Phone).setProperty( "number", number )
+               .setProperty( "categoryLabel", category )
+      
+  def email( address: String, category: CategoryLabel ) = 
+    (new Email).setProperty( "address", address )
+               .setProperty( "categoryLabel", category )
+
+  def note( text: String ) = (new Note).setProperty( "note", text )
+
+  def homePhone   = CategoryLabel( CDK.Phone.TYPE_HOME, null )
+  def workPhone   = CategoryLabel( CDK.Phone.TYPE_WORK, null )
+  def customPhone = CategoryLabel( CDK.BaseTypes.TYPE_CUSTOM, "car" )
+
+  def homeEmail   = CategoryLabel( CDK.Email.TYPE_HOME, null )
+
+  describe( "emptiness checks" ) {
+    it ("should mark null records as empty") {
+      assert( (new Phone).isEmpty )
+      assert( (new Email).isEmpty )
+      assert( (new Note).isEmpty )
+    }
+    it ("should treat blank strings as empty") {
+      assert( phone( "", homePhone ).isEmpty )
+      assert( email( "", homeEmail ).isEmpty )
+      assert( note( "" ).isEmpty )
+    }
+    it ("should not treat 'full' items as empty") {
+      assert( !phone( "911", homePhone ).isEmpty )
+      assert( !email( "fred@flintstone.com", homeEmail ).isEmpty )
+      assert( !note( "needs fish food" ).isEmpty )
+    }
+  }
+
   describe( "data aggregation" ) {
 
     // Set up some test fixtures, throw them up in the air, and
@@ -43,10 +77,6 @@ class ModelSpec
       (state.aggregatedData, aInfo, bInfo)
     }
       
-    def phone( number: String, category: CategoryLabel ) = 
-      (new Phone).setProperty( "number", number )
-                 .setProperty( "categoryLabel", category )
-      
     def assertPhone( data: Seq[ AggregatedDatum[ Phone ]],
                      number: String, 
                      category: CategoryLabel, 
@@ -55,10 +85,6 @@ class ModelSpec
         (aDatum.acctInfo eq acctInfo) && 
         aDatum.datum.number == number &&
         aDatum.datum.categoryLabel == category ))
-
-    def email( address: String, category: CategoryLabel ) = 
-      (new Email).setProperty( "address", address )
-                 .setProperty( "categoryLabel", category )
 
     def assertEmail( data: Seq[ AggregatedDatum[ Email ]],
                      address: String, 
@@ -69,20 +95,12 @@ class ModelSpec
         aDatum.datum.address == address &&
         aDatum.datum.categoryLabel == category ))
 
-    def note( text: String ) = (new Note).setProperty( "note", text )
-
     def assertNote( data: Seq[ AggregatedDatum[ Note ]],
                     text: String, 
                     acctInfo: AccountInfo ) =
       assert( 1 == data.count( aDatum =>
         (aDatum.acctInfo eq acctInfo) && 
         aDatum.datum.note == text ))
-
-    def homePhone   = CategoryLabel( CDK.Phone.TYPE_HOME, null )
-    def workPhone   = CategoryLabel( CDK.Phone.TYPE_WORK, null )
-    def customPhone = CategoryLabel( CDK.BaseTypes.TYPE_CUSTOM, "car" )
-
-    def homeEmail   = CategoryLabel( CDK.Email.TYPE_HOME, null )
 
     it ("should aggregate unlike data" ) {
 
@@ -92,6 +110,7 @@ class ModelSpec
       {
         case (data, aInfo, bInfo) => {
           val aggPhones = data.dataOfType[ Phone ]
+          aggPhones.size should be (3)
           assertPhone( aggPhones, "617 555 1212", homePhone,   aInfo )
           assertPhone( aggPhones, "201 111 1212", workPhone,   aInfo )
           assertPhone( aggPhones, "333 333 3333", customPhone, bInfo )
@@ -163,7 +182,21 @@ class ModelSpec
       }
     }
 
+    it ("should toss empty items") {
 
+      // Standard contacts app has a thing for creating empty notes
+      // and nicknames.  We'd rather not show them...
+
+      aggregate ( Seq( note( "foo" )),
+                  Seq( note( "" ))) match
+      {
+        case (data, aInfo, bInfo) => {
+          val aggNotes = data.dataOfType[ Note ]
+          aggNotes.size should be (1)
+          assertNote( aggNotes, "foo", aInfo )
+        }
+      }      
+    }
   }
 
   // Here, I'm letting the tests know that DISPLAY_NAME is an alias for DATA1,

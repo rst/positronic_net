@@ -37,7 +37,10 @@ class AggregateContactEditState( rawData: Seq[(RawContact, Seq[ContactData])] )
     
     for ( rawState <- this.rawContactEditStates )
       for ( item <- rawState.currentItems )
-        aggregate.addItem( AggregatedDatum( item, rawState.accountInfo ))
+        if (! item.isEmpty )
+          aggregate.addItem( AggregatedDatum( item, rawState.accountInfo ))
+        else
+          println( "empty: " + item )
 
     aggregate
   }
@@ -266,9 +269,9 @@ class AggregatedData {
           case it: ContactDataWithCategoryLabel =>
             newCategorizedAggregator( 
               item.asInstanceOf[ AggregatedDatum[ 
-                                    _ <: ContactDataWithCategoryLabel]] )
+                                   _ <: ContactDataWithCategoryLabel]] )
           case _ =>
-            newAggregator( item )
+             newAggregator( item )
         }
     }
   }

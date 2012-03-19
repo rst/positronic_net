@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <org.positronicnet.sample.contacts.ContactDatumEditLayout
               xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
               android:layout_width="fill_parent" 
               android:layout_height="wrap_content">
+  <include layout="@layout/separator_bar"/>
   <TextView android:text="@string/website_view_tag"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:textSize="20dp"
   />
   <TextView android:id="@+id/url"
             android:layout_width="wrap_content"

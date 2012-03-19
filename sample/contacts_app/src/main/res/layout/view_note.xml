@@ -6,7 +6,6 @@
               >
 
   <include layout="@layout/item_separator_bar"/>
-
   <TextView android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/note_view_tag"
@@ -14,5 +13,6 @@
   <TextView android:id="@+id/note"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:textSize="20dp"
   />
 </LinearLayout>

@@ -4,6 +4,7 @@
               android:layout_width="fill_parent" 
               android:layout_height="wrap_content">
 
+  <include layout="@layout/separator_bar"/>
   <LinearLayout android:layout_width="fill_parent"
                 android:layout_height="wrap_content">
     <org.positronicnet.sample.contacts.CategoryDisplay
@@ -11,15 +12,18 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="0"
+                android:textSize="20dp"
     />
     <TextView android:text="@string/organization_view_tag"
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
+              android:textSize="20dp"
     />
     <TextView android:id="@+id/company"
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
               android:layout_weight="1"
+              android:textSize="20dp"
     />
   </LinearLayout>
 

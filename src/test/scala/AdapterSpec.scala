@@ -13,6 +13,31 @@ class AdapterSpec
   with ShouldMatchers
   with RobolectricTests
 {
+  describe("IndexedSeqAdapter") {
+
+    describe( "usage with a simple sequence" ) {
+
+      val data = IndexedSeq( "foo", "bar", "moo" )
+
+      def adapter = new IndexedSeqAdapter( data )
+
+      it ("should report count correctly") {
+        adapter.getCount should be (3)
+      }
+
+      it ("should fake item IDs correctly") {
+        adapter.getItemId(1) should be (1)
+        adapter.getItemId(2) should be (2)
+      }
+
+      it ("should retrieve items correctly") {
+        adapter.getItem(0) should be ("foo")
+        adapter.getItem(2) should be ("moo")
+      }
+
+    }
+  }
+
   describe("IndexedSeqGroupAdapter") {
 
     val data = 

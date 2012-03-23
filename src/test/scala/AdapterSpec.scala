@@ -34,8 +34,38 @@ class AdapterSpec
         adapter.getItem(0) should be ("foo")
         adapter.getItem(2) should be ("moo")
       }
-
     }
+
+    describe( "usage with a filter") {
+
+      case class TodoItem( description: String, isDone: Boolean )
+
+      val data = IndexedSeq( TodoItem( "feed dog", true ),
+                             TodoItem( "wash dog", false ),
+                             TodoItem( "walk dog", true ),
+                             TodoItem( "pet dog",  false ))
+
+      def adapter = {
+        val ret = new IndexedSeqAdapter( data )
+        ret.resetFilter( Some( _.isDone ))
+        ret
+      }
+
+      it ("should report count correctly") {
+        adapter.getCount should be (2)
+      }
+
+      it ("should fake item IDs correctly") {
+        adapter.getItemId(0) should be (0)
+        adapter.getItemId(1) should be (1)
+      }
+
+      it ("should retrieve items correctly") {
+        adapter.getItem(0) should be (TodoItem( "feed dog", true ))
+        adapter.getItem(1) should be (TodoItem( "walk dog", true ))
+      }
+    }
+
   }
 
   describe("IndexedSeqGroupAdapter") {

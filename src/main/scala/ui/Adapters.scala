@@ -91,6 +91,24 @@ class IndexedSeqAdapter[T <: Object](protected var seq:IndexedSeq[T] = new Array
   extends _root_.android.widget.BaseAdapter 
 {
   protected var inflater: LayoutInflater = null
+  protected var filterOpt: Option[ T => Boolean ] = None
+
+  protected var realSeq = seq
+
+  private def notifySomethingChanged = {
+    this.realSeq = filterOpt match {
+      case Some( func ) => seq.filter( func )
+      case None => seq
+    }
+    notifyDataSetChanged
+  }
+
+  /** Method to change filtering */
+
+  def resetFilter( newFilterOpt: Option[ T => Boolean ] ) = {
+    this.filterOpt = newFilterOpt
+    notifySomethingChanged
+  }
 
   /** Method to reset the sequence if a new copy was (or might have been)
     * loaded off the UI thread.
@@ -98,7 +116,7 @@ class IndexedSeqAdapter[T <: Object](protected var seq:IndexedSeq[T] = new Array
 
   def resetSeq( newSeq: IndexedSeq[T] ) = {
     seq = newSeq
-    notifyDataSetChanged
+    notifySomethingChanged
   }
 
   /** Get a view to use for the given position.  Ordinarily delegates to the
@@ -154,7 +172,7 @@ class IndexedSeqAdapter[T <: Object](protected var seq:IndexedSeq[T] = new Array
 
   /** Get the n'th item from the current sequence */
 
-  def getItem(position: Int):T = seq(position)
+  def getItem(position: Int):T = realSeq(position)
 
   /** Get the id of the n'th item from the current sequence */
 
@@ -162,7 +180,7 @@ class IndexedSeqAdapter[T <: Object](protected var seq:IndexedSeq[T] = new Array
 
   /** Get number of items in the current sequence */
 
-  def getCount = seq.size
+  def getCount = realSeq.size
 }
 
 /**

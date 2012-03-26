@@ -252,6 +252,14 @@ class PositronicButton( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.Button( context, attrs ) 
  with PositronicHandlers
 
+/** An `android.widget.ImageButton` with [[org.positronicnet.ui.PositronicHandlers]]
+  * mixed in.
+  */
+
+class PositronicImageButton( context: Context, attrs: AttributeSet = null )
+ extends _root_.android.widget.ImageButton( context, attrs ) 
+ with PositronicHandlers
+
 /** An `android.widget.EditText` with [[org.positronicnet.ui.PositronicHandlers]]
   * mixed in.
   */

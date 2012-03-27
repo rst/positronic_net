@@ -11,6 +11,8 @@ import _root_.android.util.Log
 import _root_.android.view.KeyEvent
 import _root_.android.view.View.OnKeyListener
 
+import scala.collection.mutable.ArrayBuffer
+
 /** Mixin trait for view subclasses which provides 
   * "JQuery-style" event listener declarations.  Fortunately, these
   * don't conflict with the native API because they're alternate
@@ -93,6 +95,49 @@ trait PositronicHandlers {
     keyCodeHandlers += ((keyCode, metaState) -> (() => func))
   }
 
+}
+
+/** "JQuery-style" handler declarations for TextView-specific conditions. */
+
+trait PositronicTextViewHandlers extends android.widget.TextView {
+
+  private val parentTextView = this
+
+  /** Whenever the text changes, call `func` with the new string.
+    *
+    * Extreme shorthand for a common case of using TextWatchers.
+    */
+
+  def onTextChanged( func: String => Unit ) =
+    glueTextWatcher.watchers += func
+
+  private lazy val glueTextWatcher = makeGlueTextWatcher
+
+  private def makeGlueTextWatcher = {
+
+    val textWatcher = new android.text.TextWatcher {
+
+      val watchers = new ArrayBuffer[ String => Unit ]
+
+      def beforeTextChanged( s: CharSequence, start: Int, 
+                             count: Int, after: Int ) = 
+        ()
+
+      def onTextChanged( s: CharSequence, start: Int, 
+                         count: Int, after: Int ) = 
+        ()
+
+      def afterTextChanged( s: android.text.Editable ) = {
+        val txt = parentTextView.getText.toString
+        for ( watcher <- watchers )
+          watcher( txt )
+      }
+    }
+
+    this.addTextChangedListener( textWatcher )
+
+    textWatcher
+  }
 }
 
 /** "JQuery-style" handler declarations for AdapterView-specific events. */
@@ -267,6 +312,7 @@ class PositronicImageButton( context: Context, attrs: AttributeSet = null )
 class PositronicEditText( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.EditText( context, attrs ) 
  with PositronicHandlers
+ with PositronicTextViewHandlers
 
 /** An `android.widget.TextView` with [[org.positronicnet.ui.PositronicHandlers]]
   * mixed in.
@@ -275,6 +321,7 @@ class PositronicEditText( context: Context, attrs: AttributeSet = null )
 class PositronicTextView( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.TextView( context, attrs ) 
  with PositronicHandlers
+ with PositronicTextViewHandlers
 
 /** An `android.widget.ListView` with [[org.positronicnet.ui.PositronicHandlers]]
   * and [[org.positronicnet.ui.PositronicItemHandlers]] mixed in.

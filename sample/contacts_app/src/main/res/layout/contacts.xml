@@ -5,6 +5,57 @@
          android:layout_width="fill_parent" 
          android:layout_height="fill_parent">
  
+   <org.positronicnet.sample.contacts.ContactsFilterView
+         android:id="@+id/contacts_filter"
+         android:orientation="vertical"
+         android:layout_width="fill_parent" 
+         android:layout_height="wrap_content">
+
+     <RelativeLayout
+         android:layout_width="fill_parent"
+         android:layout_height="wrap_content">
+       <TextView android:id="@+id/show_label"
+                 android:text="Show"
+                 android:textSize="16dp"
+                 android:layout_centerVertical="true"
+                 android:layout_width="wrap_content"
+                 android:layout_height="wrap_content"/>
+       <org.positronicnet.ui.PositronicButton 
+               android:id="@+id/filterChoiceButton"               
+               android:textSize="16dp"
+               android:layout_width="wrap_content"
+               android:layout_height="wrap_content"
+               android:layout_toRightOf="@id/show_label"/>
+       <org.positronicnet.ui.PositronicImageButton 
+                    android:id="@+id/searchButton"
+                    android:src="@drawable/ic_btn_search"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentRight="true"/>
+     </RelativeLayout>
+
+     <LinearLayout android:id="@+id/contactsSearchBar"
+                   android:visibility="gone"
+                   android:layout_width="fill_parent"
+                   android:layout_height="wrap_content"
+                   android:paddingBottom="5dp">
+       <org.positronicnet.ui.PositronicEditText 
+                 android:id="@+id/searchString"
+                 android:layout_width="wrap_content"
+                 android:layout_height="fill_parent"
+                 android:layout_weight="1"/>
+       <org.positronicnet.ui.PositronicImageButton 
+                    android:id="@+id/endSearchButton"
+                    android:src="@drawable/ic_btn_round_minus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentRight="true"/>
+     </LinearLayout>
+
+   </org.positronicnet.sample.contacts.ContactsFilterView>
+
+     <include layout="@layout/separator_bar"/>
+
      <ListView android:id="@android:id/list"
                android:layout_width="fill_parent" 
                android:layout_height="fill_parent"/>

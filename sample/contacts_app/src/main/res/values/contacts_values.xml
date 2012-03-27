@@ -5,6 +5,12 @@
   <string name="loading_contacts">Loading Contacts</string>
   <string name="no_contacts">No Contacts Found</string>
 
+  <!-- Choosing search filters -->
+
+  <string name="choose_filter">Show ...</string>
+  <string name="any_contact">All</string>
+  <string name="with_phones">All with phones</string>
+
   <!-- Menu entries -->
 
   <string name="new_contact">Add Contact</string>

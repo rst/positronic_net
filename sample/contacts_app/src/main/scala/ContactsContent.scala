@@ -32,18 +32,23 @@ case class Contact (
   val photoThumbnailUri:  String            = "",
   val inVisibleGroup:     Boolean           = false,
   val starred:            Boolean           = false,
+  val hasPhoneNumber:     Boolean           = false,
   val customRingtone:     String            = "",
   val sendToVoicemail:    Boolean           = false,
   val id:                 RecordId[Contact] = Contacts.unsavedId
 ) 
 extends ManagedRecord with ReflectiveProperties
 {
+  lazy val lcDisplayName = displayNamePrimary.toLowerCase // for filtering
+
   @transient lazy val raw = 
     new HasMany( RawContacts, 
                  ReflectUtils.getStatic[ String, CC.RawContacts ]("CONTACT_ID"))
+
   @transient lazy val data = 
     new HasMany( ContactData, 
                  ReflectUtils.getStatic[ String, CC.Data ]("CONTACT_ID"))
+
   @transient lazy val photoQuery =
     if (this.photoId.id != 0)
       (ContactData.photos ? FindById( this.photoId ))

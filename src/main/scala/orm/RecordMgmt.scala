@@ -264,9 +264,11 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   /** Declare that the field named `fieldName` in our
     * [[org.positronic.orm.ManagedRecord]] subclass `T`
     * is to be mapped to the persistent storage `columnName`.
-    * If the `primaryKey` argument is set true, this field and
-    * column will be treated as the record's primary key; this
-    * currently must be a `Long`.
+    * The `how` argument indicates whether the column is to be mapped
+    * read-only, read-write, or write-once, as the appropriate value from the
+    * [[org.positronicnet.orm.MapAs.How]] enumeration.  If not specified, the
+    * record manager's `defaultFieldMapping` will be used; that, in turn,
+    * defaults to `MapAs.ReadWrite`.
     *
     * For [[org.positronicnet.db.Database]] mapping, when using a
     * [[org.positronicnet.orm.RecordManager]], it is rarely
@@ -285,7 +287,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     */
 
   def mapField( fieldName: String, columnName: String, 
-                how: MapAs.How = MapAs.ReadWrite ) =
+                how: MapAs.How = defaultMapping ) =
     mapFieldInternal( fieldName, columnName, how, false )
 
   /** Declare a mapping, as with `mapField`, for a field to be
@@ -294,6 +296,21 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 
   def primaryKey( fieldName: String, columnName: String ) =
     mapFieldInternal( fieldName, columnName, MapAs.ReadOnly, true )
+
+  /** Declare a particular mapping type as the "default" for ordinary
+    * columns (i.e., not primary keys), unless overridden in a specific
+    * mapField directive.  The default for this is `MapAs.ReadWrite`.
+    *
+    * May be useful for, e.g., mapping Content Providers that provide
+    * pseudo-tables that are mostly read-only, but with a few writable
+    * columns, in which case a `MapAs.ReadOnly` default might be more
+    * appropriate.
+    */
+
+  def defaultFieldMapping( how: MapAs.How ) =
+    this.defaultMapping = how
+
+  private [orm] var defaultMapping = MapAs.ReadWrite
 
   private[orm]
   def mapFieldInternal( fieldName: String, 

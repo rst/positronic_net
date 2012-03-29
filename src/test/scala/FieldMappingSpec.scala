@@ -75,6 +75,23 @@ object CallLogEntries extends RecordManagerForFields[ CallLogEntry, Calls ] {
   mapField( "callType", Calls.TYPE )    // override to avoid reserved word
 }
 
+// And a similar example, deliberately mapping stuff read-only
+// to see if that takes...
+
+case class CallLogEntryRO( callType:   Int    = 0, 
+                           number:     String = null, 
+                           cachedName: String = null, 
+                           date:       Long   = 0,
+                           id: RecordId[CallLogEntryRO] = 
+                             CallLogEntriesRO.unsavedId )
+  extends ManagedRecord
+
+object CallLogEntriesRO extends RecordManagerForFields[ CallLogEntryRO, Calls ] 
+{
+  defaultFieldMapping( MapAs.ReadOnly )               // set default
+  mapField( "callType", Calls.TYPE, MapAs.ReadWrite ) // test explicit override
+}
+
 // Test of automatic mapping of variant fields from messy content
 // providers.  
 
@@ -300,6 +317,25 @@ class FieldMappingSpec
     }
     it( "should map the ID field, if present" ) {
       checkField( "id", android.provider.BaseColumns._ID, MapAs.ReadOnly )
+    }
+  }
+
+  describe( "field mapping to column names from a static class" ) {
+
+    val checkField = checkFieldFrom( CallLogEntriesRO )_
+
+    it ("should map primary key read-only") {
+      checkField( "id", android.provider.BaseColumns._ID, MapAs.ReadOnly )
+    }
+
+    it ("should map unmarked columns read-only") {
+      checkField( "number",     Calls.NUMBER,      MapAs.ReadOnly )
+      checkField( "cachedName", Calls.CACHED_NAME, MapAs.ReadOnly )
+      checkField( "date",       Calls.DATE,        MapAs.ReadOnly )
+    }
+
+    it ("should still honor explicit overrides") {
+      checkField( "callType",    Calls.TYPE,       MapAs.ReadWrite )
     }
   }
 

@@ -297,6 +297,14 @@ class PositronicButton( context: Context, attrs: AttributeSet = null )
  extends _root_.android.widget.Button( context, attrs ) 
  with PositronicHandlers
 
+/** An `android.widget.Checkbox with [[org.positronicnet.ui.PositronicHandlers]]
+  * mixed in.
+  */
+
+class PositronicCheckBox( context: Context, attrs: AttributeSet = null )
+ extends _root_.android.widget.CheckBox( context, attrs ) 
+ with PositronicHandlers
+
 /** An `android.widget.ImageButton` with [[org.positronicnet.ui.PositronicHandlers]]
   * mixed in.
   */

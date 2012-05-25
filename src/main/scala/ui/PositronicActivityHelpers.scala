@@ -30,6 +30,7 @@ import scala.collection.mutable.ArrayBuffer
 
 trait PositronicActivityHelpers
   extends _root_.android.app.Activity
+  with GenericViewUtils
 {
   // Note resource IDs associated with the R class in the package 
   // containing this activity (or its parents), if we haven't already...
@@ -367,6 +368,18 @@ trait PositronicActivityHelpers
 
   def toastLong( msg: String ):Unit =
     Toast.makeText( this, msg,      Toast.LENGTH_LONG ).show
+
+  /** Create a pop-up chooser with title text from the string resource
+    * `titleRes`, and choice strings obtained by applying the `labeler`
+    * to the given `vals`.  If the user makes a choice, the corresponding
+    * `val` will be passed to the `handler`.
+    */
+
+  def withChoiceFromDialog[T](titleRes: Int, 
+                              vals: IndexedSeq[T], 
+                              labeler: T => String)
+                             (handler: T => Unit): Unit = 
+    withChoiceFromDialogInContext( this, titleRes, vals, labeler )( handler )
 } 
 
 /** Trait to help an activity manage requests on other activities.

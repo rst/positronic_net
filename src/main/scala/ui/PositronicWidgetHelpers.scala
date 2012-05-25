@@ -22,7 +22,7 @@ import scala.collection.mutable.ArrayBuffer
   * are omitted.
   */
 
-trait PositronicHandlers {
+trait PositronicHandlers extends View with GenericViewUtils {
 
   def setOnClickListener( dummy: View.OnClickListener ): Unit
 
@@ -95,6 +95,30 @@ trait PositronicHandlers {
     keyCodeHandlers += ((keyCode, metaState) -> (() => func))
   }
 
+  /** Return this views most recent ancestor view of the given type, if any */
+
+  def parentOfType[ ViewType <: View : ClassManifest ]: ViewType = 
+    parentOfType[ ViewType ]( this )
+
+  /** Return all children (or more distant descendents) of the given type
+    * as an IndexedSeq
+    */
+
+  def childrenOfType[ ViewType <: View : ClassManifest ]: IndexedSeq[ViewType] =
+    childrenOfType[ ViewType ]( this )
+
+  /** Create a pop-up chooser with title text from the string resource
+    * `titleRes`, and choice strings obtained by applying the `labeler`
+    * to the given `vals`.  If the user makes a choice, the corresponding
+    * `val` will be passed to the `handler`.
+    */
+
+  def withChoiceFromDialog[T](titleRes: Int, 
+                              vals: IndexedSeq[T], 
+                              labeler: T => String)
+                             (handler: T => Unit): Unit = 
+    withChoiceFromDialogInContext( this.getContext, titleRes, 
+                                   vals, labeler )( handler )
 }
 
 /** "JQuery-style" handler declarations for TextView-specific conditions. */

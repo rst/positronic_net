@@ -78,6 +78,7 @@ abstract class PositronicContentProvider
     res
   }
 
+  protected
   def notifyChange( uri: Uri ) = 
     getContext.getContentResolver.notifyChange( uri, null )
 
@@ -86,10 +87,12 @@ abstract class PositronicContentProvider
     * obvious way.
     */
 
+  private[this]
   def getRepository( uri: Uri, where: String, whereArgs: Array[String] )
       : ContentQuery[_,Long] = 
     addConditions( getRepository( uri ), where, whereArgs )
 
+  private[this]
   def addConditions( query: ContentQuery[_,Long],
                      where: String, whereArgs: Array[String] )
     : ContentQuery[_,Long] =
@@ -103,41 +106,25 @@ abstract class PositronicContentProvider
     else query
   }
 
+  private[this]
   def getRepository( uri: Uri ): ContentQuery[_,Long] = 
     getRepoMatchOption( uri ) match {
       case None => throw new UnsupportedUri( uri )
       case Some( repoMatch ) => repoMatch.query
     }
 
-  def getRepoMatchOption( uri: Uri ) = {
+  private[this]
+  val uriMatcher = new UriMatcher[ RepoPattern ]
 
-    val matchValues = new ArrayBuffer[ ContentValue ]
-    var patternNodeOpt = uriPatterns.childForSeg( uri.getAuthority, matchValues)
+  private[this]
+  def getRepoMatchOption( uri: Uri ): Option[ RepoMatch ] =
+    uriMatcher.withMatchOption( uri ){ (repoPattern, vals) =>
+      RepoMatch( repoPattern.contentType, repoPattern.completer( vals )) }
 
-    for ( segment <- uri.getPathSegments )
-      patternNodeOpt = patternNodeOpt.flatMap{ 
-        _.childForSeg( segment, matchValues ) }
-
-    patternNodeOpt.flatMap { 
-      _.repoPatternOpt.map { 
-        repoPat => 
-          RepoMatch( repoPat.contentType,
-                     repoPat.completer( matchValues ))
-      }
-    }
-  }
-
-  val uriPatterns = new PatternNode
-
+  private[this]
   def matchUri( uri: Uri, contentType: String )
               ( func: IndexedSeq[ContentValue] => ContentQuery[_,Long] ) = 
-  {
-    var pat: PatternNode = uriPatterns
-    pat = pat.addNodeForSegment( uri.getAuthority )
-    for ( segment <- uri.getPathSegments )
-      pat = pat.addNodeForSegment( segment )
-    pat.setRepoPattern( RepoPattern( contentType, func ))
-  }
+    uriMatcher.matchUri( uri, RepoPattern( contentType, func ))
 }
 
 private [content]
@@ -150,39 +137,75 @@ case class RepoMatch(
   contentType: String,
   query: ContentQuery[_,Long])
 
-class PatternNode
+class UriMatcher[TMatch] {
+
+  val basePattern = new PatternNode[ TMatch ]
+
+  def withMatchOption[TRes]
+                     (uri: Uri)
+                     (func: (TMatch, IndexedSeq[ContentValue]) => TRes)
+                  :Option[ TRes ] = 
+  {
+    val matchValues = new ArrayBuffer[ ContentValue ]
+    var patternNodeOpt = basePattern.childForSeg( uri.getAuthority, matchValues)
+
+    for ( segment <- uri.getPathSegments )
+      patternNodeOpt = patternNodeOpt.flatMap{ 
+        _.childForSeg( segment, matchValues ) }
+
+    patternNodeOpt.flatMap { 
+      _.matchOpt.map { 
+        matchObj => func( matchObj, matchValues )
+      }
+    }
+  }
+
+  def matchUri( uri: Uri, matchObj: TMatch ):Unit = 
+  {
+    var node = basePattern
+    node = node.addNodeForSegment( uri.getAuthority )
+
+    for ( segment <- uri.getPathSegments )
+      node = node.addNodeForSegment( segment )
+
+    node.setMatch( matchObj )
+  }
+
+}
+
+class PatternNode[ TMatch ]
 {
   def childForSeg(seg: String, vals: ArrayBuffer[ContentValue]) =
     children.flatMap{ _.matchSeg( seg, vals ) }
 
-  private var repoPatternOptInner: Option[RepoPattern] = None
+  private var matchOptInner: Option[ TMatch ] = None
 
-  private var children: Option[PatternArc] = None
+  private var children: Option[ PatternArc[ TMatch ]] = None
 
-  def repoPatternOpt: Option[RepoPattern] = repoPatternOptInner
+  def matchOpt: Option[ TMatch ] = matchOptInner
 
-  def setRepoPattern( pat: RepoPattern ): Unit = 
-    repoPatternOptInner match {
+  def setMatch( matchObj: TMatch ): Unit = 
+    matchOptInner match {
       case None =>
-        repoPatternOptInner = Some( pat )
-      case Some( p ) =>
+        matchOptInner = Some( matchObj )
+      case Some( thing ) =>
         throw new RuntimeException( "Duplicate URI pattern definition" )
     }
 
-  def addNodeForSegment( seg: String ): PatternNode = {
+  def addNodeForSegment( seg: String ): PatternNode[ TMatch ] = {
     if (seg == "*")
-      addWildcard( new StringWildcardArc )
+      addWildcard( new StringWildcardArc[ TMatch ])
     else if (seg == "#")
-      addWildcard( new LongWildcardArc )
+      addWildcard( new LongWildcardArc[ TMatch ])
     else {
       children match {
         case None =>
-          val arc = new StringMatchArc
+          val arc = new StringMatchArc[ TMatch ]
           children = Some( arc )
           arc.addSeg( seg )
         case Some( arc ) =>
           arc match {
-            case sm: StringMatchArc =>
+            case sm: StringMatchArc[ TMatch ] =>
               sm.addSeg( seg )
             case _ =>
               throw new RuntimeException( 
@@ -192,7 +215,7 @@ class PatternNode
     }
   }
 
-  def addWildcard( arc: WildcardPatternArc ): PatternNode =
+  def addWildcard( arc: WildcardPatternArc[TMatch] ): PatternNode[TMatch] =
     children match {
       case None =>
         children = Some( arc )
@@ -204,15 +227,16 @@ class PatternNode
 }
 
 private [content]
-abstract class PatternArc
+abstract class PatternArc[ TMatch ]
 {
-  def matchSeg(seg: String, vals: ArrayBuffer[ContentValue]):Option[PatternNode]
+  def matchSeg(seg: String, vals: ArrayBuffer[ContentValue])
+       :Option[PatternNode[TMatch]]
 }
 
 private [content]
-class StringMatchArc extends PatternArc
+class StringMatchArc[ TMatch ] extends PatternArc[ TMatch ]
 {
-  private val children = new HashMap[ String, PatternNode ]
+  private val children = new HashMap[ String, PatternNode[ TMatch ]]
   
   def matchSeg(seg: String, vals: ArrayBuffer[ContentValue]) = 
     children.get( seg )
@@ -221,16 +245,16 @@ class StringMatchArc extends PatternArc
     children.get( seg ) match {
       case Some( node ) => node
       case None =>
-        val node = new PatternNode
+        val node = new PatternNode[ TMatch ]
         children( seg ) = node
         node
     }
 }
 
 private [content]
-abstract class WildcardPatternArc extends PatternArc
+abstract class WildcardPatternArc[ TMatch ] extends PatternArc[ TMatch ]
 {
-  val child = new PatternNode
+  val child = new PatternNode[ TMatch ]
   
   protected def toContentValueOpt( s: String ): Option[ContentValue]
 
@@ -242,7 +266,7 @@ abstract class WildcardPatternArc extends PatternArc
 }
 
 private [content]
-class LongWildcardArc extends WildcardPatternArc {
+class LongWildcardArc[ TMatch ] extends WildcardPatternArc[ TMatch ] {
   def toContentValueOpt( s: String ) = 
     if ( TextUtils.isDigitsOnly( s ))
       Some( CvLong( java.lang.Long.parseLong( s )))
@@ -251,7 +275,7 @@ class LongWildcardArc extends WildcardPatternArc {
 }
 
 private [content]
-class StringWildcardArc extends WildcardPatternArc {
+class StringWildcardArc[ TMatch ] extends WildcardPatternArc[ TMatch ] {
   def toContentValueOpt( s: String ) = Some( CvString(s) )
 }
 

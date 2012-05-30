@@ -376,8 +376,13 @@ abstract class ContentQuery[SourceType,IdType](
     * `Map` constructors.
     */
 
-  def update( assigns: (String, ContentValue)* ) = {
-    val cv = buildContentValues( assigns:_* )
+  def update( assigns: (String, ContentValue)* ) = 
+    updateFromContentValues( buildContentValues( assigns:_* ))
+
+  /** As `update`, but with parameters from a standard Android `ContentValues`
+    */
+
+  def updateFromContentValues( cv: ContentValues ) = {
     log( "update", contentValues = cv )
     source.update( subSource, cv, whereString, whereValues )
   }
@@ -394,8 +399,10 @@ abstract class ContentQuery[SourceType,IdType](
     * `Map` constructors.
     */
 
-  def insert( assigns: (String, ContentValue)* ) = {
-    val cv = buildContentValues( assigns:_* )
+  def insert( assigns: (String, ContentValue)* ) = 
+    insertFromContentValues( buildContentValues( assigns: _* ))
+
+  def insertFromContentValues( cv: ContentValues ) = {
     log( "insert", contentValues = cv )
     source.insert( subSource, cv )
   }

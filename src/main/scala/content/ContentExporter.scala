@@ -121,9 +121,12 @@ abstract class PositronicContentProvider
     uriMatcher.withMatchOption( uri ){ (repoPattern, vals) =>
       RepoMatch( repoPattern.contentType, repoPattern.completer( vals )) }
 
-  private[this]
-  def matchUri( uri: Uri, contentType: String )
-              ( func: IndexedSeq[ContentValue] => ContentQuery[_,Long] ) = 
+  def matchUriObj( uri: Uri, contentType: String )
+                 ( func: IndexedSeq[ContentValue] => ContentQuery[_,Long] ) = 
+    uriMatcher.matchUri( uri, RepoPattern( contentType, func ))
+
+  def matchUriStr( uri: String, contentType: String )
+                 ( func: IndexedSeq[ContentValue] => ContentQuery[_,Long] ) = 
     uriMatcher.matchUri( uri, RepoPattern( contentType, func ))
 }
 
@@ -159,6 +162,9 @@ class UriMatcher[TMatch] {
       }
     }
   }
+
+  def matchUri( uriStr: String, matchObj: TMatch):Unit = 
+    matchUri( Uri.parse( uriStr ), matchObj )
 
   def matchUri( uri: Uri, matchObj: TMatch ):Unit = 
   {

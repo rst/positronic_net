@@ -1,0 +1,65 @@
+package org.positronicnet.content.test
+
+import org.scalatest._
+import org.scalatest.matchers.ShouldMatchers
+
+import org.positronicnet.content._
+
+import com.xtremelabs.robolectric.Robolectric
+import org.positronicnet.test.RobolectricTests
+
+import android.net.Uri
+
+class UriMatcherSpec 
+  extends Spec 
+  with ShouldMatchers
+  with RobolectricTests
+{
+  def assertMatch( matcher: UriMatcher[String],
+                   uriStr: String, 
+                   expectTag: String,
+                   expectVals: ContentValue* ) =
+  {
+    val option = matcher.withMatchOption( Uri.parse( uriStr )){ (tag, vals) =>
+      tag should be (expectTag)
+      vals.size should be (expectVals.size)
+      for ( pair <- vals.zip( expectVals )) {
+        pair._1.asConditionString should be (pair._2.asConditionString)
+      }
+    }
+    option should not be (None)
+  }
+
+  def assertNoMatch( matcher: UriMatcher[String], uriStr: String ) = {
+    val option = matcher.withMatchOption( Uri.parse( uriStr )){ (tag, vals) =>
+      "foo"
+    }
+    option should be (None)
+  }
+
+  describe( "simple matches" ) {
+    object SimpleMatcher extends UriMatcher[String] {
+      matchUri( "content://org.testa/foo/bar", "a:foobar" )
+      matchUri( "content://org.testb/foo/bar", "b:foobar" )
+      matchUri( "content://org.testb/foo/bxx", "b:foobxx" )
+    }
+
+    it ("should discriminate on segments") {
+      assertMatch( SimpleMatcher, "content://org.testb/foo/bar", "b:foobar" )
+      assertMatch( SimpleMatcher, "content://org.testb/foo/bxx", "b:foobxx" )
+    }
+
+    it ("should discriminate on authority portions") {
+      assertMatch( SimpleMatcher, "content://org.testa/foo/bar", "a:foobar" )
+      assertMatch( SimpleMatcher, "content://org.testb/foo/bar", "b:foobar" )
+    }
+
+    it ("should not match prefixes") {
+      assertNoMatch( SimpleMatcher, "content://org.testa/foo" )
+    }
+
+    it ("should not match URIs with extra segments") {
+      assertNoMatch( SimpleMatcher, "content://org.testa/foo/bar/baz" )
+    }
+  }
+}

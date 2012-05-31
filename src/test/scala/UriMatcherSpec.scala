@@ -38,6 +38,7 @@ class UriMatcherSpec
   }
 
   describe( "simple matches" ) {
+
     object SimpleMatcher extends UriMatcher[String] {
       matchUri( "content://org.testa/foo/bar", "a:foobar" )
       matchUri( "content://org.testb/foo/bar", "b:foobar" )
@@ -60,6 +61,35 @@ class UriMatcherSpec
 
     it ("should not match URIs with extra segments") {
       assertNoMatch( SimpleMatcher, "content://org.testa/foo/bar/baz" )
+    }
+  }
+
+  describe( "matches with string wildcard" ) {
+
+    object StringWildMatcher extends UriMatcher[String] {
+      matchUri( "content://org.test/foo/*", "nosuffix" )
+      matchUri( "content://org.test/foo/*/bar", "suffixbar" )
+      matchUri( "content://org.test/foo/*/baz", "suffixbaz" )
+    }
+
+    it ("should not match no segment") {
+      assertNoMatch( StringWildMatcher, "content://org.test/foo" )
+    }
+
+    it ("should match without suffixes") {
+      assertMatch( StringWildMatcher, "content://org.test/foo/krugman", 
+                   "nosuffix", "krugman" )
+    }
+
+    it ("should match correct suffix") {
+      assertMatch( StringWildMatcher, "content://org.test/foo/stiglitz/bar", 
+                   "suffixbar", "stiglitz" )
+      assertMatch( StringWildMatcher, "content://org.test/foo/stiglitz/baz", 
+                   "suffixbaz", "stiglitz" )
+    }
+
+    it ("should not match random unspecified suffix") {
+      assertNoMatch( StringWildMatcher, "content://org.test/foo/x/x" )
     }
   }
 }

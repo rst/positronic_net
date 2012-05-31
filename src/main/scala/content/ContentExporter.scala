@@ -226,9 +226,16 @@ class PatternNode[ TMatch ]
       case None =>
         children = Some( arc )
         arc.child
-      case Some( arc ) =>
-        throw new RuntimeException( 
-          "URI segment with both wildcard and explicit match" )
+      case Some( arcAlreadyThere ) =>
+        if (arc.getClass == arcAlreadyThere.getClass) {
+          // Two patterns with a same-typed wildcard in the same place.
+          // Use the wildcard arc we already have.
+          arcAlreadyThere.asInstanceOf[ WildcardPatternArc[TMatch] ].child
+        }
+        else {
+          throw new RuntimeException( 
+            "URI segment with both wildcard and explicit match" )
+        }
     }
 }
 

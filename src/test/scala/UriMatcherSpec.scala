@@ -92,4 +92,25 @@ class UriMatcherSpec
       assertNoMatch( StringWildMatcher, "content://org.test/foo/x/x" )
     }
   }
+
+  describe( "matches with numeric wildcard" ) {
+
+    // Testing only what's different from the string wildcard case;
+    // most of the code is on a common base class, and there's no need
+    // to test it twice.
+
+    object NumericWildMatcher extends UriMatcher[String] {
+      matchUri( "content://org.test/foo/=", "nmatch" )
+    }
+
+    it ("should correctly match an integer") {
+      assertMatch( NumericWildMatcher, "content://org.test/foo/3232",
+                   "nmatch", 3232L )
+    }
+    
+    it ("should not match with special characters") {
+      assertNoMatch( NumericWildMatcher, "content://org.test/foo/32.32" )
+    }
+    
+  }
 }

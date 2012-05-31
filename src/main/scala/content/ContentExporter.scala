@@ -3,7 +3,6 @@ package org.positronicnet.content
 import android.net.Uri
 import android.content.ContentProvider
 import android.content.ContentValues
-import android.text.TextUtils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
@@ -201,7 +200,7 @@ class PatternNode[ TMatch ]
   def addNodeForSegment( seg: String ): PatternNode[ TMatch ] = {
     if (seg == "*")
       addWildcard( new StringWildcardArc[ TMatch ])
-    else if (seg == "#")
+    else if (seg == "=")
       addWildcard( new LongWildcardArc[ TMatch ])
     else {
       children match {
@@ -280,11 +279,12 @@ abstract class WildcardPatternArc[ TMatch ] extends PatternArc[ TMatch ]
 
 private [content]
 class LongWildcardArc[ TMatch ] extends WildcardPatternArc[ TMatch ] {
-  def toContentValueOpt( s: String ) = 
-    if ( TextUtils.isDigitsOnly( s ))
+  def toContentValueOpt( s: String ) = {
+    if ( s.forall{ java.lang.Character.isDigit(_) } )
       Some( CvLong( java.lang.Long.parseLong( s )))
     else
       None
+  }
 }
 
 private [content]

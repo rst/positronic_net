@@ -72,16 +72,11 @@ class ContentExporterSpec
   with ShouldMatchers
   with DbTestFixtures
 {
-  override def afterEach = TodoDb.close // each test opens it...
-  def makeTodosProvider = {
-    val it = new TodoProvider
-    it.onCreate
-    it
-  }
+  override def beforeEach = db.setupFixturesForAssociationTest
+
+  def makeTodosProvider = new TodoProvider
 
   import TodoProvider._
-
-  implicit def string2uri( s: String ) = Uri.parse( s ) // gaaaaaah!!!!
 
   describe( "content types" ) {
 
@@ -97,6 +92,60 @@ class ContentExporterSpec
         dirContentType(TODO_ITEM_TYPE))
       todos.getType( todoListItemUri( 3, 3 ) ) should be( 
         rowContentType(TODO_ITEM_TYPE))
+    }
+  }
+
+  describe( "queries without conditions or order" ) {
+    
+    lazy val todos = makeTodosProvider
+
+    def dogListId = {
+      val dogListQuery = TodoDb("todo_lists").whereEq("name"->"dog list")
+      dogListQuery.select("_id").map{_.getLong(0)}(0)
+    }
+    def walkDogId = {
+      val dogListQuery = TodoDb("todo_items").whereEq("description"->"walk dog")
+      dogListQuery.select("_id").map{_.getLong(0)}(0)
+    }
+
+    it ("should get dir for a simple table") {
+      val namesCursor = todos.query( TODO_LISTS_URI, Seq("name").toArray,
+                                     null, null, null )
+      val names = new PositronicCursor( namesCursor ).map{ _.getString(0) }
+      names should have size (2)
+      names should (contain ("cat list") and contain ("dog list"))
+    }
+    it ("should get item from a simple table") {
+      val namesCursor = todos.query( todoListUri(dogListId),Seq("name").toArray,
+                                     null, null, null )
+      val names = new PositronicCursor( namesCursor ).map{ _.getString(0) }
+      names should (have size (1) and contain ("dog list"))
+    }
+    it ("should get dir from a nested query") {
+      val descsCursor = 
+        todos.query( todoListItemsUri( dogListId ), Seq("description").toArray,
+                     null, null, null )
+      val descs = new PositronicCursor( descsCursor ).map{ _.getString(0) }
+      descs should (have size (3) 
+                    and contain ("wash dog") 
+                    and contain ("walk dog") 
+                    and contain ("feed dog"))
+    }
+    it ("should get item from a nested query") {
+      val descsCursor = 
+        todos.query( todoListItemUri( dogListId, walkDogId ), 
+                     Seq("description").toArray,
+                     null, null, null )
+      val descs = new PositronicCursor( descsCursor ).map{ _.getString(0) }
+      descs should (have size (1) and contain ("walk dog"))
+    }
+    it ("should use all IDs in a nested query") {
+      val descsCursor = 
+        todos.query( todoListItemUri( dogListId + 1, walkDogId ), 
+                     Seq("description").toArray,
+                     null, null, null )
+      val descs = new PositronicCursor( descsCursor ).map{ _.getString(0) }
+      descs should (have size (0))
     }
   }
 }

@@ -113,4 +113,53 @@ class UriMatcherSpec
     }
     
   }
+
+  describe( "matches with multiple wildcards" ) {
+
+    object NumericWildMatcher extends UriMatcher[String] {
+      matchUri( "content://org.test/foo/=/bar/=/baz", "nmatch" )
+    }
+
+    it ("should capture multiple values") {
+      assertMatch( NumericWildMatcher, "content://org.test/foo/3/bar/4/baz",
+                   "nmatch", 3L, 4L )
+    }
+
+  }
+
+  describe( "garbled match specs" ) {
+    it ("should complain if wildcard types conflict") {
+      val exc = intercept[ RuntimeException ]{
+        new UriMatcher[String] {
+          matchUri( "content://org.test/foo/*", "blap" )
+          matchUri( "content://org.test/foo/=", "blurf" )
+        }
+      }
+      exc.getMessage should include("different wildcard types")
+    }
+
+    // Test this one in both orders (different code paths)
+
+    it ("should complain if wildcard conflicts with explicit match (1)") {
+      val exc = intercept[ RuntimeException ]{
+        new UriMatcher[String] {
+          matchUri( "content://org.test/foo/bar", "blap" )
+          matchUri( "content://org.test/foo/bar", "blurf" )
+        }
+      }
+      exc.getMessage should (
+        include("wildcard") and include("explicit match"))
+    }
+
+    it ("should complain if wildcard conflicts with explicit match (2)") {
+      val exc = intercept[ RuntimeException ]{
+        new UriMatcher[String] {
+          matchUri( "content://org.test/foo/bar", "blurf" )
+          matchUri( "content://org.test/foo/bar", "blap" )
+        }
+      }
+      exc.getMessage should (
+        include("wildcard") and include("explicit match"))
+    }
+  }
 }

@@ -139,9 +139,21 @@ case class RepoMatch(
   contentType: String,
   query: ContentQuery[_,Long])
 
+/** Somewhat enhanced version of the standard Android `UriMatcher`.
+  *
+  * In addition to matching string and numeric wildcards, this will
+  * collect and give you the values of the matching segments in a URL
+  * that matches.
+  *
+  * One other difference:  a '*' will match any URL segment, as before,
+  * but the token for all-digit segments is "=", not "#'.  This is so
+  * actual URL objects can be used as patterns; "#" is special syntax
+  * in a URL.
+  */
+
 class UriMatcher[TMatch] {
 
-  val basePattern = new PatternNode[ TMatch ]
+  private val basePattern = new PatternNode[ TMatch ]
 
   def withMatchOption[TRes]
                      (uri: Uri)
@@ -178,6 +190,7 @@ class UriMatcher[TMatch] {
 
 }
 
+private [content]
 class PatternNode[ TMatch ]
 {
   def childForSeg(seg: String, vals: ArrayBuffer[ContentValue]) =
@@ -194,7 +207,8 @@ class PatternNode[ TMatch ]
       case None =>
         matchOptInner = Some( matchObj )
       case Some( thing ) =>
-        throw new RuntimeException( "Duplicate URI pattern definition" )
+        throw new RuntimeException( 
+          "Can't mix wildcards and explicit matches in URI patterns" )
     }
 
   def addNodeForSegment( seg: String ): PatternNode[ TMatch ] = {
@@ -233,7 +247,7 @@ class PatternNode[ TMatch ]
         }
         else {
           throw new RuntimeException( 
-            "URI segment with both wildcard and explicit match" )
+            "Patterns with different wildcard types following common prefix" )
         }
     }
 }

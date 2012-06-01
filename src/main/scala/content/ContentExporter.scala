@@ -69,8 +69,7 @@ abstract class PositronicContentProvider
     res
   }
 
-  def delete( uri: Uri, vals: ContentValues, 
-              where: String, whereArgs: Array[String] ) = 
+  def delete( uri: Uri, where: String, whereArgs: Array[String] ) = 
   {
     val res: Int = getRepository( uri, where, whereArgs ).delete
     notifyChange( uri )

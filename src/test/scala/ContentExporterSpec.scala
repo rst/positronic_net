@@ -3,6 +3,7 @@ package org.positronicnet.test
 import org.positronicnet.content._
 
 import android.net.Uri
+import android.content.ContentValues
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
@@ -72,9 +73,23 @@ class ContentExporterSpec
   with ShouldMatchers
   with DbTestFixtures
 {
+  // Machinery for setting up and accessing fixtures...
+
   override def beforeEach = db.setupFixturesForAssociationTest
 
   def makeTodosProvider = new TodoProvider
+
+  def dogListId = {
+    val dogListQuery = TodoDb("todo_lists").whereEq("name"->"dog list")
+    dogListQuery.select("_id").map{_.getLong(0)}(0)
+  }
+
+  def walkDogId = {
+    val dogListQuery = TodoDb("todo_items").whereEq("description"->"walk dog")
+    dogListQuery.select("_id").map{_.getLong(0)}(0)
+  }
+
+  // The spec proper...
 
   import TodoProvider._
 
@@ -98,15 +113,6 @@ class ContentExporterSpec
   describe( "queries without conditions or order" ) {
     
     lazy val todos = makeTodosProvider
-
-    def dogListId = {
-      val dogListQuery = TodoDb("todo_lists").whereEq("name"->"dog list")
-      dogListQuery.select("_id").map{_.getLong(0)}(0)
-    }
-    def walkDogId = {
-      val dogListQuery = TodoDb("todo_items").whereEq("description"->"walk dog")
-      dogListQuery.select("_id").map{_.getLong(0)}(0)
-    }
 
     it ("should get dir for a simple table") {
       val namesCursor = todos.query( TODO_LISTS_URI, Seq("name").toArray,
@@ -146,6 +152,53 @@ class ContentExporterSpec
                      null, null, null )
       val descs = new PositronicCursor( descsCursor ).map{ _.getString(0) }
       descs should (have size (0))
+    }
+  }
+
+  // Test 'order' and conditions on one URI only; code paths the same
+  // for any match.
+
+  describe ("queries with ordering") {
+    
+    lazy val todos = makeTodosProvider
+
+    // Sort something both ways, to verify that it's using the order parameter,
+    // and not just getting things right by accident.
+
+    it ("should get ascending order right") {
+      val namesCursor = todos.query( TODO_LISTS_URI, Seq("name").toArray,
+                                     null, null, "name asc" )
+      val names = new PositronicCursor( namesCursor ).map{_.getString(0)}.toSeq
+      names should be (Seq("cat list", "dog list"))
+    }
+    it ("should get descending order right") {
+      val namesCursor = todos.query( TODO_LISTS_URI, Seq("name").toArray,
+                                     null, null, "name desc" )
+      val names = new PositronicCursor( namesCursor ).map{_.getString(0)}.toSeq
+      names should be (Seq("dog list", "cat list"))
+    }
+  }
+
+  describe ("queries with extra conditions") {
+
+    lazy val todos = makeTodosProvider
+
+    it ("should process extra conditions without parameters") {
+      val uri = todoListItemsUri( dogListId )
+      val descsCursor = todos.query( uri, Seq("description").toArray,
+                                     "description > 'w'", null, null )
+      val descs = new PositronicCursor( descsCursor ).map{_.getString(0)}.toSeq
+      descs should (have size (2) 
+                    and contain ("walk dog") and contain ("wash dog"))
+    }
+
+    it ("should process extra conditions with parameters") {
+      val uri = todoListItemsUri( dogListId )
+      val descsCursor = todos.query( uri, Seq("description").toArray,
+                                     "description > ?", Array("w"), null )
+      val descs = new PositronicCursor( descsCursor ).map{_.getString(0)}.toSeq
+      descs should (have size (2) 
+                    and contain ("walk dog") and contain ("wash dog"))
     }
   }
 }

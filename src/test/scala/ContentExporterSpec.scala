@@ -9,6 +9,8 @@ import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 import com.xtremelabs.robolectric.Robolectric
 
+import scala.collection.mutable.ArrayBuffer
+
 // I guess in "real life" you'd want to make this a shim Java class
 // with statics, for the sake of other apps on the stock technology
 // stack.
@@ -65,6 +67,21 @@ class TodoProvider extends PositronicContentProvider
   }
   matchUriStr(TODO_LISTS_PREFIX+"/=/items/=", rowContentType( TODO_ITEM_TYPE )){
     seq => TodoDb("todo_items").whereEq("todo_list_id"->seq(0), "_id"->seq(1))
+  }
+
+  // Test scaffolding for change notifications --- verify that we're notifying
+  // on the right URIs with the content resolver by mocking out the routine
+  // that does it.  (Which means no test coverage on that routine itself, but
+  // it's a trivial one-liner...)
+
+  private val notifiedUris = new ArrayBuffer[ Uri ]
+
+  override def notifyChange( uri: Uri ) = notifiedUris += uri
+
+  def captureNotifiedUris( body: => Unit ) = {
+    notifiedUris.clear
+    body
+    notifiedUris.toSeq
   }
 }
 
@@ -199,6 +216,105 @@ class ContentExporterSpec
       val descs = new PositronicCursor( descsCursor ).map{_.getString(0)}.toSeq
       descs should (have size (2) 
                     and contain ("walk dog") and contain ("wash dog"))
+    }
+  }
+
+  // Specs for DML (insert/update/delete)
+
+  describe ("inserts") {
+
+    lazy val todos = makeTodosProvider
+
+    // Regenerate contentValues each time; dogListId may change as
+    // fixtures are reloaded after every test.
+
+    def myContentValues = {
+      val cv = new ContentValues
+      cv.put( "todo_list_id", new java.lang.Long( dogListId ))
+      cv.put( "description", "furminate dog" )
+      cv
+    }
+
+    it ("should actually insert the record") {
+      todos.insert( todoListItemsUri( dogListId ), myContentValues )
+      val qry = TodoDb( "todo_items" ).whereEq( "todo_list_id" -> dogListId )
+      val descs = qry.select( "description" ).map{ _.getString(0) }
+      descs should contain ("furminate dog")
+    }
+
+    it ("should return a working URI") {
+
+      val uri = todos.insert( todoListItemsUri( dogListId ), myContentValues )
+      todos.getType( uri ) should be (rowContentType( TODO_ITEM_TYPE ))
+      
+      val descsCursor = todos.query( uri, Array("description"), null,null,null )
+      val descs = new PositronicCursor( descsCursor ).map{ _.getString(0) }
+      descs should (have size (1) and contain ("furminate dog"))
+    }
+
+    it ("should properly notify") {
+
+      val nUris = todos.captureNotifiedUris {
+        todos.insert( todoListItemsUri( dogListId ), myContentValues )
+      }
+
+      nUris should (have size (1) and contain (todoListItemsUri( dogListId )))
+    }
+  }
+
+  describe ("updates") {
+
+    lazy val todos = makeTodosProvider
+    def myContentValues = {
+      val cv = new ContentValues
+      cv.put( "is_done", new java.lang.Integer(1) )
+      cv
+    }
+
+    it ("should update the records") {
+      todos.update( todoListItemsUri( dogListId ), myContentValues, null, null )
+      val isDoneCursor = todos.query( todoListItemsUri( dogListId ),
+                                      Array( "is_done" ), null, null, null )
+      val isDoneVals = new PositronicCursor( isDoneCursor ).map{ _.getInt(0) }
+      isDoneVals.toSeq should be (Seq(1,1,1))
+    }
+    
+    it ("should return the number of updated rows") {
+      val rv = todos.update( todoListItemsUri( dogListId ), myContentValues,
+                             null, null )
+      rv should be (3)
+    }
+    
+    it ("should correctly notify") {
+      val nUris = todos.captureNotifiedUris {
+        todos.update( todoListItemsUri( dogListId ), myContentValues, null,null)
+      }
+      nUris should (have size (1) and contain (todoListItemsUri( dogListId )))
+    }
+  }
+
+  describe ("deletes") {
+
+    lazy val todos = makeTodosProvider
+
+    it ("should delete the records") {
+      todos.delete( todoListItemsUri( dogListId ), null, null )
+      val isDoneCursor = todos.query( todoListItemsUri( dogListId ),
+                                      Array( "is_done" ), null, null, null )
+      val isDoneVals = new PositronicCursor( isDoneCursor ).map{ _.getInt(0) }
+      isDoneVals should have size (0)
+    }
+    
+    it ("should return the number of deleted rows") {
+      val rv = todos.delete( todoListItemsUri( dogListId ), null, null )
+      rv should be (3)
+    }
+    
+    it ("should correctly notify") {
+      val nUris = todos.captureNotifiedUris {
+        todos.delete( todoListItemsUri( dogListId ), null, null )
+      }
+      nUris should (have size (1) and contain (todoListItemsUri( dogListId )))
     }
   }
 }

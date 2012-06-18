@@ -46,7 +46,7 @@ trait DataStream[T]
     */
 
   protected def initialFuture: Future[T]
-  private [positronicnet] var cachedCurrentFuture = initialFuture
+  private [this] var cachedCurrentFuture = initialFuture
 
   /** May be called by the implementation to notify whoever's listening to the
     * stream that a future for a new value is available.
@@ -76,10 +76,8 @@ trait DataStream[T]
     * back to the same thread.
     */
 
-  def withValues( handler: T => Unit ): Unit = {
-    cachedCurrentFuture.onSuccess{ handler( _ ) }
+  def withValues( handler: T => Unit ): Unit =
     addListener( new Object, handler )  // dummy tag
-  }
 
   /** Return a version of this data stream which will signal new values
     * only during the given Duration.  (Also, whenever the Duration signals
@@ -118,8 +116,10 @@ trait DataStream[T]
     * back to the same thread.
     */
 
-  def addListener( tag: AnyRef, handler: T => Unit ) =
+  def addListener( tag: AnyRef, handler: T => Unit ) = {
+    cachedCurrentFuture.onSuccess{ handler( _ ) }
     listeners( tag ) = CallbackManager.wrapHandler( handler )
+  }
 
   /** Remove the listener associated with the given tag */
 
@@ -152,7 +152,7 @@ trait ExplicitNotificationDataStream[T] extends DataStream[T]
     throw new RuntimeException( "Called noteNewFuture on a " + 
                                 this.getClass.getName )
 
-  protected val initialFuture = new Future[T]
+  protected def initialFuture = new Future[T]
   private var haveInitialValue = false
 
   override protected def noteNewValue( newVal: T ): Unit = {
@@ -166,14 +166,11 @@ trait ExplicitNotificationDataStream[T] extends DataStream[T]
 
 private class DurationFilteredDataStream[T]( duration: Duration,
                                              underlying: DataStream[T] )
-  extends DataStream[T]
+  extends ExplicitNotificationDataStream[T]
 {
-  protected def initialFuture = underlying.cachedCurrentFuture
-
   duration.withValues{  _ match {
 
     case DurationStart =>
-      this.noteNewFuture( underlying.cachedCurrentFuture )
       underlying.addListener( this, this.noteNewValue( _ ))
 
     case DurationStop =>
@@ -191,7 +188,6 @@ class FlatMapProxyStream[T,V]( mapFunc: T => DataStream[V],
   underlying.withValues{ newVal => {
     if (vstream != null) vstream.removeListener( this )
     vstream = mapFunc( newVal )
-    vstream.cachedCurrentFuture.onSuccess{ this.noteNewValue( _ ) }
     vstream.addListener( this, this.noteNewValue( _ ))
   }}
 }

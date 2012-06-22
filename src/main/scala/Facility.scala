@@ -2,9 +2,12 @@ package org.positronicnet.facility
 
 import _root_.android.util.Log
 import _root_.android.content.Context
+import _root_.android.os.{Handler, HandlerThread, Message}
 
 import _root_.java.util.concurrent.BlockingQueue
 import _root_.java.util.concurrent.LinkedBlockingQueue
+
+import org.positronicnet.notifications.Future
 
 /** Semi-abstract base class for a facility of some kind which is
   * of use to one or more Activities or Services within an application.
@@ -74,53 +77,43 @@ class AppFacility( logTag: String = null )
 
 trait WorkerThread extends AppFacility
 {
-  private 
-  val q = new LinkedBlockingQueue[ () => Unit ]
+  private [this] val openCloseLock = new Object
+
+  private [positronicnet]
+  var threadHandlerFut = new Future[Handler]
 
   private
-  class QueueRunnerThread( q: BlockingQueue[() => Unit] ) extends Thread {
-    var dying = false
-    def prepareToExit = { dying = true }
-    override def run = {
-      while (!dying) {
-        try {
-          (q.take())()
-        }
-        catch {
-          case ex: Throwable => Log.e( 
-            if (getLogTag != null) getLogTag else "DB",
-            "Uncaught exception on DB Thread",
-            ex)
-        }
-      }
-    }
+  class QueueRunnerThread
+    extends HandlerThread( this.toString ) 
+  {
+    threadHandlerFut.succeed( new Handler() )
   }
+
+  private [this]
+  var theThread: QueueRunnerThread = null
 
   /** Run `func` on the facility's thread.
     */
 
-  def runOnThread( func: => Unit ) = {
-    q.put( () => func )
-  }
+  def runOnThread( thunk: => Unit ): Unit =
+    threadHandlerFut.onSuccess{ _.post( new Runnable { def run = thunk })}
 
-  private var theThread: QueueRunnerThread = null
-
-  override protected  def realOpen( ctx: Context ) = {
-    super.realOpen( ctx )
-    theThread = new QueueRunnerThread( q )
-    theThread.start
+  override protected def realOpen( ctx: Context ) = {
+    openCloseLock.synchronized {
+      super.realOpen( ctx )
+      theThread = new QueueRunnerThread
+      theThread.start
+    }
   }
 
   override protected def realClose = {
-
-    // We want the thread to exit *after* draining all its current
-    // work.  So, we put a "please go away" marker on the queue, and
-    // wait for it to drain...
-
-    runOnThread { theThread.prepareToExit }
-    theThread.join
-    theThread = null
-    super.realClose
+    openCloseLock.synchronized {
+      theThread.quit
+      theThread.join
+      theThread = null
+      threadHandlerFut = new Future[Handler] // for reopen
+      super.realClose
+    }
   }
   
   /** Throws an assertion error if called from anywhere but this

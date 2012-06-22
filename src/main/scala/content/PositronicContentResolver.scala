@@ -6,9 +6,14 @@ import _root_.android.content.ContentUris
 import _root_.android.content.ContentResolver
 import _root_.android.net.Uri
 import _root_.android.util.Log
+import _root_.android.database.ContentObserver // android.database?  really?!!!
 
 import org.positronicnet.facility.AppFacility
 import org.positronicnet.facility.WorkerThread
+import org.positronicnet.notifications.{ Future,
+                                         DataStream, 
+                                         StreamQuery, 
+                                         StreamQueryable }
 
 /** Simple [[org.positronicnet.facility.AppFacility]] for interacting with
   * Android ContentProviders using the Positronic Net
@@ -72,6 +77,7 @@ import org.positronicnet.facility.WorkerThread
 
 object PositronicContentResolver
   extends AppFacility( "PositronicContentResolver" )
+  with StreamQueryable[ ContentResolverQueryNonce ]
   with WorkerThread
 {
   var logTag: String = "PositronicContentResolver"
@@ -83,6 +89,21 @@ object PositronicContentResolver
   override protected def realOpen(ctx: Context) = { 
     super.realOpen( ctx )
     realResolver = ctx.getContentResolver
+  }
+
+  /** Response to stream queries.  Right now, the sole supported query
+    * argument is OnDataAvailable(uri), which creates a ContentObserver
+    * that for the URI in question which sends a Unit when new data is
+    * available (as well as a courtesy notification the first time a
+    * listener subscribes, as per usual, to open the pipes.
+    *
+    * The usual convention is to map that Unit to something else, like
+    * the result of a query, either direct, or through the ORM...
+    */
+
+  def ??[V]( q: StreamQuery[ ContentResolverQueryNonce, V ] ) = q match {
+    case OnDataAvailable( uri, andSubtree ) =>
+      new ContentObservationDataStream( uri, andSubtree )
   }
 
   /** Return a [[org.positronicnet.orm.ContentQuery]] obeying the `Long`-id
@@ -233,5 +254,51 @@ class ContentProviderQuery[IdType]( source: BaseContentResolverRepo[IdType],
     throw new RuntimeException( "Limit not supported on ContentResolvers" )
 }
 
+class ContentResolverStreamQuery[V] 
+  extends StreamQuery[ContentResolverQueryNonce, V]
 
+class ContentResolverQueryNonce
 
+case class OnDataAvailable( uri: Uri, andSubtree: Boolean = false ) 
+  extends ContentResolverStreamQuery[ Unit ]
+
+private[ positronicnet ]
+class ContentObservationDataStream( uri: Uri, andSubtree: Boolean )
+  extends DataStream[Unit]
+{
+  val initialFuture = Future( () )
+
+  override def addListener( tag: AnyRef, handler: Unit => Unit ) = {
+    super.addListener( tag, handler )
+    maybeStartObserving
+  }
+
+  override def removeListener( tag: AnyRef ) = {
+    super.removeListener( tag )
+    if (!this.hasListeners)
+      maybeStopObserving
+  }
+
+  private [this] var observer: ContentObserver = null
+  private [this] var observing = false
+
+  import PositronicContentResolver.realResolver
+
+  private [this] def maybeStartObserving = {
+    if (!observing) {
+      PositronicContentResolver.threadHandlerFut.map { handler => {
+        observer = new ContentObserver( handler ) {
+          override def onChange( dummy: Boolean ) = noteNewValue( () )
+        }
+        realResolver.registerContentObserver( uri, andSubtree, observer )
+      }}
+    }
+  }
+
+  private [this] def maybeStopObserving = {
+    if (observing) {
+      observing = false
+      realResolver.unregisterContentObserver( observer )
+    }
+  }
+}

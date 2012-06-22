@@ -2,6 +2,19 @@ package org.positronicnet.notifications
 
 import scala.collection.mutable.HashMap
 
+/** Trait that indicates that an object can be queried for DataStreams.
+  * Details left to the implementation of that object, but this trait
+  * at least establishes a notational convention.
+  */
+
+trait StreamQueryable[T] {
+  def ??[V]( action: StreamQuery[T,V] ): DataStream[V]
+}
+
+/** Trait for objects meant to be sent as queries to a StreamQueryable */
+
+trait StreamQuery[T,V]
+
 /** A DataStream represents a stream of data of some type T, which will
   * be periodically relayed to listeners which have declared an interest,
   * via the `withValue` method.  These are frequently the result of the
@@ -116,15 +129,17 @@ trait DataStream[T]
     * back to the same thread.
     */
 
-  def addListener( tag: AnyRef, handler: T => Unit ) = {
+  def addListener( tag: AnyRef, handler: T => Unit ): Unit = {
     cachedCurrentFuture.onSuccess{ handler( _ ) }
     listeners( tag ) = CallbackManager.wrapHandler( handler )
   }
 
   /** Remove the listener associated with the given tag */
 
-  def removeListener( tag: AnyRef ) = listeners.remove( tag )
+  def removeListener( tag: AnyRef ): Unit = listeners.remove( tag )
     
+  protected def hasListeners = !listeners.isEmpty
+
   private[this] var listeners = new HashMap[ AnyRef, T => Unit ]
 }
 

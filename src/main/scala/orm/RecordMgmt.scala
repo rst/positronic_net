@@ -198,7 +198,7 @@ object BaseRecordManager {
   */
 
 abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
-  extends BaseNotificationManager( repository.facility )
+  extends RecordDataWrangler[T]( repository )
   with Scope[T]
 {
   /** ID for a new unsaved object */
@@ -216,6 +216,20 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     */
 
   def idFromLong( rawId: Long ) = new RecordId( this, rawId )
+
+  // Feeding the Scope machinery what it needs
+
+  private [orm] val mgr = this
+
+  val baseQuery = repository
+}
+
+private [positronicnet]
+abstract class RecordDataWrangler[T <: ManagedRecord : ClassManifest]( 
+    repository: ContentQuery[_,_] )
+  extends BaseNotificationManager( repository.facility )
+{
+  val facility = repository.facility
 
   /**
     * Produce a new object (to be populated with mapped data from a query). 
@@ -343,13 +357,6 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     }
   }
 
-  // Feeding the Scope machinery what it needs
-
-  private [orm] val mgr = this
-
-  val facility = repository.facility
-  val baseQuery = repository
-
   // Dealing with the mappings... internals
 
   def dumpFieldsMapping( sfunc: String => Unit ) =
@@ -369,7 +376,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     className.head.toLower + className.tail + "Id"
   }
 
-  private lazy val fieldNames = fields.map{ _.dbColumnName }
+  protected lazy val fieldNames = fields.map{ _.dbColumnName }
 
   private var fieldsByDbName: immutable.HashMap[ String, MappedField ] =
     immutable.HashMap.empty
@@ -408,7 +415,6 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
         }
     }
   }
-
   // Dealing with the data... internals
 
   protected

@@ -8,7 +8,7 @@ object General {
     organization := "org.positronicnet",
     version := "0.4-SNAPSHOT",
     scalaVersion := "2.9.0-1",
-    platformName in Android := "android-7"
+    platformName in Android := "android-14"
   )
 
   lazy val fullAndroidSettings =

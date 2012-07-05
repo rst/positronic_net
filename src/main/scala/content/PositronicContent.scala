@@ -546,7 +546,7 @@ class CursorWrapper( wrappedCursor: android.database.Cursor )
   def getLong( idx: Int ) = wrappedCursor.getLong( idx )
   def getShort( idx: Int ) = wrappedCursor.getShort( idx )
   def getString( idx: Int ) = wrappedCursor.getString( idx )
-  // def getType( idx: Int ) = wrappedCursor.getType( idx )
+  def getType( idx: Int ) = wrappedCursor.getType( idx )
 
   // Notifications and observers
 

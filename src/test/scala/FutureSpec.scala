@@ -117,6 +117,19 @@ class FutureSpec
         }
       }
     }
+    describe("force") {
+      it ("should handle success") {
+        val f1 = Future(32)
+        f1.force should be (32)
+      }
+      it ("should handle failure") {
+        val f1 = new Future[Int]
+        f1.fail( new RuntimeException( "leaking transmission fluid" ))
+        val exc = intercept[ RuntimeException ]{ f1.force }
+        exc.getMessage should be ("Exception completing future")
+        exc.getCause.getMessage should be ("leaking transmission fluid")
+      }
+    }
   }
   describe ("future companion object") {
     it ("should allow lifting values into futures") {

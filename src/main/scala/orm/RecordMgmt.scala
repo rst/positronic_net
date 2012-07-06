@@ -113,7 +113,7 @@ trait ManagedRecord extends Object {
   */
 
 class RecordId[T <: ManagedRecord] private[orm] (
-    @transient val mgrArg: BaseRecordManager[T],
+    @transient val mgrArg: RecordDataWrangler[T],
     val id: Long)
   extends NonSharedNotifier[T]
   with Serializable
@@ -124,6 +124,13 @@ class RecordId[T <: ManagedRecord] private[orm] (
   // (Doing this with custom readObject and writeObject methods
   // was... glitchy when attaching serialized RecordIds as extras to
   // Intents, so instead we do this.)
+  //
+  // This must be sufficient for 'mgr' (below) to reconstruct our 
+  // associated BaseRecordManager.  For the base case, it *is* the
+  // BaseRecordManager; for "structured repositories", things may
+  // be more complex, but those will have associated ID subtypes.
+  // (Invisible to clients, since the RecordManager ultimately
+  // produces all IDs.)
 
   @transient private var mgrCache = mgrArg
   private val className: String = mgrArg.managedKlass.getName
@@ -133,10 +140,12 @@ class RecordId[T <: ManagedRecord] private[orm] (
     * deserialized, the 
     */
 
-  def mgr = {
+  def mgr: BaseRecordManager[T] = wrangler.asInstanceOf[ BaseRecordManager[T] ]
+
+  private[orm] def wrangler = {
     if (mgrCache == null) {
-      val retrievedMgr = BaseRecordManager.forClassNamed( className )
-      mgrCache = retrievedMgr.asInstanceOf[ BaseRecordManager[ T ]]
+      val retrievedMgr = RecordDataWrangler.forClassNamed( className )
+      mgrCache = retrievedMgr.asInstanceOf[ RecordDataWrangler[ T ]]
     }
     mgrCache
   }
@@ -172,9 +181,9 @@ object RecordId {
 }
 
 private [orm]
-object BaseRecordManager {
+object RecordDataWrangler {
 
-  private [orm] def forClassNamed( name: String ): BaseRecordManager[_] = {
+  private [orm] def forClassNamed( name: String ): RecordDataWrangler[_] = {
 
     // We have the name of the managed class.  We need to get the
     // record manager, which we do by a somewhat convoluted path...

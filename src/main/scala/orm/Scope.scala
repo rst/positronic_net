@@ -107,15 +107,15 @@ abstract class ScopedAction[T <: ManagedRecord: ClassManifest]
     * action, whatever that entails.  Arguments are the
     * [[org.positronicnet.orm.Scope]] that receieved the action,
     * and, for convenience, its associated
-    * [[org.positronicnet.orm.RecordManager]].
+    * [[org.positronicnet.orm.RecordDataWrangler]].
     *
-    * The method is invoked on the `RecordManager`'s associated
+    * The method is invoked on the `RecordDataWrangler's associated
     * worker thread if the action was sent as `scope!action`,
     * and on the calling thread if it was sent instead as
     * `scope.onThisThread(action)`.
     */
 
-  def act( scope: Scope[T], mgr: BaseRecordManager[T] ): Unit
+  def act( scope: Scope[T], mgr: RecordDataWrangler[T] ): Unit
 }
 
 /** A [[org.positronicnet.orm.Scope]] represents a subset of the
@@ -133,7 +133,7 @@ trait Scope[ T <: ManagedRecord ]
   extends NotificationManager
   with NotifierDelegator[ IndexedSeq[ T ]]
 {
-  private [orm] val mgr: BaseRecordManager[T]
+  private [orm] val mgr: RecordDataWrangler[T]
 
   /** [[org.positronicnet.facility.AppFacility]] associated with the
     * content source.

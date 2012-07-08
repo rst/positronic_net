@@ -119,7 +119,7 @@ object SoftDeleteActions {
 case class UndeleteAction[T <: ManagedRecord : ClassManifest ](dummy: Int) 
   extends ScopedAction[T]
 {
-  def act( scope: Scope[T], mgr: RecordDataWrangler[T] ): Unit = {
+  def act( scope: Scope[T], mgr: PrimitiveRecordManager[T] ): Unit = {
 
     mgr match {
       case sd: SoftDelete[T] =>

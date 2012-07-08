@@ -113,7 +113,7 @@ trait ManagedRecord extends Object {
   */
 
 class RecordId[T <: ManagedRecord] private[orm] (
-    @transient val mgrArg: RecordDataWrangler[T],
+    @transient val mgrArg: PrimitiveRecordManager[T],
     val id: Long)
   extends NonSharedNotifier[T]
   with Serializable
@@ -140,12 +140,13 @@ class RecordId[T <: ManagedRecord] private[orm] (
     * deserialized, the 
     */
 
-  def mgr: BaseRecordManager[T] = wrangler.asInstanceOf[ BaseRecordManager[T] ]
+  def mgr: BaseRecordManager[T] = 
+    primitiveMgr.asInstanceOf[ BaseRecordManager[T] ]
 
-  private[orm] def wrangler = {
+  private[orm] def primitiveMgr = {
     if (mgrCache == null) {
-      val retrievedMgr = RecordDataWrangler.forClassNamed( className )
-      mgrCache = retrievedMgr.asInstanceOf[ RecordDataWrangler[ T ]]
+      val retrievedMgr = PrimitiveRecordManager.forClassNamed( className )
+      mgrCache = retrievedMgr.asInstanceOf[ PrimitiveRecordManager[ T ]]
     }
     mgrCache
   }
@@ -181,9 +182,9 @@ object RecordId {
 }
 
 private [orm]
-object RecordDataWrangler {
+object PrimitiveRecordManager {
 
-  private [orm] def forClassNamed( name: String ): RecordDataWrangler[_] = {
+  private [orm] def forClassNamed( name: String ): PrimitiveRecordManager[_] = {
 
     // We have the name of the managed class.  We need to get the
     // record manager, which we do by a somewhat convoluted path...
@@ -207,7 +208,7 @@ object RecordDataWrangler {
   */
 
 abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
-  extends RecordDataWrangler[T]( repository.facility )
+  extends PrimitiveRecordManager[T]( repository.facility )
   with Scope[T]
 {
   /** ID for a new unsaved object */
@@ -234,7 +235,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 }
 
 private [positronicnet]
-abstract class RecordDataWrangler[T <: ManagedRecord : ClassManifest]( val facility: AppFacility )
+abstract class PrimitiveRecordManager[T <: ManagedRecord : ClassManifest]( val facility: AppFacility )
   extends BaseNotificationManager( facility )
 {
   /**

@@ -207,7 +207,7 @@ object RecordDataWrangler {
   */
 
 abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
-  extends RecordDataWrangler[T]( repository )
+  extends RecordDataWrangler[T]( repository.facility )
   with Scope[T]
 {
   /** ID for a new unsaved object */
@@ -234,12 +234,9 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 }
 
 private [positronicnet]
-abstract class RecordDataWrangler[T <: ManagedRecord : ClassManifest]( 
-    repository: ContentQuery[_,_] )
-  extends BaseNotificationManager( repository.facility )
+abstract class RecordDataWrangler[T <: ManagedRecord : ClassManifest]( val facility: AppFacility )
+  extends BaseNotificationManager( facility )
 {
-  val facility = repository.facility
-
   /**
     * Produce a new object (to be populated with mapped data from a query). 
     *
@@ -478,9 +475,9 @@ abstract class RecordDataWrangler[T <: ManagedRecord : ClassManifest](
   // whatever.
 
   protected [orm]
-  def queryForRecord( rec: T ) = {
+  def queryForRecord( rec: T, scope: Scope[T] ) = {
     this.fields                         // make sure PK is set!
-    repository.whereEq( primaryKeyField.valPair ( rec ))
+    scope.baseQuery.whereEq( primaryKeyField.valPair ( rec ))
   }
 
   protected [orm]
@@ -490,10 +487,10 @@ abstract class RecordDataWrangler[T <: ManagedRecord : ClassManifest](
   def save( rec: T, scope: Scope[T] ): RecordId[T] = {
     val data = dataPairs( rec )
     if (rec.isNewRecord) {
-      rec.id.markSaved( this.insert( data ) )
+      rec.id.markSaved( this.insert( data, scope ) )
     }
     else {
-      update( rec, data )
+      update( rec, data, scope )
     }
       
     return rec.id.asInstanceOf[RecordId[T]]
@@ -509,12 +506,12 @@ abstract class RecordDataWrangler[T <: ManagedRecord : ClassManifest](
     Seq.empty
 
   private
-  def insert( vals: Seq[(String, ContentValue)] ) = 
-    repository.insert( vals:_* ).asInstanceOf[Long]
+  def insert( vals: Seq[(String, ContentValue)], scope: Scope[T] ) = 
+    scope.baseQuery.insert( vals:_* ).asInstanceOf[Long]
 
   private
-  def update( rec: T, vals: Seq[(String, ContentValue)] ) =
-    queryForRecord( rec ).update( vals:_* )
+  def update( rec: T, vals: Seq[(String, ContentValue)], scope: Scope[T] ) =
+    queryForRecord( rec, scope ).update( vals:_* )
 
   protected [orm]
   def deleteAll( qry: ContentQuery[_,_], scope: Scope[T] ): Unit = {
@@ -533,7 +530,7 @@ abstract class RecordDataWrangler[T <: ManagedRecord : ClassManifest](
 
   protected [orm]
   def delete( rec: T, scope: Scope[T] ):Unit = 
-    deleteAll( queryForRecord( rec ), scope )
+    deleteAll( queryForRecord( rec, scope ), scope )
 
   /** Support for "cascading deletes", when the parent record
     * in a many-to-one association is gone.

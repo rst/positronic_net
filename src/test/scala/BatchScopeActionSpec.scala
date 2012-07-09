@@ -69,9 +69,9 @@ class MockBatchScopeAction
 
   // Need this to keep ops on DB-backed records from blowing up...
 
-  override def mgrContentUri( mgr: BaseRecordManager[_] ) =
-    mgr.baseQuery match {
-      case crQuery: ContentProviderQuery[_] => super.mgrContentUri (mgr )
+  override def scopeContentUri( scope: Scope[_] ) =
+    scope.baseQuery match {
+      case crQuery: ContentProviderQuery[_] => super.scopeContentUri( scope )
       case _ => Uri.parse( "http://android.com" )
     }
 

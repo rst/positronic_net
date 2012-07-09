@@ -114,9 +114,9 @@ trait ScopeBatchTranslation
 
     // We're doing an insert or an update depending on "record.isnewRecord"
 
-    val mgr = record.id.mgr.asInstanceOf[ BaseRecordManager[T] ]
+    val mgr = record.id.asInstanceOf[ RecordId[ T ]].mgr
     val pkey = mgr.primaryKeyField
-    val uri = mgrContentUri( mgr )
+    val uri = scopeContentUri( record.id.topLevelScope )
     val op =
       if (record.isNewRecord) 
         this.newInsert( uri )
@@ -177,17 +177,14 @@ trait ScopeBatchTranslation
 
   private [orm]
   def newDeleteRecord[ T <: ManagedRecord ]( record: T ) = {
-
-    val mgr = record.id.mgr.asInstanceOf[ BaseRecordManager[T] ]
-    val op = this.newDelete( mgrContentUri( mgr ) )
-
+    val op = this.newDelete( scopeContentUri( record.id.topLevelScope ) )
     addRecordSelection( op, record )
     op
   }
 
   private [orm]
-  def mgrContentUri( mgr: BaseRecordManager[_] ) =
-    mgr.baseQuery match {
+  def scopeContentUri( scope: Scope[_] ) =
+    scope.baseQuery match {
       case crQuery: ContentProviderQuery[_] => crQuery.contentUri
       case _ => throw new RuntimeException( 
         "can only do batch ops on content providers for now..." )
@@ -197,7 +194,7 @@ trait ScopeBatchTranslation
   def addRecordSelection( op: Operation, 
                           record: ManagedRecord ) = 
   {
-    val mgr = record.id.mgr.asInstanceOf[ BaseRecordManager[_] ]
+    val mgr = record.id.mgr
     val pkey = mgr.primaryKeyField
     val selectionArg: Array[String] = new Array[String](1)
     selectionArg(0) = record.id.id.toString

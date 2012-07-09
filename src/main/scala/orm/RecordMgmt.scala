@@ -140,10 +140,12 @@ class RecordId[T <: ManagedRecord] private[orm] (
     * deserialized, the 
     */
 
-  def mgr: BaseRecordManager[T] = 
-    primitiveMgr.asInstanceOf[ BaseRecordManager[T] ]
+  def topLevelScope: TopLevelScope[T] = 
+    mgr match {
+      case tls: TopLevelScope[T] => tls
+    }
 
-  private[orm] def primitiveMgr = {
+  private[orm] def mgr: PrimitiveRecordManager[T] = {
     if (mgrCache == null) {
       val retrievedMgr = PrimitiveRecordManager.forClassNamed( className )
       mgrCache = retrievedMgr.asInstanceOf[ PrimitiveRecordManager[ T ]]
@@ -154,7 +156,8 @@ class RecordId[T <: ManagedRecord] private[orm] (
   private[orm] var savedId = id
   private[orm] def markSaved( savedId: Long ) = { this.savedId = savedId }
 
-  protected def currentValue = mgr.find( this, mgr.baseQuery )
+  protected def currentValue = 
+    mgr.find( this, topLevelScope.baseQuery )
 
   override def equals( other: Any ) =
     other match {
@@ -209,11 +212,11 @@ object PrimitiveRecordManager {
 
 abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
   extends PrimitiveRecordManager[T]( repository.facility )
-  with Scope[T]
+  with TopLevelScope[T]
 {
-  /** ID for a new unsaved object */
-
   private var nextUnsavedId = 0
+
+  /** ID for a new unsaved object */
 
   def unsavedId = {
     nextUnsavedId -= 1
@@ -226,7 +229,6 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     */
 
   def idFromLong( rawId: Long ) = new RecordId( this, rawId )
-
   // Feeding the Scope machinery what it needs
 
   private [orm] val mgr = this
@@ -565,7 +567,7 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
 
 private [orm]
 trait AutomaticFieldMappingFromQuery[ T <: ManagedRecord ]
-  extends BaseRecordManager[ T ]
+  extends BaseRecordManager[ T ]        // not "Primitive"
 {
   // Take explicit mappings, and add them to mappings for like-named
   // columns available from our repository.  For that, we have to do a
@@ -651,7 +653,7 @@ abstract class RecordManagerForFields[ TRec <: ManagedRecord : ClassManifest,
 
 private [orm]
 trait FieldMappingFromStaticNames[ T <: ManagedRecord ]
-  extends BaseRecordManager[ T ]
+  extends PrimitiveRecordManager[ T ]
 {
   // Disguised argument to constructor for the trait...
 

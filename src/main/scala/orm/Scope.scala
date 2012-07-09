@@ -85,7 +85,7 @@ object Actions {
   {
     val complete: PartialFunction[ BaseNotifierImpl[ IndexedSeq[T] ], T ] = {
       case dummy: BaseNotifierImpl[ IndexedSeq[T] ] =>
-        id.mgr.find( id, id.mgr.baseQuery )
+        id.mgr.find( id, id.topLevelScope.baseQuery )
     }
   }
     
@@ -355,6 +355,20 @@ trait Scope[ T <: ManagedRecord ]
       throw new IllegalArgumentException( "Unrecognized action: " + 
                                           action.toString )
   }
+}
+
+/** Extra machinery for "top-level" scopes, which manage the assignment
+  * of IDs across a set of objects.  Typically, some variation of
+  * [[org.positronicnet.orm.RecordManager]] fills this role, but with,
+  * say, a [[org.positronicnet.orm.DependentRecordManager]], things
+  * may be more complicated.
+  */
+
+trait TopLevelScope[ T <: ManagedRecord ] 
+  extends Scope[ T ]
+{
+  def unsavedId: RecordId[T]
+  def idFromLong( rawId: Long ) : RecordId[T]
 }
 
 private[orm]

@@ -11,16 +11,12 @@ import com.xtremelabs.robolectric.Robolectric
 
 import scala.collection.mutable.ArrayBuffer
 
-// I guess in "real life" you'd want to make this a shim Java class
-// with statics, for the sake of other apps on the stock technology
-// stack.
+// Declaration of a ContentProvider to implement the TodoContract
+// that we've declared as a Java class in that portion of the test
+// fixtures.
 //
-// Definitions here still distressingly verbose.
-//
-// (BTW, when vals here are declared "lazy" for no obvious reason,
-// it's usually because the code that supplies the value would hit
-// a "Stub!" exception unless loaded through the Robolectric class
-// loader.)
+// Definitions here still distressingly verbose; doubly so if you
+// factor in the Contract.
 
 object TodoProvider {
 
@@ -52,7 +48,7 @@ object TodoProvider {
 
 class TodoProvider extends PositronicContentProvider
 {
-  import TodoProvider._             // make 'static' stuff visible w/o prefix
+  import TodoContract._      // make 'static' stuff visible w/o prefix
 
   def onCreate = { TodoDb.openInContext( getContext ); true }
 
@@ -108,7 +104,7 @@ class ContentExporterSpec
 
   // The spec proper...
 
-  import TodoProvider._
+  import TodoContract._
 
   describe( "content types" ) {
 

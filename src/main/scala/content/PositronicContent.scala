@@ -191,8 +191,8 @@ abstract class ContentQuery[SourceType,IdType](
     source: ContentRepository[SourceType,IdType], 
     subSource: SourceType,
     orderString: String,
-    whereString: String,
-    whereValues: Array[String],
+    val whereString: String,
+    val whereValues: Array[String],
     limitString: String
   ) 
 {

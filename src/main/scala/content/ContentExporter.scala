@@ -29,125 +29,267 @@ import scala.collection.JavaConversions._
 abstract class PositronicContentProvider
   extends ContentProvider
 {
+  import ContentProviderReqType._
+
   def onCreate: Boolean
 
-  def getType( uri: Uri ) = 
-    getRepoMatchOption( uri ) match {
-      case Some( repoMatch ) => repoMatch.contentType
-      case None => null
+  /** Class used internally to represent everything we know about a
+    * request, including the `ParsedUriMatchCase` (q.v.) that handles it.
+    */
+
+  case class ParsedRequest( reqType:      ContentProviderReqType,
+                            uri:          Uri,
+                            uriMatchCase: ParsedUriMatchCase,
+                            matchValues:  IndexedSeq[ ContentValue ],
+                            vals:         ContentValues,
+                            where:        String,
+                            whereValues:  Array[ String ],
+                            cols:         Array[ String ],
+                            order:        String )
+
+  // We've got a UriMatcher which has cases for each type of URI we
+  // can handle...
+
+  private[this]
+  val uriMatcher = new UriMatcher[ ParsedUriMatchCase ]
+
+  private[this]
+  def parsedRequestOption( reqType:     ContentProviderReqType,
+                           uri:         Uri,
+                           where:       String        = null,
+                           whereValues: Array[String] = null,
+                           cols:        Array[String] = null,
+                           vals:        ContentValues = null,
+                           order:       String        = null ) =
+  {
+    uriMatcher.withMatchOption( uri ){ (uriMatchCase, matchValues) =>
+      ParsedRequest( reqType, 
+                     uri,         uriMatchCase,
+                     matchValues, vals,
+                     where,       whereValues,
+                     cols,        order )
     }
+  }
+
+  private[this]
+  def parsedRequest( reqType:     ContentProviderReqType,
+                     uri:         Uri,
+                     where:       String        = null,
+                     whereValues: Array[String] = null,
+                     cols:        Array[String] = null,
+                     vals:        ContentValues = null,
+                     order:       String        = null ) = 
+  {
+    val opt = parsedRequestOption( reqType, uri, where, whereValues, 
+                                   cols, vals, order )
+    opt.getOrElse{ throw new UnsupportedUri( uri ) }
+  }
+ 
+  // Actual operations delegated to the ParsedUriMatchCase objects.
+
+  def getType( uri: Uri ) = {
+    val opt = parsedRequestOption( GetType, uri )
+    opt.map{ _.uriMatchCase.contentType }.getOrElse(null)
+  }
 
   def query( uri: Uri, cols: Array[String], 
-             where: String, whereArgs: Array[String],
+             where: String, whereValues: Array[String],
              order: String) = 
-    getRepoMatchOption( uri ) match {
+  {
+    val opt = parsedRequestOption( Query, uri, where, whereValues, 
+                                   cols = cols, order = order ) 
+    opt match {
       case None => null
-      case Some( repoMatch ) => {
-
-        var query = addConditions( repoMatch.query, where, whereArgs )
-
-        if (order != null) query = query.order( order )
-
-        if (cols != null)
-          query.select( cols: _* )
-        else
-          query.selectDefaultColumns
-      }
+      case Some( req ) => req.uriMatchCase.query( req )
     }
+  }
 
   def insert( uri: Uri, vals: ContentValues ) = {
-    val newId = getRepository( uri ).insertFromContentValues( vals )
-    notifyChange( uri )
-    Uri.withAppendedPath( uri, newId.toString )
+    val req = parsedRequest( Insert, uri, vals = vals )
+    req.uriMatchCase.insert( req )
+  }
+
+  def delete( uri: Uri, where: String, whereValues: Array[String] ) = {
+    val req = parsedRequest( Delete, uri, where, whereValues )
+    req.uriMatchCase.delete( req )
   }
 
   def update( uri: Uri, vals: ContentValues, 
-              where: String, whereArgs: Array[String] ) = 
+              where: String, whereValues: Array[String] ) = 
   {
-    val res: Int = getRepository( uri, where, whereArgs ).updateFromContentValues( vals )
-    notifyChange( uri )
-    res
+    val req = parsedRequest( Update, uri, where, whereValues, vals = vals )
+    req.uriMatchCase.update( req )
   }
 
-  def delete( uri: Uri, where: String, whereArgs: Array[String] ) = 
-  {
-    val res: Int = getRepository( uri, where, whereArgs ).delete
-    notifyChange( uri )
-    res
-  }
-
-  protected
-  def notifyChange( uri: Uri ) = 
+  def baseNotifyChange( uri: Uri ) = {
     getContext.getContentResolver.notifyChange( uri, null )
+  }
 
-  /** Get a ContentQuery for the given uri and query conditions.
-    * Defined in terms of the single-argument `getRepository` in the
-    * obvious way.
+  /** Content "subprovider" handling all URIs matching a specific pattern.
+    * It has `query`, `insert`, `update` and `delete` methods that will do
+    * the obvious (and no more); these may be overridden to add special-case
+    * handling.
+    * 
+    * The pattern is the URI (or string) argument to the constructor;
+    * a String will be handed to `Uri.parse`.
+    *
+    * If using this class directly, you must define `contentType` and
+    * `queryForParsedRequest`.  This lets you handle cases where, for
+    * whatever reason, you want `queryForParsedRequest` to return
+    * different queries based on something other than the match
+    * parameters --- for example, adding implicit joins based on
+    * what columns are requested.
+    *
+    * If the return value of your `queryForParsedRequest` would defend
+    * only on the matched components of the URI, on the other hand,
+    * the `MatchCase` and `UriMatchCase` may let you get the job done
+    * with a lot less ceremony.
     */
 
-  private[this]
-  def getRepository( uri: Uri, where: String, whereArgs: Array[String] )
-      : ContentQuery[_,Long] = 
-    addConditions( getRepository( uri ), where, whereArgs )
-
-  private[this]
-  def addConditions( query: ContentQuery[_,Long],
-                     where: String, whereArgs: Array[String] )
-    : ContentQuery[_,Long] =
+  abstract class ParsedUriMatchCase( uri: Uri )
   {
-    if (where != null) {
-      if (whereArgs != null)
-        query.where( where, (whereArgs.map{ CvString(_) }): _*)
+    def this( s: String ) = this( Uri.parse( s ))
+
+    uriMatcher.matchUri( uri, this )
+
+    /** Content type of data for queries matching the pattern */
+
+    val contentType: String
+
+    /** Query on our underlying data store for a ParsedRequest */
+
+    def queryForParsedRequest( req: ParsedRequest ): ContentQuery[_,_]
+
+    /** ContentValues to actually use in inserts and updates.  Ordinarily,
+      * these are exactly those supplied by the client, but this method may
+      * be overridden to add parent record IDs, perform safety or
+      * consistency checks, etc.
+      */
+
+    def contentValues( req: ParsedRequest ) = req.vals
+
+    def query( req: ParsedRequest ) = {
+      var query = queryForParsedRequest( req )
+
+      if (req.cols != null)
+        query.select( req.cols: _* )
       else
-        query.where( where )
+        query.selectDefaultColumns
     }
-    else query
+
+    def insert( req: ParsedRequest ) = {
+      val query   = queryForParsedRequest( req )
+      val newId   = query.insertFromContentValues( contentValues( req ))
+      val newUri  = Uri.withAppendedPath( req.uri, newId.toString )
+      notifyChange( req.uri )           // not newUri?
+      newUri
+    }
+
+    def update( req: ParsedRequest ) = {
+      val query    = queryForParsedRequest( req )
+      val res: Int = query.updateFromContentValues( contentValues( req ))
+      notifyChange( req.uri )
+      res
+    }
+
+    def delete( req: ParsedRequest ) = {
+      val query    = queryForParsedRequest( req )
+      val res: Int = query.delete
+      notifyChange( req.uri )
+      res
+    }
+
+    def notifyChange( uri: Uri ) = baseNotifyChange( uri )
   }
 
-  private[this]
-  def getRepository( uri: Uri ): ContentQuery[_,Long] = 
-    getRepoMatchOption( uri ) match {
-      case None => throw new UnsupportedUri( uri )
-      case Some( repoMatch ) => repoMatch.query
+  /** Content "subprovider" handling all URIs matching a URI pattern.
+    * This is a special case of `ParsedUriMatchCase` above, which allows
+    * for simpler, lower-ceremony handling for common cases.
+    *
+    * Constructor arguments are the pattern, the contentType for returned rows,
+    * and a function which will build a query from the matched components
+    * of the URI.
+    */
+
+  class UriMatchCase( 
+      uri: Uri,
+      val contentType: String,
+      val queryForMatch: IndexedSeq[ContentValue] => ContentQuery[_,_])
+    extends ParsedUriMatchCase( uri )
+  {
+    /** Default order to use on queries, if not otherwise specified */
+
+    def defaultOrder = null
+
+    def queryForParsedRequest( req: ParsedRequest ) = {
+
+      var query = queryForMatch( req.matchValues )
+
+      // Apply conditions, if any.
+
+      query = 
+        if (req.where != null) {
+          if (req.whereValues != null)
+            query.where( req.where, (req.whereValues.map{ CvString(_) }): _*)
+          else
+            query.where( req.where )
+        }
+        else query
+
+      // Apply order, if any.  (Ignored where it doesn't matter.)
+
+      val order = if (req.order != null) req.order else defaultOrder
+      
+      if (order != null)
+        query = query.order( order )
+
+      // Return what we got
+
+      query
     }
+  }
 
-  private[this]
-  val uriMatcher = new UriMatcher[ RepoPattern ]
+  /** Content "subprovider" handling all URIs matching a string pattern.
+    * This is a special case of `ParsedUriMatchCase` above, which allows
+    * for simpler, lower-ceremony handling for common cases.
+    *
+    * Constructor arguments are the pattern, the contentType for returned rows,
+    * and a function which will build a query from the matched components
+    * of the URI.
+    */
 
-  private[this]
-  def getRepoMatchOption( uri: Uri ): Option[ RepoMatch ] =
-    uriMatcher.withMatchOption( uri ){ (repoPattern, vals) =>
-      RepoMatch( repoPattern.contentType, repoPattern.completer( vals )) }
-
-  def matchUriObj( uri: Uri, contentType: String )
-                 ( func: IndexedSeq[ContentValue] => ContentQuery[_,Long] ) = 
-    uriMatcher.matchUri( uri, RepoPattern( contentType, func ))
-
-  def matchUriStr( uri: String, contentType: String )
-                 ( func: IndexedSeq[ContentValue] => ContentQuery[_,Long] ) = 
-    uriMatcher.matchUri( uri, RepoPattern( contentType, func ))
+  class MatchCase( 
+      str: String,
+      contentType: String,
+      queryForMatch: IndexedSeq[ContentValue] => ContentQuery[_,_]
+    )
+    extends UriMatchCase( Uri.parse( str ), contentType, queryForMatch )
 }
 
-private [content]
-case class RepoPattern( 
-  contentType: String, 
-  completer: IndexedSeq[ContentValue] => ContentQuery[_,Long])
+/** Type of a request in a provider's ParsedRequest objects.  One of the
+  * distinguished values Insert, Delete, Query, or Update.
+  */
 
-private [content]
-case class RepoMatch(
-  contentType: String,
-  query: ContentQuery[_,Long])
+class ContentProviderReqType
+
+object ContentProviderReqType {
+  case object GetType extends ContentProviderReqType
+  case object Insert  extends ContentProviderReqType
+  case object Delete  extends ContentProviderReqType
+  case object Query   extends ContentProviderReqType
+  case object Update  extends ContentProviderReqType
+}
 
 /** Somewhat enhanced version of the standard Android `UriMatcher`.
   *
   * In addition to matching string and numeric wildcards, this will
-  * collect and give you the values of the matching segments in a URL
+  * collect and give you the values of the matching segments in a URI
   * that matches.
   *
   * One other difference:  a '*' will match any URL segment, as before,
   * but the token for all-digit segments is "=", not "#'.  This is so
-  * actual URL objects can be used as patterns; "#" is special syntax
-  * in a URL.
+  * actual URI objects can be used as patterns; "#" is special syntax
+  * in a URI.
   */
 
 class UriMatcher[TMatch] {

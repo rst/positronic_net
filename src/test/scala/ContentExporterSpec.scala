@@ -15,36 +15,10 @@ import scala.collection.mutable.ArrayBuffer
 // that we've declared as a Java class in that portion of the test
 // fixtures.
 //
-// Definitions here still distressingly verbose; doubly so if you
-// factor in the Contract.
-
-object TodoProvider {
-
-  val TODO_PREFIX = "content://org.positronicnet.test/"
-  val TODO_LISTS_PREFIX = TODO_PREFIX + "lists"
-  lazy val TODO_LISTS_URI = Uri.parse( TODO_LISTS_PREFIX )
-
-  def todoListUri( id: Long ) = 
-    Uri.withAppendedPath( TODO_LISTS_URI, id.toString )
-    
-  lazy val TODO_LIST_ITEMS_PATTERN = TODO_LISTS_PREFIX + "/=/items"
-
-  def todoListItemsUri( listId: Long ) =
-    Uri.withAppendedPath( TODO_LISTS_URI, listId.toString + "/items" )
-
-  val TODO_LIST_ITEM_PATTERN = TODO_LISTS_PREFIX + "/=/items/="
-
-  def todoListItemUri( listId: Long, itemId: Long ) =
-    Uri.withAppendedPath( TODO_LISTS_URI, listId.toString +"/items/"+ itemId )
-
-  val TODO_LIST_TYPE = "vnd.org.positronicnet.todolist"
-  val TODO_ITEM_TYPE = "vnd.org.positronicnet.todoitem"
-
-  // Might want these somewhere where they'd be more generally useful
-
-  def dirContentType(s: String) = "vnd.android.cursor.dir/"+s
-  def rowContentType(s: String) = "vnd.android.cursor.item/"+s
-}
+// Mind, the contract is still awkwardly verbose and redundant with
+// the match case definitions here, but if it's going to be in Java
+// (to match platform conventions), it's going to be awkward to do
+// better.
 
 class TodoProvider extends PositronicContentProvider
 {
@@ -52,18 +26,67 @@ class TodoProvider extends PositronicContentProvider
 
   def onCreate = { TodoDb.openInContext( getContext ); true }
 
-  matchUriObj( TODO_LISTS_URI, dirContentType( TODO_LIST_TYPE )){
-    noArgs => TodoDb("todo_lists")
+  // Queries for todo lists...
+
+  trait ListOps extends UriMatchCase {
+
+    // When deleting a list, or several, we also want to delete the items...
+
+    override def delete( req: ParsedRequest ) = {
+
+      val qry = queryForParsedRequest( req )
+
+      // Clearly need some cleaner machinery for faking up joins...
+
+      val whereValues = 
+        if (qry.whereValues == null) new Array[ContentValue](0) // yuck
+        else qry.whereValues.map{ CvString(_) }                 // double yuck
+
+      val whereString =
+        if (qry.whereString == null) "2+2=4"
+        else qry.whereString
+
+      val itemCond = "todo_list_id in (" + 
+                     "select _id from todo_lists where " + whereString + ")"
+      TodoDb( "todo_items" ).where( itemCond, whereValues: _* ).delete
+
+      super.delete( req )
+    }
   }
-  matchUriStr( TODO_LISTS_PREFIX+"/=", rowContentType( TODO_LIST_TYPE )){
-    seq => TodoDb("todo_lists").whereEq( "_id" -> seq(0) )
+
+  new UriMatchCase( TODO_LISTS_URI,
+                    dirContentType( TODO_LIST_TYPE ),
+                    r => TodoDb("todo_lists"))
+    with ListOps
+
+  new MatchCase( TODO_LISTS_PREFIX+"/=",
+                 rowContentType( TODO_LIST_TYPE ),
+                 r => TodoDb("todo_lists").whereEq( "_id" -> r(0) ))
+    with ListOps
+
+  // Queries for todo items...
+
+  trait ItemOps extends UriMatchCase {
+
+    // Take todo_list_id from URI on inserts/updates, *not* the ContentValues
+
+    override def contentValues( req: ParsedRequest ) = {
+      val listId = req.matchValues(0)   // the same in all our URI patterns
+      listId.putContentValues( req.vals, "todo_list_id" )
+      req.vals
+    }
   }
-  matchUriStr( TODO_LISTS_PREFIX+"/=/items", dirContentType( TODO_ITEM_TYPE )) {
-    seq => TodoDb("todo_items").whereEq( "todo_list_id" -> seq(0) )
-  }
-  matchUriStr(TODO_LISTS_PREFIX+"/=/items/=", rowContentType( TODO_ITEM_TYPE )){
-    seq => TodoDb("todo_items").whereEq("todo_list_id"->seq(0), "_id"->seq(1))
-  }
+
+  new MatchCase( TODO_LISTS_PREFIX+"/=/items",
+                 dirContentType( TODO_ITEM_TYPE ),
+                 r => TodoDb("todo_items").whereEq( "todo_list_id" -> r(0)))
+    with ItemOps
+
+  new MatchCase( TODO_LISTS_PREFIX+"/=/items/=",
+                 rowContentType( TODO_ITEM_TYPE ),
+                 r => TodoDb("todo_items").whereEq("todo_list_id" -> r(0), 
+                                                   "_id"          -> r(1)))
+    with ItemOps
 
   // Test scaffolding for change notifications --- verify that we're notifying
   // on the right URIs with the content resolver by mocking out the routine
@@ -72,7 +95,7 @@ class TodoProvider extends PositronicContentProvider
 
   private val notifiedUris = new ArrayBuffer[ Uri ]
 
-  override def notifyChange( uri: Uri ) = notifiedUris += uri
+  override def baseNotifyChange( uri: Uri ) = notifiedUris += uri
 
   def captureNotifiedUris( body: => Unit ) = {
     notifiedUris.clear
@@ -91,6 +114,11 @@ class ContentExporterSpec
   override def beforeEach = db.setupFixturesForAssociationTest
 
   def makeTodosProvider = new TodoProvider
+
+  def catListId = {
+    val dogListQuery = TodoDb("todo_lists").whereEq("name"->"cat list")
+    dogListQuery.select("_id").map{_.getLong(0)}(0)
+  }
 
   def dogListId = {
     val dogListQuery = TodoDb("todo_lists").whereEq("name"->"dog list")
@@ -221,17 +249,13 @@ class ContentExporterSpec
 
     lazy val todos = makeTodosProvider
 
-    // Regenerate contentValues each time; dogListId may change as
-    // fixtures are reloaded after every test.
-
-    def myContentValues = {
+    lazy val myContentValues = {
       val cv = new ContentValues
-      cv.put( "todo_list_id", new java.lang.Long( dogListId ))
       cv.put( "description", "furminate dog" )
       cv
     }
 
-    it ("should actually insert the record") {
+    it ("should actually insert the record (with proper parent ID)") {
       todos.insert( todoListItemsUri( dogListId ), myContentValues )
       val qry = TodoDb( "todo_items" ).whereEq( "todo_list_id" -> dogListId )
       val descs = qry.select( "description" ).map{ _.getString(0) }
@@ -293,24 +317,62 @@ class ContentExporterSpec
 
     lazy val todos = makeTodosProvider
 
-    it ("should delete the records") {
-      todos.delete( todoListItemsUri( dogListId ), null, null )
-      val isDoneCursor = todos.query( todoListItemsUri( dogListId ),
-                                      Array( "is_done" ), null, null, null )
-      val isDoneVals = new PositronicCursor( isDoneCursor ).map{ _.getInt(0) }
-      isDoneVals should have size (0)
-    }
-    
-    it ("should return the number of deleted rows") {
-      val rv = todos.delete( todoListItemsUri( dogListId ), null, null )
-      rv should be (3)
-    }
-    
-    it ("should correctly notify") {
-      val nUris = todos.captureNotifiedUris {
+    describe( "simple case" ) {
+
+      it ("should delete the records") {
         todos.delete( todoListItemsUri( dogListId ), null, null )
+        val isDoneCursor = todos.query( todoListItemsUri( dogListId ),
+                                        Array( "is_done" ), null, null, null )
+        val isDoneVals = new PositronicCursor( isDoneCursor ).map{ _.getInt(0) }
+        isDoneVals should have size (0)
       }
-      nUris should (have size (1) and contain (todoListItemsUri( dogListId )))
+    
+      it ("should return the number of deleted rows") {
+        val rv = todos.delete( todoListItemsUri( dogListId ), null, null )
+        rv should be (3)
+      }
+    
+      it ("should correctly notify") {
+        val nUris = todos.captureNotifiedUris {
+          todos.delete( todoListItemsUri( dogListId ), null, null )
+        }
+        nUris should (have size (1) and contain (todoListItemsUri( dogListId )))
+      }
+    }
+
+    describe( "with override to delete child records" ) {
+
+      // Note that the "single parent" case is implemented using the
+      // machinery for more general conditions, so we don't test that
+      // separately.
+
+      it( "should delete a single parent record and return count" ) {
+
+        val ret = todos.delete( todoListUri( dogListId ), null, null )
+        ret should be (1)
+
+        val c = TodoDb("todo_lists").whereEq("name"->"dog list").select("_id")
+        val ids = c.map{ _.getLong(0) }
+        ids should have size (0)
+      }
+
+      it( "should delete child records of a single parent (but not others)" ) {
+        val dListId = dogListId
+        val cListId = catListId
+        todos.delete( todoListUri( dListId ), null, null )
+        val ids=TodoDb("todo_items").select("todo_list_id").map{_.getLong(0)}
+        ids should (contain (cListId) and not contain (dListId))
+      }
+
+      it ( "should delete multiple parents and return count" ) {
+        val preLists = TodoDb("todo_lists").count
+        todos.delete( TODO_LISTS_URI, null, null ) should be (preLists)
+      }
+
+      it ( "should delete children of multiple parents" ) {
+        todos.delete( TODO_LISTS_URI, null, null ) 
+        TodoDb("todo_items").count should be (0)
+      }
     }
   }
 }

@@ -7,6 +7,8 @@ import android.net.Uri;
 
 public class TodoContract {
 
+  // URIs for common queries/updates
+
   public static String TODO_PREFIX = "content://org.positronicnet.test/";
   public static String TODO_LISTS_PREFIX = TODO_PREFIX + "lists";
   public static Uri    TODO_LISTS_URI = Uri.parse( TODO_LISTS_PREFIX );
@@ -35,6 +37,21 @@ public class TodoContract {
   public static String TODO_LIST_TYPE = "vnd.org.positronicnet.todolist";
   public static String TODO_ITEM_TYPE = "vnd.org.positronicnet.todoitem";
 
+  // Columns for individual tables
+
+  static class List {
+    public static String ID   = "_id";
+    public static String NAME = "name";
+  }
+
+  static class Item {
+    public static String ID           = "_id";
+    public static String TODO_LIST_ID = "todo_list_id";
+    public static String DESCRIPTION  = "description";
+    public static String IS_DONE      = "is_done";
+  }
+
+  // Generating content-types to match platform conventions.
   // Might want these somewhere where they'd be more generally useful
 
   public static String dirContentType( String s )

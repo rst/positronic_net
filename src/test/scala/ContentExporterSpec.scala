@@ -28,7 +28,7 @@ class TodoProvider extends PositronicContentProvider
 
   // Queries for todo lists...
 
-  trait ListOps extends UriMatchCase {
+  trait ListOps extends UriMatch {
 
     // When deleting a list, or several, we also want to delete the items...
 
@@ -54,39 +54,25 @@ class TodoProvider extends PositronicContentProvider
     }
   }
 
-  new UriMatchCase( TODO_LISTS_URI,
-                    dirContentType( TODO_LIST_TYPE ),
-                    r => TodoDb("todo_lists"))
+  new UriMatch( TODO_LISTS_URI,                   Seq.empty, 
+                dirContentType( TODO_LIST_TYPE ),
+                TodoDb("todo_lists"))
     with ListOps
 
-  new MatchCase( TODO_LISTS_PREFIX+"/=",
-                 rowContentType( TODO_LIST_TYPE ),
-                 r => TodoDb("todo_lists").whereEq( "_id" -> r(0) ))
+  new UriMatch( TODO_LISTS_PREFIX+"/=",          Seq("_id"),
+                rowContentType( TODO_LIST_TYPE ),
+                TodoDb("todo_lists"))
     with ListOps
 
-  // Queries for todo items...
+  // Queries for items
 
-  trait ItemOps extends UriMatchCase {
+  new UriMatch( TODO_LISTS_PREFIX+"/=/items",    Seq("todo_list_id"),
+                dirContentType( TODO_ITEM_TYPE ),
+                TodoDb("todo_items"))
 
-    // Take todo_list_id from URI on inserts/updates, *not* the ContentValues
-
-    override def contentValues( req: ParsedRequest ) = {
-      val listId = req.matchValues(0)   // the same in all our URI patterns
-      listId.putContentValues( req.vals, "todo_list_id" )
-      req.vals
-    }
-  }
-
-  new MatchCase( TODO_LISTS_PREFIX+"/=/items",
-                 dirContentType( TODO_ITEM_TYPE ),
-                 r => TodoDb("todo_items").whereEq( "todo_list_id" -> r(0)))
-    with ItemOps
-
-  new MatchCase( TODO_LISTS_PREFIX+"/=/items/=",
-                 rowContentType( TODO_ITEM_TYPE ),
-                 r => TodoDb("todo_items").whereEq("todo_list_id" -> r(0), 
-                                                   "_id"          -> r(1)))
-    with ItemOps
+  new UriMatch( TODO_LISTS_PREFIX+"/=/items/=",  Seq("todo_list_id", "_id"),
+                rowContentType( TODO_ITEM_TYPE ),
+                TodoDb("todo_items"))
 
   // Test scaffolding for change notifications --- verify that we're notifying
   // on the right URIs with the content resolver by mocking out the routine

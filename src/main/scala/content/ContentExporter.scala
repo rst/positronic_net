@@ -34,12 +34,12 @@ abstract class PositronicContentProvider
   def onCreate: Boolean
 
   /** Class used internally to represent everything we know about a
-    * request, including the `ParsedUriMatchCase` (q.v.) that handles it.
+    * request, including the `UriMatch` (q.v.) that handles it.
     */
 
   case class ParsedRequest( reqType:      ContentProviderReqType,
                             uri:          Uri,
-                            uriMatchCase: ParsedUriMatchCase,
+                            uriMatchCase: BaseUriMatch,
                             matchValues:  IndexedSeq[ ContentValue ],
                             vals:         ContentValues,
                             where:        String,
@@ -51,7 +51,7 @@ abstract class PositronicContentProvider
   // can handle...
 
   private[this]
-  val uriMatcher = new UriMatcher[ ParsedUriMatchCase ]
+  val uriMatcher = new UriMatcher[ BaseUriMatch ]
 
   private[this]
   def parsedRequestOption( reqType:     ContentProviderReqType,
@@ -85,7 +85,7 @@ abstract class PositronicContentProvider
     opt.getOrElse{ throw new UnsupportedUri( uri ) }
   }
  
-  // Actual operations delegated to the ParsedUriMatchCase objects.
+  // Actual operations delegated to the UriMatch (or BaseUriMatch) objects.
 
   def getType( uri: Uri ) = {
     val opt = parsedRequestOption( GetType, uri )
@@ -142,11 +142,11 @@ abstract class PositronicContentProvider
     *
     * If the return value of your `queryForParsedRequest` would defend
     * only on the matched components of the URI, on the other hand,
-    * the `MatchCase` and `UriMatchCase` may let you get the job done
+    * the more full-featured `UriMatchCase` may let you get the job done
     * with a lot less ceremony.
     */
 
-  abstract class ParsedUriMatchCase( uri: Uri )
+  abstract class BaseUriMatch( uri: Uri )
   {
     def this( s: String ) = this( Uri.parse( s ))
 
@@ -159,6 +159,36 @@ abstract class PositronicContentProvider
     /** Query on our underlying data store for a ParsedRequest */
 
     def queryForParsedRequest( req: ParsedRequest ): ContentQuery[_,_]
+
+    /** Utility routine to apply the given conditions and order to
+      * a `ContentQuery`.  Most implementations of `queryForParsedRequest`
+      * will want to call this with some appropriate arguments (possibly
+      * massaged from those given in the original request itself.
+      */
+
+    protected def augmentQuery( query:       ContentQuery[_,_],
+                                where:       String,
+                                whereValues: Seq[String],
+                                order:       String ) =
+    {
+      // Apply conditions, if any.
+
+      var augQuery = 
+        if (where != null) {
+          if (whereValues != null)
+            query.where( where, (whereValues.map{ CvString(_) }): _*)
+          else
+            query.where( where )
+        }
+        else query
+
+      // Apply order, if any.  (Ignored where it doesn't matter.)
+
+      if (order != null)
+        augQuery.order( order )
+      else 
+        augQuery
+    }
 
     /** ContentValues to actually use in inserts and updates.  Ordinarily,
       * these are exactly those supplied by the client, but this method may
@@ -203,67 +233,73 @@ abstract class PositronicContentProvider
   }
 
   /** Content "subprovider" handling all URIs matching a URI pattern.
-    * This is a special case of `ParsedUriMatchCase` above, which allows
+    * This is a special case of `BaseUriMatch` above, which allows
     * for simpler, lower-ceremony handling for common cases.
     *
-    * Constructor arguments are the pattern, the contentType for returned rows,
-    * and a function which will build a query from the matched components
-    * of the URI.
+    * Constructor arguments are:
+    *
+    *   *) the pattern (URI or string)
+    *   *) a sequence of names of columns corresponding to the matched values
+    *   *) the contentType for returned rows,
+    *   *) a `ContentQuery`
+    *
+    * For example, consider
+    * {{{
+    *     new UriMatch( "todo_lists/=/items/=",
+    *                   Seq("todo_list_id", "_id"),
+    *                   rowContentType( TODO_ITEM_TYPE ),
+    *                   TodoDb("todo_items"))
+    * }}}
+    * For URIs matching this pattern, say, "todo_lists/33/items/45",
+    * the query on the underlying content repository will be
+    * {{{
+    *     TodoDb("todo_items").whereEq( "todo_list_id" -> 33, "_id" -> 45 )
+    * }}}
+    * Also, for an insert or update operation, the supplied `ContentValues`
+    * will have the "todo_list_id" and "_id" columns forced to the values from
+    * the URI (so the caller is not required to supply them twice).
+    *
+    * These behaviors may be changed by overriding the `queryForParsedRequest`
+    * and `contentValues` methods, respectively --- although in this case, you
+    * might want to just make your own subclass of `BaseUriMatch` instead.
     */
 
-  class UriMatchCase( 
+  class UriMatch( 
       uri: Uri,
+      columnsMatched: Seq[ String ],
       val contentType: String,
-      val queryForMatch: IndexedSeq[ContentValue] => ContentQuery[_,_])
-    extends ParsedUriMatchCase( uri )
+      val baseQuery: ContentQuery[_,_])
+    extends BaseUriMatch( uri )
   {
+    def this( uriStr: String, columnsMatched: Seq[String],
+              contentType: String, baseQuery: ContentQuery[_,_] ) =
+      this( Uri.parse( uriStr ), columnsMatched, contentType, baseQuery )
+
     /** Default order to use on queries, if not otherwise specified */
 
     def defaultOrder = null
 
-    def queryForParsedRequest( req: ParsedRequest ) = {
+    def queryForParsedRequest( req: ParsedRequest ): ContentQuery[_,_] = {
 
-      var query = queryForMatch( req.matchValues )
-
-      // Apply conditions, if any.
-
-      query = 
-        if (req.where != null) {
-          if (req.whereValues != null)
-            query.where( req.where, (req.whereValues.map{ CvString(_) }): _*)
-          else
-            query.where( req.where )
-        }
-        else query
-
-      // Apply order, if any.  (Ignored where it doesn't matter.)
+      val query = 
+        if (columnsMatched != Seq.empty)
+          baseQuery.whereEq( columnsMatched.zip( req.matchValues ): _*)
+        else
+          baseQuery
 
       val order = if (req.order != null) req.order else defaultOrder
+
+      augmentQuery( query, req.where, req.whereValues, order )
+    }
       
-      if (order != null)
-        query = query.order( order )
+    override def contentValues( req: ParsedRequest ) = {
 
-      // Return what we got
-
-      query
+      for (( col, value ) <- columnsMatched.zip( req.matchValues ))
+        value.putContentValues( req.vals, col )
+      
+      req.vals
     }
   }
-
-  /** Content "subprovider" handling all URIs matching a string pattern.
-    * This is a special case of `ParsedUriMatchCase` above, which allows
-    * for simpler, lower-ceremony handling for common cases.
-    *
-    * Constructor arguments are the pattern, the contentType for returned rows,
-    * and a function which will build a query from the matched components
-    * of the URI.
-    */
-
-  class MatchCase( 
-      str: String,
-      contentType: String,
-      queryForMatch: IndexedSeq[ContentValue] => ContentQuery[_,_]
-    )
-    extends UriMatchCase( Uri.parse( str ), contentType, queryForMatch )
 }
 
 /** Type of a request in a provider's ParsedRequest objects.  One of the

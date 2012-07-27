@@ -2,6 +2,7 @@ package org.positronicnet.ui
 
 import _root_.android.content.Context
 import _root_.android.util.AttributeSet
+import _root_.android.view.ViewGroup
 import _root_.android.view.View
 import _root_.android.view.Menu
 import _root_.android.view.ContextMenu
@@ -23,6 +24,13 @@ import scala.collection.mutable.ArrayBuffer
   */
 
 trait PositronicHandlers extends View with GenericViewUtils {
+
+  /** Removes this view from its parent view if it can **/
+  def removeFromParent = try {
+    this.getParent.asInstanceOf[ViewGroup].removeView(this)
+  } catch {
+    case e : Exception => val donothing = true
+  }
 
   def setOnClickListener( dummy: View.OnClickListener ): Unit
 

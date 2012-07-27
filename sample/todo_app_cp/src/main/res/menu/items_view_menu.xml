@@ -1,0 +1,5 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+  android:name="Todo-list item operations">
+  <item android:id="@+id/delete_where_done"
+        android:title="Delete completed tasks"/>
+</menu>

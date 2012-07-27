@@ -1,0 +1,7 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+  android:name="Todo-list item operations">
+  <item android:id="@+id/edit"
+        android:title="Edit"/>
+  <item android:id="@+id/toggledone"
+        android:title="Change Done Status"/>
+</menu>

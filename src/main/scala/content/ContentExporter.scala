@@ -268,11 +268,11 @@ abstract class PositronicContentProvider
       uri: Uri,
       columnsMatched: Seq[ String ],
       val contentType: String,
-      val baseQuery: ContentQuery[_,_])
+      baseQuery: => ContentQuery[_,_])
     extends BaseUriMatch( uri )
   {
     def this( uriStr: String, columnsMatched: Seq[String],
-              contentType: String, baseQuery: ContentQuery[_,_] ) =
+              contentType: String, baseQuery: => ContentQuery[_,_] ) =
       this( Uri.parse( uriStr ), columnsMatched, contentType, baseQuery )
 
     /** Default order to use on queries, if not otherwise specified */

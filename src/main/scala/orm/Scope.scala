@@ -357,20 +357,6 @@ trait Scope[ T <: ManagedRecord ]
   }
 }
 
-/** Extra machinery for "top-level" scopes, which manage the assignment
-  * of IDs across a set of objects.  Typically, some variation of
-  * [[org.positronicnet.orm.RecordManager]] fills this role, but with,
-  * say, a [[org.positronicnet.orm.DependentRecordManager]], things
-  * may be more complicated.
-  */
-
-trait TopLevelScope[ T <: ManagedRecord ] 
-  extends Scope[ T ]
-{
-  def unsavedId: RecordId[T]
-  def idFromLong( rawId: Long ) : RecordId[T]
-}
-
 private[orm]
 trait DerivedScope[ T <: ManagedRecord ] 
   extends Scope[ T ]

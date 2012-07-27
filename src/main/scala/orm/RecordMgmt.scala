@@ -140,9 +140,11 @@ class RecordId[T <: ManagedRecord] private[orm] (
     * deserialized, the 
     */
 
-  def topLevelScope: TopLevelScope[T] = 
+  def topLevelScope: Scope[T] = 
     mgr match {
-      case tls: TopLevelScope[T] => tls
+      case tls: Scope[T] => tls
+      case _ => throw new RuntimeException(
+        "naked record IDs for " + mgr.getClass + " cannot fetch unassisted")
     }
 
   private[orm] def mgr: PrimitiveRecordManager[T] = {
@@ -212,7 +214,16 @@ object PrimitiveRecordManager {
 
 abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
   extends PrimitiveRecordManager[T]( repository.facility )
-  with TopLevelScope[T]
+  with Scope[T]
+{
+  private [orm] val mgr = this
+
+  val baseQuery = repository
+}
+
+private [positronicnet]
+abstract class PrimitiveRecordManager[T <: ManagedRecord : ClassManifest]( val facility: AppFacility )
+  extends BaseNotificationManager( facility )
 {
   private var nextUnsavedId = 0
 
@@ -231,15 +242,6 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   def idFromLong( rawId: Long ) = new RecordId( this, rawId )
   // Feeding the Scope machinery what it needs
 
-  private [orm] val mgr = this
-
-  val baseQuery = repository
-}
-
-private [positronicnet]
-abstract class PrimitiveRecordManager[T <: ManagedRecord : ClassManifest]( val facility: AppFacility )
-  extends BaseNotificationManager( facility )
-{
   /**
     * Produce a new object (to be populated with mapped data from a query). 
     *

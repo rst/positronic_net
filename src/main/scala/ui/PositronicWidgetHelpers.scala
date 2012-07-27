@@ -2,6 +2,7 @@ package org.positronicnet.ui
 
 import _root_.android.content.Context
 import _root_.android.util.AttributeSet
+import _root_.android.view.ViewGroup
 import _root_.android.view.View
 import _root_.android.view.Menu
 import _root_.android.view.ContextMenu
@@ -23,6 +24,13 @@ import scala.collection.mutable.ArrayBuffer
   */
 
 trait PositronicHandlers extends View with GenericViewUtils {
+
+  /** Removes this view from its parent view if it can **/
+  def removeFromParent = try {
+    this.getParent.asInstanceOf[ViewGroup].removeView(this)
+  } catch {
+    case e : Exception => val donothing = true
+  }
 
   def setOnClickListener( dummy: View.OnClickListener ): Unit
 
@@ -364,6 +372,15 @@ class PositronicListView( context: Context, attrs: AttributeSet = null )
  with PositronicHandlers 
  with PositronicItemHandlers
 
+/** An `android.widget.ExpandableListView` with [[org.positronicnet.ui.PositronicHandlers]]
+ * and [[org.positronicnet.ui.PositronicItemHandlers]] mixed in.
+ */
+
+class PositronicExpandableListView( context: Context, attrs: AttributeSet = null )
+  extends _root_.android.widget.ExpandableListView( context, attrs )
+  with PositronicHandlers
+  with PositronicItemHandlers
+
 /** An `android.widget.Spinner` with [[org.positronicnet.ui.PositronicHandlers]]
   * and [[org.positronicnet.ui.PositronicItemHandlers]] mixed in.
   */
@@ -388,6 +405,16 @@ class PositronicImageView( context: Context, attrs: AttributeSet = null )
 class PositronicLinearLayout( context: Context, attrs: AttributeSet = null )
  extends android.widget.LinearLayout( context, attrs ) 
  with PositronicHandlers
+
+/** An `android.widget.GridView` with [[org.positronicnet.ui.PositronicHandlers]]
+ * and [[org.positronicnet.ui.PositronicItemHandlers]] mixed in.
+ */
+
+class PositronicGridView( context: Context, attrs: AttributeSet = null )
+  extends _root_.android.widget.GridView( context, attrs )
+  with PositronicHandlers
+  with PositronicItemHandlers
+
 
 /** Shorthand `android.app.Dialog` class with some extra constructor
   * arguments as a convenience.

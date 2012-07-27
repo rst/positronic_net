@@ -110,6 +110,15 @@ trait DataStream[T]
   def flatMap[V]( func: T => DataStream[V] ) =
     new FlatMapProxyStream( func, this )
 
+  /** We're a stream of Ts.  This returns a stream of Vs, which depends
+    * on our current value.  When we get a new value, `func` is reinvoked
+    * to get a V future, and the listeners to the stream of Vs
+    * will see the futures' values, when available
+    */
+
+  def mapFuture[V]( func: T => Future[V] ) =
+    new FutureMapProxyStream( func, this )
+
   /** We're a stream of Ts.  This returns a stream of Vs, which is always
     * the result of `func` applied to our current value.
     */
@@ -204,6 +213,28 @@ class FlatMapProxyStream[T,V]( mapFunc: T => DataStream[V],
     if (vstream != null) vstream.removeListener( this )
     vstream = mapFunc( newVal )
     vstream.addListener( this, this.noteNewValue( _ ))
+  }}
+}
+
+private[notifications] 
+class FutureMapProxyStream[T,V]( mapFunc: T => Future[V],
+                                 underlying: DataStream[T] ) 
+  extends ExplicitNotificationDataStream[V]
+{
+  private[this] var vfut: Future[V] = null
+
+  private def tryNoteValue( value: V, fromFuture: Future[V] ) =
+    synchronized {
+      if (vfut == fromFuture)
+        noteNewValue( value )
+    }
+
+  underlying.withValues{ newVal => {
+    synchronized {
+      val newFut = mapFunc( newVal )
+      vfut = newFut
+      vfut.onSuccess{ value => tryNoteValue( value, newFut ) }
+    } 
   }}
 }
 

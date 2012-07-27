@@ -32,16 +32,6 @@ object TodoDb extends Database( filename = "todos.sqlite3", logTag = "todo" )
              )
          """
         )
-  
-  override def openInContext( ctx: android.content.Context ) = {
-    android.util.Log.d( "XXX", "opening DB" )
-    super.openInContext( ctx )
-  }
-  
-  override def close = {
-    android.util.Log.d( "XXX", "closing DB" )
-    super.close
-  }
 }
 
 // Now define the ContentProvider object that exports that stuff, according
@@ -53,10 +43,7 @@ class TodoProvider extends PositronicContentProvider
 {
   import TodoContract._      // make 'static' stuff visible w/o prefix
 
-  def onCreate = { 
-    android.util.Log.d( "XXX", "provider create" )
-    TodoDb.openInContext( getContext ); true 
-  }
+  def onCreate = { TodoDb.openInContext( getContext ); true }
 
   // Queries for todo lists...
 

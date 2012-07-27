@@ -4,13 +4,15 @@ import org.positronicnet.content.PositronicContentResolver
 import org.positronicnet.orm._
 
 // Our domain model classes, such as they are:  Todo Items, Lists, etc.
-
-// "Todo item" model.
 //
-// Note that the todo_list_id from the database is not explicitly mapped;
+// These now model rows as served up by our companion ContentProvider,
+// in TodoProvider.scala.  
+//
+// Note that an item's todo_list_id is not explicitly mapped;
 // it's implicit in the URIs used to access the ContentProvider, so the
 // ContentProvider will also take care of setting it properly on inserts
 // and updates.
+
 
 case class TodoItem( 
   description: String             = null, 

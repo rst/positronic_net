@@ -55,11 +55,6 @@ class TodosAdapter( stream: DataStream[ IndexedSeq[ TodoList ]] )
  extends IndexedSeqDataStreamAdapter( stream,
                                       itemViewResourceId = R.layout.todos_row )
 {
-  override def resetSeq( seq: IndexedSeq[ TodoList ] ) = {
-    super.resetSeq( seq )
-    for ( it <- seq ) Log.d( "XXX", "got list: " + it )
-  }
-
   override def bindView( view: View, list: TodoList ) =
     view.asInstanceOf[ TextView ].setText( list.name )
 }
@@ -70,8 +65,6 @@ class TodosActivity
  extends PositronicActivity( layoutResourceId = R.layout.all_todos ) 
  with ViewFinder               // typed "findView" support
 {
-  android.util.Log.d( "XXX", "uri: " + TodoContract.TODO_LISTS_URI )
-
   lazy val listsView = findView( TR.listsView )
   lazy val renameDialog = new EditStringDialog( this )
 
@@ -79,7 +72,7 @@ class TodosActivity
 
     useContextMenuResource( R.menu.lists_context_menu )
 
-    // Wire listsView to the database
+    // Wire listsView to the content provider.  WAY too much code here.
 
     useAppFacility( PositronicContentResolver )
     val events = PositronicContentResolver ?? OnDataAvailable( TodoContract.TODO_LISTS_URI, 

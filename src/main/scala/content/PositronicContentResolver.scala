@@ -266,7 +266,7 @@ private[ positronicnet ]
 class ContentObservationDataStream( uri: Uri, andSubtree: Boolean )
   extends DataStream[Unit]
 {
-  val initialFuture = Future( () )
+  protected def initialFuture = Future( () )
 
   override def addListener( tag: AnyRef, handler: Unit => Unit ) = {
     super.addListener( tag, handler )

@@ -3,6 +3,7 @@ package org.positronicnet.content
 import android.net.Uri
 import android.content.ContentProvider
 import android.content.ContentValues
+import android.util.Log
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
@@ -99,8 +100,11 @@ abstract class PositronicContentProvider
     val opt = parsedRequestOption( Query, uri, where, whereValues, 
                                    cols = cols, order = order ) 
     opt match {
-      case None => null
-      case Some( req ) => req.uriMatchCase.query( req )
+      case None => 
+        Log.d( "XXX", "Content Resolver provides no match for " + uri )
+        null
+      case Some( req ) => 
+        req.uriMatchCase.query( req )
     }
   }
 

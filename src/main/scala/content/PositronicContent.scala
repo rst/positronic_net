@@ -196,6 +196,9 @@ abstract class ContentQuery[SourceType,IdType](
     limitString: String
   ) 
 {
+  if (source == null)
+    throw new RuntimeException( getClass.getName + " with null source" )
+
   /** All conditions on this ContentQuery.  Useful to determine when
     * two are equivalent.
     */
@@ -499,6 +502,9 @@ class PositronicCursor( wrappedCursor: android.database.Cursor )
 class CursorWrapper( wrappedCursor: android.database.Cursor ) 
   extends android.database.Cursor
 {
+  if (wrappedCursor == null)
+    throw new RuntimeException( "Can't wrap 'null' as a Cursor" )
+
   /** Provide a way to get the underlying object back, if 
     * somebody needs it ...
     */

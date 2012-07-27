@@ -61,6 +61,10 @@ trait DataStream[T]
   protected def initialFuture: Future[T]
   private [this] var cachedCurrentFuture = initialFuture
 
+  if (cachedCurrentFuture == null) {
+    throw new RuntimeException( "null initial future for " + this.toString )
+  }
+
   /** May be called by the implementation to notify whoever's listening to the
     * stream that a future for a new value is available.
     */

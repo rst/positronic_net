@@ -97,8 +97,7 @@ class ActivityResultDispatchSpec
       activity.nextActivityRequestCode should be (reqCode + 1)
       activity.pendingResponses should have size (1)
       activity.pendingResponses( reqCode ) should be (
-        activity.PendingResponse( dispatchKey, "aMethod", 
-                                  Seq( "a string", 42 )))
+        PendingResponse( dispatchKey, "aMethod", Seq( "a string", 42 )))
 
       // Step 3: Try to dispatch a result (to a dummy method which will set
       // a bunch of accessible fields to the values of its arguments)

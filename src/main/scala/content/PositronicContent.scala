@@ -205,6 +205,36 @@ abstract class ContentQuery[SourceType,IdType](
 
   def conditionKey = (whereString, whereValues.toSeq)
 
+  /** Where-conditions of this query, as a string, for use in
+    * generating pieces some other query (usually as part of a subquery)
+    *
+    * For example, to find all child records dependent on a particular
+    * set of parents (e.g., all todo items in the zero-to-many lists named by
+    * a query on lists):
+    * {{{
+    *  val listQuery   = TodoDb( "todo_lists" ).where( .... ) // elsewhere
+    *
+    *  val whereValues = listQuery.conditionParameters
+    *  val whereString = listQuery.conditionString
+    *  val itemCond = "todo_list_id in (" + 
+    *                 "select _id from todo_lists where " + whereString + ")"
+    *
+    *  val items = TodoDb( "todo_items" ).where( itemCond, whereValues: _* )
+    * }}}
+    */
+
+  def conditionString = 
+    if (whereString != null) whereString else "1"
+
+  /** Where-parameters of this query, as a (possibly empty) sequence,
+    * to be plugged in to a query built from `conditionString`,
+    * q.v. for usage
+    */
+
+  def conditionParameters =
+    if (whereValues == null) new Array[ContentValue](0)
+    else whereValues.map{ CvString(_) }
+
   /** Returns a new ContentQuery with the same semantics as this one,
     * except that it adds extra conditions.  If the condition contains
     * '?' placeholders, they will be replaced with

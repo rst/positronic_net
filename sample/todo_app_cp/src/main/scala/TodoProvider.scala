@@ -54,19 +54,12 @@ class TodoProvider extends PositronicContentProvider
     override def delete( req: ParsedRequest ) = {
 
       val qry = queryForParsedRequest( req )
-
-      // Clearly need some cleaner machinery for faking up joins...
-
-      val whereValues = 
-        if (qry.whereValues == null) new Array[ContentValue](0) // yuck
-        else qry.whereValues.map{ CvString(_) }                 // double yuck
-
-      val whereString =
-        if (qry.whereString == null) "2+2=4"
-        else qry.whereString
+      val whereValues = qry.conditionParameters
+      val whereString = qry.conditionString
 
       val itemCond = "todo_list_id in (" + 
                      "select _id from todo_lists where " + whereString + ")"
+
       TodoDb( "todo_items" ).where( itemCond, whereValues: _* ).delete
 
       super.delete( req )

@@ -45,22 +45,6 @@ extends IndexedSeqAdapter[T](
   stream.withValues { resetSeq( _ ) }
 }
 
-// Adapter to wire up TodoList changes to the UI.
-//
-// Registers with the "source" (our TodoLists singleton) to be
-// notified whenever its underlying data set is changed (or reloaded),
-// so long as the activity is running.
-
-class TodosAdapter( stream: DataStream[ IndexedSeq[ TodoList ]] )
- extends IndexedSeqDataStreamAdapter( stream,
-                                      itemViewResourceId = R.layout.todos_row )
-{
-  override def bindView( view: View, list: TodoList ) =
-    view.asInstanceOf[ TextView ].setText( list.name )
-}
-
-// Activity that uses it:
-
 class TodosActivity 
  extends PositronicActivity( layoutResourceId = R.layout.all_todos ) 
  with ViewFinder               // typed "findView" support
@@ -78,7 +62,9 @@ class TodosActivity
     val events = PositronicContentResolver ?? OnDataAvailable( TodoContract.TODO_LISTS_URI, 
                                                                true )
     val stream = events.mapFuture{x => TodoLists ? Query}.during( this.running )
-    listsView.setAdapter( new TodosAdapter( stream ))
+    listsView.setAdapter( new IndexedSeqDataStreamAdapter( 
+      stream,
+      itemViewResourceId = R.layout.todos_row ))
 
     // Listen for events on widgets
 
@@ -185,7 +171,11 @@ class TodoActivity
     val itemScope = TodoItems.scopeForKey( theList.id )
     val events = PositronicContentResolver ?? OnDataAvailable( uri, true )
     val stream = events.mapFuture{x => itemScope ? Query}.during( this.running )
-    listItemsView.setAdapter( new TodoItemsAdapter( stream ))
+    listItemsView.setAdapter( 
+      new IndexedSeqDataStreamAdapter( 
+        stream,
+        itemViewResourceId = R.layout.todo_row,
+        binder = TodoUiBinder ))
 
     // Event handlers...
 
@@ -236,14 +226,6 @@ class TodoActivity
   def deleteWhereDone = theList.doneItems ! DeleteAll
 }
 
-class TodoItemsAdapter( stream: DataStream[ IndexedSeq[ TodoItem ]] )
- extends IndexedSeqDataStreamAdapter( stream,
-                                      itemViewResourceId = R.layout.todo_row )
-{
-  override def bindView( view: View, it: TodoItem ) =
-    view.asInstanceOf[ TodoItemView ].setTodoItem( it )
-}
-
 // View for TodoItems:  TextView which adds strikethrough if the item "isDone" 
 
 class TodoItemView( context: Context, attrs: AttributeSet = null )
@@ -260,6 +242,15 @@ class TodoItemView( context: Context, attrs: AttributeSet = null )
        else getPaintFlags & ~Paint.STRIKE_THRU_TEXT_FLAG
      )
    }
+}
+
+// Binder which knows what to do with it:
+
+object TodoUiBinder extends UiBinder {
+  bind[ TodoItemView, TodoItem ](
+    ( _.setTodoItem( _ )),
+    ( (view, item) => item )            // no update
+  )
 }
 
 // Getting sub-widgets, using the typed resources consed up by the

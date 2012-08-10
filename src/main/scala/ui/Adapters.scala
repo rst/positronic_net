@@ -7,6 +7,7 @@ import _root_.android.view.ViewGroup
 import _root_.android.util.Log
 
 import org.positronicnet.notifications.Notifier
+import org.positronicnet.notifications.DataStream
 
 import org.positronicnet.content.PositronicCursor // for CursorSourceAdapter
 import _root_.android.database.Cursor
@@ -200,6 +201,30 @@ class IndexedSeqSourceAdapter[T <: Object](activity: PositronicActivityHelpers,
                                 binder = binder )
 {
   activity.manageListener( this, source ) { resetSeq( _ ) }
+}
+
+/**
+  * Adapter for [[org.positronicnet.notifications.DataStream]]s of
+  * Scala `IndexedSeq`s.  The adapter starts out with the stream's initial
+  * (or current) value, and refreshes itself as and when updates are
+  * provided.
+  *
+  * Like [[org.positronicnet.ui.IndexedSeqAdapter]], except that it wires
+  * itself up to automatically be notified of changes as reported by
+  * the DataStream.
+  */
+
+class IndexedSeqDataStreamAdapter[ T <: Object ](
+  stream:             DataStream[ IndexedSeq[ T ]],
+  itemViewResourceId: Int                            = 0,
+  binder:             UiBinder                       = UiBinder
+)
+extends IndexedSeqAdapter[T]( 
+  itemViewResourceId = itemViewResourceId,
+  binder             = binder
+)
+{
+  stream.withValues { resetSeq( _ ) }
 }
 
 /**

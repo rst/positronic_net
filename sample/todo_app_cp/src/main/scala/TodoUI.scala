@@ -3,7 +3,7 @@ package org.positronicnet.sample.todo_cp
 import org.positronicnet.ui.IndexedSeqAdapter
 import org.positronicnet.ui.PositronicDialog
 import org.positronicnet.ui.PositronicActivity
-import org.positronicnet.ui.IndexedSeqSourceAdapter
+import org.positronicnet.ui.IndexedSeqDataStreamAdapter
 import org.positronicnet.ui.UiBinder
 
 import org.positronicnet.orm._
@@ -30,20 +30,7 @@ import android.widget.Toast
 import android.graphics.Paint
 import android.graphics.Canvas
 
-// A bit of framework that's here temporarily:
-
-class IndexedSeqDataStreamAdapter[ T <: Object ](
-  stream:             DataStream[ IndexedSeq[ T ]],
-  itemViewResourceId: Int                            = 0,
-  binder:             UiBinder                       = UiBinder
-)
-extends IndexedSeqAdapter[T]( 
-  itemViewResourceId = itemViewResourceId,
-  binder             = binder
-)
-{
-  stream.withValues { resetSeq( _ ) }
-}
+// Activity for the list of our todo-lists
 
 class TodosActivity 
  extends PositronicActivity( layoutResourceId = R.layout.all_todos ) 

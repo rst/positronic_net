@@ -169,7 +169,7 @@ class RecordId[T <: ManagedRecord] private[orm] (
   override def equals( other: Any ) =
     other match {
       case otherId: RecordId[_] =>
-        otherId.id == this.id && otherId.mgr == this.mgr
+            ((otherId.isNewRecord && this.isNewRecord) || otherId.id == this.id) && otherId.mgr == this.mgr
       case _ =>
         false
     }

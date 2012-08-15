@@ -389,6 +389,14 @@ class PositronicLinearLayout( context: Context, attrs: AttributeSet = null )
  extends android.widget.LinearLayout( context, attrs ) 
  with PositronicHandlers
 
+/** An `android.widget.RelativeLayout` with [[org.positronicnet.ui.PositronicHandlers]]
+  * mixed in.
+  */
+
+class PositronicRelativeLayout( context: Context, attrs: AttributeSet = null )
+ extends android.widget.RelativeLayout( context, attrs )
+ with PositronicHandlers
+
 /** Shorthand `android.app.Dialog` class with some extra constructor
   * arguments as a convenience.
   */

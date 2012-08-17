@@ -19,6 +19,14 @@ abstract class BaseJoin[ TLeft <: ManagedRecord,
   extends BaseNotifier( query.facility )
   with NonSharedNotifier[ TResult ]
 {
+  val resultCols = cols.map{ colSpec => {
+    val asWhere = colSpec.indexOf(" as ")
+    if (asWhere < 0)
+      colSpec
+    else
+      colSpec.substring( asWhere + 4 ).trim
+  }}
+
   abstract class ColumnId
   case class LeftCol( s: String )  extends ColumnId
   case class RightCol( s: String ) extends ColumnId
@@ -34,7 +42,7 @@ abstract class BaseJoin[ TLeft <: ManagedRecord,
 
   private def colIdx( col: String, mappings: HashMap[String,String] ) = {
     val renamedCol = mappings.getOrElse( col, col )
-    val idx = cols.indexOf( renamedCol )
+    val idx = resultCols.indexOf( renamedCol )
     if (idx < 0) 
       throw new RuntimeException("Column "+renamedCol+" not present in join")
     idx

@@ -8,16 +8,18 @@ import com.xtremelabs.robolectric.res.ResourceLoader
 import com.xtremelabs.robolectric.internal.RealObject;
 import com.xtremelabs.robolectric.shadows.ShadowApplication;
 
+import com.xtremelabs.robolectric.util.DatabaseConfig
+import com.xtremelabs.robolectric.util.SQLiteMap
+
 import android.net.Uri__FromAndroid     // from Robolectric shadows
 
 import scala.collection.mutable.HashMap
 
 // Run Scalatest suites with partial workalikes for Android framework
 // classes defined, from the "Robolectric" library.  The imitations
-// aren't perfect --- the database is H2, for instance, which speaks a
-// rather different dialect from SQLite --- but the process is better
-// integrated with build tooling, and vastly faster, than trying to
-// run tests in the emulator.  The hope is we come out ahead.
+// aren't perfect, but the process is better integrated with build
+// tooling, and vastly faster, than trying to run tests in the
+// emulator.  The hope is we come out ahead.
 
 trait RobolectricTests
   extends org.scalatest.Suite
@@ -84,6 +86,7 @@ trait RobolectricTests
 
     Robolectric.bindDefaultShadowClasses
     Robolectric.resetStaticState
+    DatabaseConfig.setDatabaseMap( this.databaseMap )
 
     config( configMap ) match {
       case ( config, resourceLoader ) =>
@@ -91,6 +94,10 @@ trait RobolectricTests
         Robolectric.application = ShadowApplication.bind( app, resourceLoader )
     }
   }
+
+  // Database Map.  Just doing the bare minimum for now... there's only one.
+
+  lazy val databaseMap = new SQLiteMap
 
   // Managing configuration.  Robolectric needs to know where the
   // manifest and resources are; we use command-line arguments (or the

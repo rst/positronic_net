@@ -21,15 +21,15 @@ object TodoDbSD extends TodoDatabase( "todos_softdel.sqlite3" )
 
   override def schemaUpdates =
     List(""" create table todo_lists (
-               _id int identity,
-               name varchar(100),
+               _id integer primary key,
+               name string,
                is_deleted integer default 0
              )
          """,
          """ create table todo_items (
-               _id int identity,
-               todo_list_id int not null default -1,
-               description varchar(100),
+               _id integer primary key,
+               todo_list_id integer not null default -1,
+               description string,
                is_done integer,
                is_deleted integer default 0
              )

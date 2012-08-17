@@ -330,16 +330,8 @@ class ActivityInThisPackage
 // And as a bonus... we now also test that we find bindings for subclasses!
 // Bletch.
 
-trait RobolectricPrefBugWorkaround extends Preference {
-
-  var key: String = null
-
-  override def getKey = key
-  override def setKey( s: String ): Unit = { key = s }
-}
-
 class BogoCheckBoxPref( ctx: Context )
-  extends CheckBoxPreference( ctx ) with RobolectricPrefBugWorkaround
+  extends CheckBoxPreference( ctx )
 {
   var checked: Boolean = false
 
@@ -348,7 +340,7 @@ class BogoCheckBoxPref( ctx: Context )
 }
 
 class BogoEditTextPref( ctx: Context )
-  extends EditTextPreference( ctx ) with RobolectricPrefBugWorkaround
+  extends EditTextPreference( ctx )
 {
   var txt: String = null
 
@@ -372,15 +364,6 @@ class CanaryPref( ctx: Context )
 
 class BogoPreferenceGroup( ctx: Context, attrs: AttributeSet ) 
   extends PreferenceGroup( ctx, attrs )
-{
-  var prefs: Seq[Preference] = Seq.empty
-  override def addPreference( pref: Preference ): Boolean = { 
-    prefs = prefs :+ pref
-    return true
-  }
-  override def getPreferenceCount = prefs.size
-  override def getPreference( i: Int ) = prefs( i )
-}
 
 // Similar hackery for incomplete CheckedTextView emulation.
 

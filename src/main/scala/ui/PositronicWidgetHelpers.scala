@@ -7,7 +7,7 @@ import _root_.android.view.View
 import _root_.android.view.Menu
 import _root_.android.view.ContextMenu
 import _root_.android.view.MenuItem
-import android.widget.{SeekBar, AdapterView}
+import _root_.android.widget.{SeekBar, AdapterView}
 import _root_.android.util.Log
 import _root_.android.view.KeyEvent
 import _root_.android.view.View.OnKeyListener
@@ -24,13 +24,6 @@ import scala.collection.mutable.ArrayBuffer
   */
 
 trait PositronicHandlers extends View with GenericViewUtils {
-
-  /** Removes this view from its parent view if it can **/
-  def removeFromParent = try {
-    this.getParent.asInstanceOf[ViewGroup].removeView(this)
-  } catch {
-    case e : Exception => val donothing = true
-  }
 
   def setOnClickListener( dummy: View.OnClickListener ): Unit
 

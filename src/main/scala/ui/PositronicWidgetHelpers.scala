@@ -25,13 +25,6 @@ import scala.collection.mutable.ArrayBuffer
 
 trait PositronicHandlers extends View with GenericViewUtils {
 
-  /** Removes this view from its parent view if it can **/
-  def removeFromParent = try {
-    this.getParent.asInstanceOf[ViewGroup].removeView(this)
-  } catch {
-    case e : Exception => val donothing = true
-  }
-
   def setOnClickListener( dummy: View.OnClickListener ): Unit
 
   /** Call `func` when there is a click on this view. */

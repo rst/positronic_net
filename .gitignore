@@ -1,5 +1,7 @@
 *~
+.*
 .gitignore
+*.iml
 project/boot/
 project/build/target/
 project/plugins/lib_managed/
@@ -13,4 +15,6 @@ target/
 tests/src/main/java/
 tests/target/
 tmp
+src/main/gen/
+testsupport/src/main/gen/
 R.java

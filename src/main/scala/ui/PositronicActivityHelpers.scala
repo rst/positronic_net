@@ -433,11 +433,6 @@ trait PositronicActivityHelpers
 
 trait ActivityResultDispatch extends android.app.Activity {
 
-  private [positronicnet] case class PendingResponse (
-    responderKey: AnyRef,
-    methodName:   String,
-    extraArgs:    Seq[ Any ])
-
   private[positronicnet] 
   val activityResponders =
     new HashMap[ AnyRef, ActivityResultDispatchClient ]
@@ -535,6 +530,15 @@ trait ActivityResultDispatch extends android.app.Activity {
     startActivityForResult( intent, requestCode )
   }
 }
+
+// Helper for above.  Can't be a nested class; it needs to get serialized,
+// and if it were nested, it would have a reference to the parent Activity,
+// which ... doesn't serialize well.
+
+private [positronicnet] case class PendingResponse (
+  responderKey: AnyRef,
+  methodName:   String,
+  extraArgs:    Seq[ Any ])
 
 /** Trait to allow activity components to register to receive
   * activity results, in coordination with Activities that implement

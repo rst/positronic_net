@@ -43,7 +43,7 @@ object AndroidBuild extends Build {
     settings = General.fullAndroidSettings ++ Seq(
 
       parallelExecution in Test := false,
-      libraryDependencies += "com.pivotallabs"%"robolectric"%"1.0-RC1" % "test",
+      libraryDependencies += "com.pivotallabs"%"robolectric"%"1.1" % "test",
 
       testOptions in Test ++= Seq(
         Tests.Argument("-DandroidResPath=src/main/res"),
@@ -63,7 +63,7 @@ object AndroidBuild extends Build {
       keyalias in Android := "change-me",
       libraryDependencies ++= Seq( 
         "org.scalatest" %% "scalatest" % "1.6.1",
-        "com.pivotallabs"%"robolectric"%"1.0-RC1"
+        "com.pivotallabs"%"robolectric"%"1.1"
       )))
 
   // Bundled sample projects

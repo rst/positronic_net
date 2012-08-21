@@ -17,19 +17,19 @@ object PeopleDb
   def schemaUpdates = 
     List( """
           create table schools (
-            _id int identity,
-            name varchar(100),
+            _id integer primary key,
+            name string
           )
           """,
 
           """
           create table people (
-            _id int identity,
-            person_type varchar(100),
-            school_id int,
-            name varchar(100),
-            class_year int,
-            rating int
+            _id integer primary key,
+            person_type string,
+            school_id integer,
+            name string,
+            class_year integer,
+            rating integer
           )
           """ )
 

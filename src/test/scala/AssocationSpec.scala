@@ -106,16 +106,16 @@ class AssociationSpec
       // is to a *subset* of the rows in the underlying table (as for, e.g.,
       // soft delete).
 
-      object myJoin  extends OneToManyJoin( 
+      object myJoin extends OneToManyJoin( 
         TodoLists, TodoItems,
-        Seq("todo_lists._id", "name", 
-            "todo_items._id", "todo_list_id", "description", "is_done"),
+        Seq("todo_lists._id as list_id","name", 
+            "todo_items._id as item_id","todo_list_id","description","is_done"),
         TodoDb( "todo_lists left join todo_items on" +
                 " todo_lists._id = todo_items.todo_list_id" ).
           order ("name, description")
       ) {
-        remap( LeftCol("_id"),  "todo_lists._id" )
-        remap( RightCol("_id"), "todo_items._id" )
+        remap( LeftCol("_id"),  "list_id" )
+        remap( RightCol("_id"), "item_id" )
       }
 
       // Toss in an empty list, for the outer join.

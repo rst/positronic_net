@@ -11,7 +11,7 @@ It builds using `sbt` version 0.11.0 and the [sbt-android-plugin](https://github
 
 Available documentation includes:
 
-* [Installation instructions](http://rst.github.com/tut_sections/2001/01/01/installation.html).
+* [Installation instructions](http://rst.github.com/tut_sections/999/01/01/installation.html).
 * [A tutorial](http://rst.github.com/tutorial.html).
 * [API reference documentation](http://rst.github.com/api/index.html#org.positronicnet.package).
 

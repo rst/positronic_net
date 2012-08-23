@@ -6,7 +6,7 @@ import _root_.android.view.View
 import _root_.android.view.Menu
 import _root_.android.view.ContextMenu
 import _root_.android.view.MenuItem
-import android.widget.{SeekBar, AdapterView}
+import _root_.android.widget.{AdapterView, SeekBar}
 import _root_.android.util.Log
 import _root_.android.view.KeyEvent
 import _root_.android.view.View.OnKeyListener
@@ -334,30 +334,41 @@ class PositronicCheckBox( context: Context, attrs: AttributeSet = null )
   */
 
 class PositronicSeekBar( context : Context, attrs : AttributeSet = null )
- extends _root_.android.widget.SeekBar( context, attrs ) {
-    private var progressChanged : (Int, Boolean) => Unit = null
-    private var startTracking : () => Unit = null
-    private var stopTracking : () => Unit = null
-    def onProgressChanged( func : (Int, Boolean) => Unit ) = {
-        progressChanged = func
-        updateListener
-    }
-    def onStartTrackingTouch( func : () => Unit ) = {
-        startTracking = func
-        updateListener
-    }
-    def onStopTrackingTouch( func : () => Unit ) = {
-        stopTracking = func
-        updateListener
-    }
-    private def updateListener = {
-        setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener {
-            def onProgressChanged(sb : SeekBar, progress : Int, fromUser : Boolean) = if (progressChanged != null) progressChanged(progress, fromUser)
-            def onStartTrackingTouch(sb : SeekBar) = if (startTracking != null) startTracking
-            def onStopTrackingTouch(sb : SeekBar) = if (stopTracking != null) stopTracking
-        })
-    }
- }
+  extends _root_.android.widget.SeekBar( context, attrs ) 
+{
+  private var progressChanged : (Int, Boolean) => Unit = null
+  private var startTracking : () => Unit = null
+  private var stopTracking : () => Unit = null
+
+  def onProgressChanged( func : (Int, Boolean) => Unit ) = {
+    progressChanged = func
+    updateListener
+  }
+  
+  def onStartTrackingTouch( func : () => Unit ) = {
+    startTracking = func
+    updateListener
+  }
+
+  def onStopTrackingTouch( func : () => Unit ) = {
+    stopTracking = func
+    updateListener
+  }
+
+  private def updateListener = {
+    setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener {
+ 
+      def onProgressChanged(sb : SeekBar, progress : Int, fromUser : Boolean) =
+        if (progressChanged != null) progressChanged(progress, fromUser)
+ 
+      def onStartTrackingTouch(sb : SeekBar) = 
+        if (startTracking != null) startTracking
+ 
+      def onStopTrackingTouch(sb : SeekBar) = 
+        if (stopTracking != null) stopTracking
+    })
+  }
+}
 
 /** An `android.widget.ImageButton` with [[org.positronicnet.ui.PositronicHandlers]]
   * mixed in.

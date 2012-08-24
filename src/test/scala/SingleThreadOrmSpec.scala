@@ -46,10 +46,17 @@ class SingleThreadOrmSpec
     }
   }
 
-  describe( "ID manipulation on find" ) {
-    it ("should make ids distinct" ) {
+  describe( "Record ID equality" ) {
+    it ("IDs of found records should be distinct") {
       val items = TodoItems.fetchOnThisThread
       items(0).id should not equal (items(1).id)
+    }
+    it ("IDs of found records should not be null") {
+      val items = TodoItems.fetchOnThisThread
+      items(0).id should not equal (TodoItems.nullId)
+    }
+    it ("multiple null IDs should compare equal") {
+      TodoItems.nullId should equal (TodoItems.nullId)
     }
   }
 

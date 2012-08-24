@@ -57,6 +57,18 @@ abstract class ContentValue {
   def putContentValues( cv: ContentValues, key: String )
 }
 
+/** A distinguished ContentValue to represent a database NULL in an ID column */
+
+case object CvNullId extends ContentValue {
+  def asConditionString = "null" // won't really work due to SQL null oddities
+  def putContentValues( cv: ContentValues, key: String ) = {
+    // Have to subtype this "null" so scalac knows which overloaded "put"
+    // to choose...
+    val nullStr: String = null
+    cv.put( key, nullStr )
+  }
+}
+
 /** Strings as [[org.positronicnet.content.ContentValue]]s */
 
 case class CvString( value: String ) extends ContentValue {

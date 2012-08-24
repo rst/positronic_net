@@ -114,7 +114,8 @@ trait ManagedRecord extends Object {
 
 class RecordId[T <: ManagedRecord] private[orm] (
     @transient val mgrArg: BaseRecordManager[T],
-    val id: Long)
+    val id: Long,
+    val isNull: Boolean = false)
   extends NonSharedNotifier[T]
   with Serializable
 {
@@ -149,7 +150,9 @@ class RecordId[T <: ManagedRecord] private[orm] (
   override def equals( other: Any ) =
     other match {
       case otherId: RecordId[_] =>
-        otherId.id == this.id && otherId.mgr == this.mgr
+        (otherId.isNull == this.isNull 
+         && otherId.id  == this.id 
+         && otherId.mgr == this.mgr)
       case _ =>
         false
     }
@@ -208,6 +211,14 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   def unsavedId = {
     nextUnsavedId -= 1
     new RecordId( this, nextUnsavedId )
+  }
+
+  /** ID equal to what will be retrieved on a fetch if the underlying
+    * column is null.
+    */
+
+  def nullId = {
+    new RecordId( this, 0, isNull = true )
   }
 
   /** Upcasting a raw Long to an ID; sometimes useful in cases where

@@ -251,8 +251,10 @@ private [orm]
 object MappedIdField {
   val idField = classOf[RecordId[_]].getDeclaredField("id")
   val savedIdField = classOf[RecordId[_]].getDeclaredField("savedId")
+  val isNullField = classOf[RecordId[_]].getDeclaredField("isNull")
   idField.setAccessible( true )
   savedIdField.setAccessible( true )
+  isNullField.setAccessible( true )
 }
 
 private [orm]
@@ -269,23 +271,46 @@ class MappedIdField( colName: String,
 
   def setFromCursorColumn( o: AnyRef, c: Cursor ): Unit = {
     val recordIdObj = rfield.get( o ).asInstanceOf[ RecordId[_] ]
-    val newId = c.getLong( realColNumber )
 
-    // Set both 'id' and 'savedId' fields.  What I get for having them both,
-    // I guess...
+    if (c.isNull( realColNumber )) {
+      // Set the "isNull" flag, and set the numeric IDs to zero,
+      // just so they all stay consistent...
+      MappedIdField.isNullField.set( recordIdObj, true )
+      MappedIdField.idField.set( recordIdObj, 0 )
+      recordIdObj.markSaved( 0 )
+    }
+    else {
+      val newId = c.getLong( realColNumber )
 
-    MappedIdField.idField.set( recordIdObj, newId )
-    recordIdObj.markSaved( newId )
+      // Set both 'id' and 'savedId' fields.  What I get for having them both,
+      // I guess...
+
+      MappedIdField.idField.set( recordIdObj, newId )
+      recordIdObj.markSaved( newId )
+    }
   }
   
   def getValue( o: AnyRef ): ContentValue = {
-    val recordIdObj = rfield.get( o )
-    new CvLong( MappedIdField.savedIdField.getLong( recordIdObj ) )
+    val recordIdObj = rfield.get( o ).asInstanceOf[ RecordId[_] ]
+    if (recordIdObj.isNull)
+      CvNullId
+    else
+      new CvLong( MappedIdField.savedIdField.getLong( recordIdObj ) )
   }
 
   def setValue( o: AnyRef, l: ContentValue ): Unit = {
-    val recordIdObj = rfield.get( o )
-    MappedIdField.idField.setLong( recordIdObj, l.asInstanceOf[ CvLong ].value )
+    val recordIdObj = rfield.get( o ).asInstanceOf[ RecordId[_] ]
+    if (l != CvNullId) {
+      MappedIdField.idField.setLong( recordIdObj, 
+                                     l.asInstanceOf[ CvLong ].value )
+    }
+    else {
+      // Set the "isNull" flag, and set the numeric IDs to zero,
+      // just so they all stay consistent...
+      MappedIdField.isNullField.set( recordIdObj, true )
+      MappedIdField.idField.set( recordIdObj, 0 )
+      recordIdObj.markSaved( 0 )
+    }
   }
 }
 

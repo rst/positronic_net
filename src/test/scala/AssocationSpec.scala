@@ -34,6 +34,33 @@ class AssociationSpec
     }
   }
 
+  describe( "treatment of null parent IDs" ) {
+
+    it ("should correctly retrieve items with null parent IDs") {
+
+      // Insert some records with no parent
+
+      def nullItem( desc: String ) = TodoItem( desc, false, TodoLists.nullId )
+
+      TodoItems.onThisThread( Save( nullItem( "null 1" )))
+      TodoItems.onThisThread( Save( nullItem( "null 2" )))
+
+      // Make sure underlying table is as we expect
+
+      TodoDb("todo_items").where("todo_list_id is null").count should be (2)
+      TodoDb("todo_items").count should not be (2)
+
+      // Now use ORM to read 'em back, and make sure we get what we expect
+
+      val items = TodoItems.where( "todo_list_id is null" ).fetchOnThisThread
+
+      items.map{ _.description }.sorted.toSeq should be (Seq("null 1","null 2"))
+      items(0).todoListId should be (TodoLists.nullId)
+      items(1).todoListId should be (TodoLists.nullId)
+    }
+    
+  }
+
   describe( "has many association" ) {
 
     it( "should find only relevant records" ) {

@@ -37,7 +37,7 @@ class TodoDatabase( filename: String )
          """,
          """ create table todo_items (
                _id integer primary key,
-               todo_list_id integer not null default -1,
+               todo_list_id integer,
                description string,
                is_done integer
              )

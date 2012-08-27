@@ -136,8 +136,9 @@ class RecordId[T <: ManagedRecord] private[orm] (
   private val className: String = mgrArg.managedKlass.getName
   
   /** Record manager for this ID.  Ordinarily it's just a reference to
-    * the record manager that constructed us, but if we got serialized and
-    * deserialized, the 
+    * the record manager that constructed us, but in more exotic situations
+    * (e.g. [[org.positronicnet.orm.DependentRecordManager]]), they may
+    * differ, or a `topLevelScope` may just not be available.
     */
 
   def topLevelScope: Scope[T] = 
@@ -147,7 +148,11 @@ class RecordId[T <: ManagedRecord] private[orm] (
         "naked record IDs for " + mgr.getClass + " cannot fetch unassisted")
     }
 
-  private[orm] def mgr: PrimitiveRecordManager[T] = {
+  /** Record manager managing us.  Note that this may or may not be able
+    * to do actual record fetches; see also `topLevelScope`
+    */
+
+  def mgr: PrimitiveRecordManager[T] = {
     if (mgrCache == null) {
       val retrievedMgr = PrimitiveRecordManager.forClassNamed( className )
       mgrCache = retrievedMgr.asInstanceOf[ PrimitiveRecordManager[ T ]]

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:orientation="vertical"
+  android:layout_width="fill_parent"
+  android:layout_height="fill_parent">
+  <LinearLayout
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content">
+    <org.positronicnet.ui.PositronicEditText
+      android:id="@+id/newItemText"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:text=""
+    />
+    <org.positronicnet.ui.PositronicButton
+      android:id="@+id/addButton"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="Add Item"
+    />
+  </LinearLayout>
+  <org.positronicnet.ui.PositronicListView  
+    android:id="@+id/listItemsView"
+    android:layout_width="fill_parent" 
+    android:layout_height="wrap_content" 
+  />
+</LinearLayout>

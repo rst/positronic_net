@@ -82,6 +82,7 @@ object AndroidBuild extends Build {
   }
 
   lazy val todo     = sampleProject( "SampleTodo",     "todo_app" )
+  lazy val todocp   = sampleProject( "SampleTodoCp",   "todo_app_cp" )
   lazy val call_log = sampleProject( "SampleCallLog",  "call_log_app" )
   lazy val contacts = sampleProject( "SampleContacts", "contacts_app" )
 }

@@ -85,7 +85,7 @@ object Actions {
   {
     val complete: PartialFunction[ BaseNotifierImpl[ IndexedSeq[T] ], T ] = {
       case dummy: BaseNotifierImpl[ IndexedSeq[T] ] =>
-        id.mgr.find( id, id.mgr.baseQuery )
+        id.mgr.find( id, id.topLevelScope.baseQuery )
     }
   }
     
@@ -107,15 +107,15 @@ abstract class ScopedAction[T <: ManagedRecord: ClassManifest]
     * action, whatever that entails.  Arguments are the
     * [[org.positronicnet.orm.Scope]] that receieved the action,
     * and, for convenience, its associated
-    * [[org.positronicnet.orm.RecordManager]].
+    * [[org.positronicnet.orm.PrimitiveRecordManager]].
     *
-    * The method is invoked on the `RecordManager`'s associated
+    * The method is invoked on the `PrimitiveRecordManager's associated
     * worker thread if the action was sent as `scope!action`,
     * and on the calling thread if it was sent instead as
     * `scope.onThisThread(action)`.
     */
 
-  def act( scope: Scope[T], mgr: BaseRecordManager[T] ): Unit
+  def act( scope: Scope[T], mgr: PrimitiveRecordManager[T] ): Unit
 }
 
 /** A [[org.positronicnet.orm.Scope]] represents a subset of the
@@ -133,7 +133,7 @@ trait Scope[ T <: ManagedRecord ]
   extends NotificationManager
   with NotifierDelegator[ IndexedSeq[ T ]]
 {
-  private [orm] val mgr: BaseRecordManager[T]
+  private [orm] val mgr: PrimitiveRecordManager[T]
 
   /** [[org.positronicnet.facility.AppFacility]] associated with the
     * content source.

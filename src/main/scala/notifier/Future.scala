@@ -176,6 +176,18 @@ class Future[T] {
       if (this.result == null)
         this.wait 
     }
+
+  /** Block until completion */
+
+  def force: T = {
+    block;
+    result match {
+      case Left( value ) => value
+      case Right( exception ) => 
+        throw new java.lang.RuntimeException( "Exception completing future",
+                                              exception )
+    }
+  }
 }
 
 object Future {

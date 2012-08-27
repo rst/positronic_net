@@ -10,10 +10,19 @@ import _root_.android.widget.Toast
 import _root_.android.util.Log
 
 import org.positronicnet.facility.AppFacility
-import org.positronicnet.notifications.Notifier
+import org.positronicnet.notifications._
 
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer
+
+private [ui] 
+class ExplicitDuration
+  extends Duration
+  with ExplicitNotificationDataStream[ DurationEvent ]
+{
+  def start = noteNewValue( DurationStart )
+  def stop  = noteNewValue( DurationStop )
+}
 
 /** Mixin trait for android acitivities which provides extra hooks
   * for integrated lifecycle management.  Fortunately, these
@@ -76,6 +85,17 @@ trait PositronicActivityHelpers
     this.onDestroy{ f.close }
   }
 
+  private [this] val runningDuration = new ExplicitDuration
+  private [this] val aliveDuration   = new ExplicitDuration
+
+  /** Duration that this activity is running */
+
+  val running: Duration = runningDuration
+
+  /** Duration that this activity is alive */
+
+  val alive:   Duration = aliveDuration
+
   // Handlers for lifecycle events.  The idea here is simply to
   // eliminate the ceremony of having to call super.foo() when
   // redefining each of these.
@@ -108,6 +128,7 @@ trait PositronicActivityHelpers
     if (layoutResourceId != 0) { setContentView( layoutResourceId ) }
     if ( b != null ) recreateInstanceState( b )
     onCreateNotifier.runAll
+    aliveDuration.start
   }
 
   /** Invoked as `onCreate{ ... body ... }`.
@@ -134,6 +155,7 @@ trait PositronicActivityHelpers
   override def onResume = { 
     super.onResume(); 
     onResumeNotifier.runAll
+    runningDuration.start
   }
   
   /** Invoked as `onResume{ ... body ... }`.
@@ -147,6 +169,7 @@ trait PositronicActivityHelpers
   override def onPause = { 
     super.onPause(); 
     onPauseNotifier.runAll
+    runningDuration.stop
   }
   
   /** Invoked as `onPause{ ... body ... }`.
@@ -173,6 +196,7 @@ trait PositronicActivityHelpers
   override def onDestroy = { 
     super.onDestroy(); 
     onDestroyNotifier.runAll
+    aliveDuration.stop
   }
   
   /** Invoked as `onDestroy{ ... body ... }`.

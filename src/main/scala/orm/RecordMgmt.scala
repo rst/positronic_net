@@ -113,7 +113,7 @@ trait ManagedRecord extends Object {
   */
 
 class RecordId[T <: ManagedRecord] private[orm] (
-    @transient val mgrArg: BaseRecordManager[T],
+    @transient val mgrArg: PrimitiveRecordManager[T],
     val id: Long)
   extends NonSharedNotifier[T]
   with Serializable
@@ -124,19 +124,38 @@ class RecordId[T <: ManagedRecord] private[orm] (
   // (Doing this with custom readObject and writeObject methods
   // was... glitchy when attaching serialized RecordIds as extras to
   // Intents, so instead we do this.)
+  //
+  // This must be sufficient for 'mgr' (below) to reconstruct our 
+  // associated BaseRecordManager.  For the base case, it *is* the
+  // BaseRecordManager; for "structured repositories", things may
+  // be more complex, but those will have associated ID subtypes.
+  // (Invisible to clients, since the RecordManager ultimately
+  // produces all IDs.)
 
   @transient private var mgrCache = mgrArg
   private val className: String = mgrArg.managedKlass.getName
   
   /** Record manager for this ID.  Ordinarily it's just a reference to
-    * the record manager that constructed us, but if we got serialized and
-    * deserialized, the 
+    * the record manager that constructed us, but in more exotic situations
+    * (e.g. [[org.positronicnet.orm.DependentRecordManager]]), they may
+    * differ, or a `topLevelScope` may just not be available.
     */
 
-  def mgr = {
+  def topLevelScope: Scope[T] = 
+    mgr match {
+      case tls: Scope[T] => tls
+      case _ => throw new RuntimeException(
+        "naked record IDs for " + mgr.getClass + " cannot fetch unassisted")
+    }
+
+  /** Record manager managing us.  Note that this may or may not be able
+    * to do actual record fetches; see also `topLevelScope`
+    */
+
+  def mgr: PrimitiveRecordManager[T] = {
     if (mgrCache == null) {
-      val retrievedMgr = BaseRecordManager.forClassNamed( className )
-      mgrCache = retrievedMgr.asInstanceOf[ BaseRecordManager[ T ]]
+      val retrievedMgr = PrimitiveRecordManager.forClassNamed( className )
+      mgrCache = retrievedMgr.asInstanceOf[ PrimitiveRecordManager[ T ]]
     }
     mgrCache
   }
@@ -144,7 +163,8 @@ class RecordId[T <: ManagedRecord] private[orm] (
   private[orm] var savedId = id
   private[orm] def markSaved( savedId: Long ) = { this.savedId = savedId }
 
-  protected def currentValue = mgr.find( this, mgr.baseQuery )
+  protected def currentValue = 
+    mgr.find( this, topLevelScope.baseQuery )
 
   override def equals( other: Any ) =
     other match {
@@ -172,9 +192,9 @@ object RecordId {
 }
 
 private [orm]
-object BaseRecordManager {
+object PrimitiveRecordManager {
 
-  private [orm] def forClassNamed( name: String ): BaseRecordManager[_] = {
+  private [orm] def forClassNamed( name: String ): PrimitiveRecordManager[_] = {
 
     // We have the name of the managed class.  We need to get the
     // record manager, which we do by a somewhat convoluted path...
@@ -198,12 +218,21 @@ object BaseRecordManager {
   */
 
 abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( repository: ContentQuery[_,_] )
-  extends BaseNotificationManager( repository.facility )
+  extends PrimitiveRecordManager[T]( repository.facility )
   with Scope[T]
 {
-  /** ID for a new unsaved object */
+  private [orm] val mgr = this
 
+  val baseQuery = repository
+}
+
+private [positronicnet]
+abstract class PrimitiveRecordManager[T <: ManagedRecord : ClassManifest]( val facility: AppFacility )
+  extends BaseNotificationManager( facility )
+{
   private var nextUnsavedId = 0
+
+  /** ID for a new unsaved object */
 
   def unsavedId = {
     nextUnsavedId -= 1
@@ -216,6 +245,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     */
 
   def idFromLong( rawId: Long ) = new RecordId( this, rawId )
+  // Feeding the Scope machinery what it needs
 
   /**
     * Produce a new object (to be populated with mapped data from a query). 
@@ -343,13 +373,6 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     }
   }
 
-  // Feeding the Scope machinery what it needs
-
-  private [orm] val mgr = this
-
-  val facility = repository.facility
-  val baseQuery = repository
-
   // Dealing with the mappings... internals
 
   def dumpFieldsMapping( sfunc: String => Unit ) =
@@ -369,7 +392,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     className.head.toLower + className.tail + "Id"
   }
 
-  private lazy val fieldNames = fields.map{ _.dbColumnName }
+  protected lazy val fieldNames = fields.map{ _.dbColumnName }
 
   private var fieldsByDbName: immutable.HashMap[ String, MappedField ] =
     immutable.HashMap.empty
@@ -408,7 +431,6 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
         }
     }
   }
-
   // Dealing with the data... internals
 
   protected
@@ -463,9 +485,9 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   // whatever.
 
   protected [orm]
-  def queryForRecord( rec: T ) = {
+  def queryForRecord( rec: T, scope: Scope[T] ) = {
     this.fields                         // make sure PK is set!
-    repository.whereEq( primaryKeyField.valPair ( rec ))
+    scope.baseQuery.whereEq( primaryKeyField.valPair ( rec ))
   }
 
   protected [orm]
@@ -475,10 +497,10 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
   def save( rec: T, scope: Scope[T] ): RecordId[T] = {
     val data = dataPairs( rec )
     if (rec.isNewRecord) {
-      rec.id.markSaved( this.insert( data ) )
+      rec.id.markSaved( this.insert( data, scope ) )
     }
     else {
-      update( rec, data )
+      update( rec, data, scope )
     }
       
     return rec.id.asInstanceOf[RecordId[T]]
@@ -494,12 +516,12 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
     Seq.empty
 
   private
-  def insert( vals: Seq[(String, ContentValue)] ) = 
-    repository.insert( vals:_* ).asInstanceOf[Long]
+  def insert( vals: Seq[(String, ContentValue)], scope: Scope[T] ) = 
+    scope.baseQuery.insert( vals:_* ).asInstanceOf[Long]
 
   private
-  def update( rec: T, vals: Seq[(String, ContentValue)] ) =
-    queryForRecord( rec ).update( vals:_* )
+  def update( rec: T, vals: Seq[(String, ContentValue)], scope: Scope[T] ) =
+    queryForRecord( rec, scope ).update( vals:_* )
 
   protected [orm]
   def deleteAll( qry: ContentQuery[_,_], scope: Scope[T] ): Unit = {
@@ -518,7 +540,7 @@ abstract class BaseRecordManager[ T <: ManagedRecord : ClassManifest ]( reposito
 
   protected [orm]
   def delete( rec: T, scope: Scope[T] ):Unit = 
-    deleteAll( queryForRecord( rec ), scope )
+    deleteAll( queryForRecord( rec, scope ), scope )
 
   /** Support for "cascading deletes", when the parent record
     * in a many-to-one association is gone.
@@ -552,7 +574,7 @@ abstract class RecordManager[ T <: ManagedRecord : ClassManifest ]( repository: 
 
 private [orm]
 trait AutomaticFieldMappingFromQuery[ T <: ManagedRecord ]
-  extends BaseRecordManager[ T ]
+  extends BaseRecordManager[ T ]        // not "Primitive"
 {
   // Take explicit mappings, and add them to mappings for like-named
   // columns available from our repository.  For that, we have to do a
@@ -638,7 +660,7 @@ abstract class RecordManagerForFields[ TRec <: ManagedRecord : ClassManifest,
 
 private [orm]
 trait FieldMappingFromStaticNames[ T <: ManagedRecord ]
-  extends BaseRecordManager[ T ]
+  extends PrimitiveRecordManager[ T ]
 {
   // Disguised argument to constructor for the trait...
 

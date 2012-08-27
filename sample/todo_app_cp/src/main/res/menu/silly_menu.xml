@@ -1,0 +1,7 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+  android:name="Silly Operations">
+  <item android:id="@+id/honk"
+        android:title="Honk"/>
+  <item android:id="@+id/tweet"
+        android:title="Tweet"/>
+</menu>

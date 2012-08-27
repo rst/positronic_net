@@ -191,16 +191,49 @@ abstract class ContentQuery[SourceType,IdType](
     source: ContentRepository[SourceType,IdType], 
     subSource: SourceType,
     orderString: String,
-    whereString: String,
-    whereValues: Array[String],
+    val whereString: String,
+    val whereValues: Array[String],
     limitString: String
   ) 
 {
+  if (source == null)
+    throw new RuntimeException( getClass.getName + " with null source" )
+
   /** All conditions on this ContentQuery.  Useful to determine when
     * two are equivalent.
     */
 
   def conditionKey = (whereString, whereValues.toSeq)
+
+  /** Where-conditions of this query, as a string, for use in
+    * generating pieces some other query (usually as part of a subquery)
+    *
+    * For example, to find all child records dependent on a particular
+    * set of parents (e.g., all todo items in the zero-to-many lists named by
+    * a query on lists):
+    * {{{
+    *  val listQuery   = TodoDb( "todo_lists" ).where( .... ) // elsewhere
+    *
+    *  val whereValues = listQuery.conditionParameters
+    *  val whereString = listQuery.conditionString
+    *  val itemCond = "todo_list_id in (" + 
+    *                 "select _id from todo_lists where " + whereString + ")"
+    *
+    *  val items = TodoDb( "todo_items" ).where( itemCond, whereValues: _* )
+    * }}}
+    */
+
+  def conditionString = 
+    if (whereString != null) whereString else "1"
+
+  /** Where-parameters of this query, as a (possibly empty) sequence,
+    * to be plugged in to a query built from `conditionString`,
+    * q.v. for usage
+    */
+
+  def conditionParameters =
+    if (whereValues == null) new Array[ContentValue](0)
+    else whereValues.map{ CvString(_) }
 
   /** Returns a new ContentQuery with the same semantics as this one,
     * except that it adds extra conditions.  If the condition contains
@@ -376,8 +409,13 @@ abstract class ContentQuery[SourceType,IdType](
     * `Map` constructors.
     */
 
-  def update( assigns: (String, ContentValue)* ) = {
-    val cv = buildContentValues( assigns:_* )
+  def update( assigns: (String, ContentValue)* ) = 
+    updateFromContentValues( buildContentValues( assigns:_* ))
+
+  /** As `update`, but with parameters from a standard Android `ContentValues`
+    */
+
+  def updateFromContentValues( cv: ContentValues ) = {
     log( "update", contentValues = cv )
     source.update( subSource, cv, whereString, whereValues )
   }
@@ -394,8 +432,10 @@ abstract class ContentQuery[SourceType,IdType](
     * `Map` constructors.
     */
 
-  def insert( assigns: (String, ContentValue)* ) = {
-    val cv = buildContentValues( assigns:_* )
+  def insert( assigns: (String, ContentValue)* ) = 
+    insertFromContentValues( buildContentValues( assigns: _* ))
+
+  def insertFromContentValues( cv: ContentValues ) = {
     log( "insert", contentValues = cv )
     source.insert( subSource, cv )
   }
@@ -492,6 +532,9 @@ class PositronicCursor( wrappedCursor: android.database.Cursor )
 class CursorWrapper( wrappedCursor: android.database.Cursor ) 
   extends android.database.Cursor
 {
+  if (wrappedCursor == null)
+    throw new RuntimeException( "Can't wrap 'null' as a Cursor" )
+
   /** Provide a way to get the underlying object back, if 
     * somebody needs it ...
     */

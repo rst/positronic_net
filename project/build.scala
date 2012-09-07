@@ -7,7 +7,7 @@ object General {
   val settings = Defaults.defaultSettings ++ Seq (
     organization := "org.positronicnet",
     version := "0.4-SNAPSHOT",
-    scalaVersion := "2.9.0-1",
+    scalaVersion := "2.10.0-M7",
     platformName in Android := "android-14"
   )
 
@@ -17,7 +17,7 @@ object General {
     TypedResources.settings ++
     AndroidMarketPublish.settings ++ Seq (
       keyalias in Android := "change-me",
-      libraryDependencies += "org.scalatest" %% "scalatest" % "1.6.1" % "test",
+      libraryDependencies += "org.scalatest" % "scalatest_2.10.0-M7" % "1.9-2.10.0-M7-B1" % "test",
       proguardOption in Android := """
        -keepclassmembers class * implements java.io.Serializable {
         private static final java.io.ObjectStreamField[] serialPersistentFields;
@@ -62,7 +62,7 @@ object AndroidBuild extends Build {
     settings = General.settings ++ AndroidProject.androidSettings ++ Seq (
       keyalias in Android := "change-me",
       libraryDependencies ++= Seq( 
-        "org.scalatest" %% "scalatest" % "1.6.1",
+        "org.scalatest" % "scalatest_2.10.0-M7" % "1.9-2.10.0-M7-B1",
         "com.pivotallabs"%"robolectric"%"1.1"
       )))
 

@@ -49,7 +49,7 @@ object ReflectUtils
       val companionClass = Class.forName( klass.getName + "$" )
       val methods = 
         for (i <- Range( 1, constructorParmTypes.size + 1 ))
-        yield companionClass.getDeclaredMethod("init$default$"+i.toString)
+        yield companionClass.getDeclaredMethod("apply$default$"+i.toString)
       val companionObject = companionClass.getField("MODULE$").get(null)
       return (() => {
         val args = methods.map{ _.invoke( companionObject ) }

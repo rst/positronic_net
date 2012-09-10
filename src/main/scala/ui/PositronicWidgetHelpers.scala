@@ -35,6 +35,16 @@ trait PositronicHandlers extends View with GenericViewUtils {
     })
   }
 
+  def setOnLongClickListener( dummy : View.OnLongClickListener ): Unit
+
+  /** Call `func` when there is a long press on this view */
+
+  def onLongClick(func: => Unit) = {
+      setOnLongClickListener( new View.OnLongClickListener {
+          def onClick( dummy: View ) = { func }
+      })
+  }
+
   def setOnKeyListener( dummy: OnKeyListener ): Unit
 
   private var genericOnKeyHandler: ((Int, KeyEvent) => Boolean) = null

@@ -39,9 +39,9 @@ trait PositronicHandlers extends View with GenericViewUtils {
 
   /** Call `func` when there is a long press on this view */
 
-  def onLongClick(func: => Unit) = {
+  def onLongClick(func: => Boolean) = {
       setOnLongClickListener( new View.OnLongClickListener {
-          def onClick( dummy: View ) = { func }
+          def onLongClick( dummy: View ) : Boolean = { func }
       })
   }
 

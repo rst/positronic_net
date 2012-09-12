@@ -434,15 +434,6 @@ class PositronicExpandableListView( context: Context, attrs: AttributeSet = null
   with PositronicHandlers
   with PositronicItemHandlers
 
-/** An `android.widget.GridView` with [[org.positronicnet.ui.PositronicHandlers]]
- * and [[org.positronicnet.ui.PositronicItemHandlers]] mixed in.
- */
-
-class PositronicGridView( context: Context, attrs: AttributeSet = null )
-        extends _root_.android.widget.GridView( context, attrs )
-        with PositronicHandlers
-        with PositronicItemHandlers
-
 /** An `android.widget.Spinner` with [[org.positronicnet.ui.PositronicHandlers]]
   * and [[org.positronicnet.ui.PositronicItemHandlers]] mixed in.
   */

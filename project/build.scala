@@ -17,7 +17,12 @@ object General {
     TypedResources.settings ++
     AndroidMarketPublish.settings ++ Seq (
       keyalias in Android := "change-me",
-      libraryDependencies += "org.scalatest" % "scalatest_2.10.0-M7" % "1.9-2.10.0-M7-B1" % "test"
+      libraryDependencies += "org.scalatest" % "scalatest_2.10.0-M7" % "1.9-2.10.0-M7-B1" % "test",
+      
+      // Next line works around issue SI-5397 in prerelease Scala 2.10
+      proguardOption in Android := """
+       -keep class scala.collection.SeqLike { public protected *; }
+      """
     )
 }
 

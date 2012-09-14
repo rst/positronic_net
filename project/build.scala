@@ -17,16 +17,7 @@ object General {
     TypedResources.settings ++
     AndroidMarketPublish.settings ++ Seq (
       keyalias in Android := "change-me",
-      libraryDependencies += "org.scalatest" % "scalatest_2.10.0-M7" % "1.9-2.10.0-M7-B1" % "test",
-      proguardOption in Android := """
-       -keepclassmembers class * implements java.io.Serializable {
-        private static final java.io.ObjectStreamField[] serialPersistentFields;
-        private void writeObject(java.io.ObjectOutputStream);
-        private void readObject(java.io.ObjectInputStream);
-        java.lang.Object writeReplace();
-        java.lang.Object readResolve();
-       }
-      """
+      libraryDependencies += "org.scalatest" % "scalatest_2.10.0-M7" % "1.9-2.10.0-M7-B1" % "test"
     )
 }
 

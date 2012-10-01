@@ -86,7 +86,8 @@ trait WorkerThread extends AppFacility
   class QueueRunnerThread
     extends HandlerThread( this.toString ) 
   {
-    threadHandlerFut.succeed( new Handler() )
+    override def onLooperPrepared = 
+      threadHandlerFut.succeed( new Handler( this.getLooper ) )
   }
 
   private [this]

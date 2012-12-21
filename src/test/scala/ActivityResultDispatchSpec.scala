@@ -23,8 +23,8 @@ class DummyActivity
     lastStartIntent = intent
 }
 
-class DispatchingButton( ctx: Context, attrs: AttributeSet )
-  extends PositronicButton( ctx, attrs )
+class DispatchingTextView( ctx: Context, attrs: AttributeSet )
+  extends PositronicTextView( ctx, attrs )
   with ActivityResultDispatchClient
 {
   // Key to identify the "equivalent" ActivityResultDispatchClient
@@ -76,8 +76,8 @@ class ActivityResultDispatchSpec
       // Step 0:  Create objects
 
       val activity = new DummyActivity
-      val dispatchClient = new DispatchingButton( activity, 
-                                                  new TestAttributeSet )
+      val dispatchClient = new DispatchingTextView( activity, 
+                                                    new TestAttributeSet )
 
       // Step 1:  Register for dispatch services
 
@@ -118,8 +118,8 @@ class ActivityResultDispatchSpec
     it( "should find and go through the dispatcher" ) {
 
       val activity = new DummyActivity
-      val dispatchClient = new DispatchingButton( activity, 
-                                                  new TestAttributeSet )
+      val dispatchClient = new DispatchingTextView( activity, 
+                                                    new TestAttributeSet )
       val intent = new Intent("org.positronicnet.dummy")
 
       dispatchClient.startActivity( intent )

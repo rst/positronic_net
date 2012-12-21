@@ -1,4 +1,4 @@
 <manifest 
 android:versionName="0.1" android:versionCode="1" package="org.positronicnet.libresources" xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-sdk android:minSdkVersion="7" android:targetSdkVersion="14"></uses-sdk>
+    <uses-sdk android:minSdkVersion="7" android:targetSdkVersion="17"></uses-sdk>
 </manifest>

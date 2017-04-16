@@ -1,4 +1,4 @@
-#Positronic Net
+# Positronic Net
 
 Positronic Net is an attempt to add some MVC flavor to the process of
 developing Android apps, and to reduce the amount of boilerplate code
@@ -18,11 +18,11 @@ Available documentation includes:
 There are also two simple sample apps bundled with the library (as
 SBT subprojects).
 
-#Features
+# Features
 
 What's in the package right now includes the following:
 
-##Event handler declarations in a style reminiscent of jQuery:
+## Event handler declarations in a style reminiscent of jQuery:
 
     listsView.onItemClick { (view, posn, id) => viewListAt( posn ) }
 
@@ -37,7 +37,7 @@ premixed into `PositronicActivity`, `PositronicButton`, and so forth.
 don't have a Positronic shorthand for something, or just don't like
 it, the standard API is fully available.)
 
-##A fairly simple, lightweight ORM
+## A fairly simple, lightweight ORM
 
 Designing an object-relational mapper for Android means dealing with
 some unusual constraints.  Most notably, it's generally good practice
@@ -71,7 +71,7 @@ can include ORM-managed records going either way, which are considered
 to be immutable snapshots of the mutable persistent state that's managed
 by the ORM --- or requested changes to that state.
 
-###Basic ORM usage
+### Basic ORM usage
 
 To try to make that clear with a concrete example:  Imagine we have
 TodoItems which have a task description, and a "done" state.
@@ -113,7 +113,7 @@ and similar requests, on the thread that invoked them --- so if an
 activity does a `Fetch` on its main UI thread, it's safe to manipulate
 UI components within the `Fetch` body.)
 
-###"Change notification" framework
+### "Change notification" framework
 
 It can still be bothersome to have to explicitly re-query the ORM
 to refresh displays when relevant state changes.  If you have an
@@ -157,7 +157,7 @@ If you're doing something idiosyncratic, the underlying machinery
 is also available to be used directly, e.g. by `AddWatcher` and
 `StopWatcher` requests.
 
-###One-to-many associations
+### One-to-many associations
 
 The ORM also currently has some support for many-to-one and
 one-to-many associations.  An app which manages multiple to-do
@@ -184,7 +184,7 @@ Full examples of this can be seen by viewing the todo-list sample app
 in the `sample` directory; the above has been (slightly) simplified
 excerpts.
 
-##Miscellaneous shorthands
+## Miscellaneous shorthands
 
 The library also provides alternate overloads for a lot of standard
 framework APIs (usually to give them functional arguments instead of,
